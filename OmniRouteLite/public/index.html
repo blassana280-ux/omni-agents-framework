@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OmniRouteLite</title>
+<style>
+  :root{color-scheme:dark}
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.5 system-ui,sans-serif;background:#0b1020;color:#e8ecf8}
+  header{padding:16px 20px;background:#101736;border-bottom:1px solid #26315e;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+  h1{font-size:18px;margin:0}
+  .pill{background:#1c2650;border-radius:99px;padding:2px 10px;font-size:12px;color:#9db4ff}
+  main{max-width:760px;margin:0 auto;padding:20px;display:grid;gap:16px}
+  .card{background:#121a3a;border:1px solid #26315e;border-radius:12px;padding:14px 16px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+  .stat b{font-size:22px;display:block}
+  .stat span{color:#8ea0cf;font-size:12px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td,th{padding:4px 6px;border-bottom:1px solid #26315e;text-align:left}
+  .ok{color:#3ddc84}.ko{color:#ff5c7a}
+  textarea,input,select{width:100%;background:#0b1020;color:#e8ecf8;border:1px solid #26315e;border-radius:8px;padding:8px;font:inherit}
+  button{background:#3d5cff;color:#fff;border:0;border-radius:8px;padding:9px 16px;font:inherit;font-weight:600;cursor:pointer}
+  button:disabled{opacity:.5}
+  pre{background:#0b1020;border:1px solid #26315e;border-radius:8px;padding:10px;overflow:auto;white-space:pre-wrap;font-size:13px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  h2{font-size:14px;margin:0 0 10px;color:#9db4ff;text-transform:uppercase;letter-spacing:.05em}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ OmniRouteLite</h1>
+  <span class="pill" id="uptime">—</span>
+</header>
+<main>
+  <div class="card"><h2>Statistiques</h2>
+    <div class="grid" id="stats"></div>
+  </div>
+  <div class="card"><h2>Providers</h2>
+    <table id="providers"><thead><tr><th>Nom</th><th>Appels</th><th>Échecs</th><th>Santé</th></tr></thead><tbody></tbody></table>
+  </div>
+  <div class="card"><h2>Tester la passerelle</h2>
+    <div class="row" style="margin-bottom:8px">
+      <input id="model" placeholder="modèle (ex: mistral-large-latest)" style="flex:1;min-width:180px">
+      <input id="key" placeholder="clé gateway (si définie)" style="flex:1;min-width:140px">
+    </div>
+    <textarea id="prompt" rows="3" placeholder="Votre message…" style="margin-bottom:8px"></textarea>
+    <div class="row"><button id="send">Envoyer</button><span id="meta" style="color:#8ea0cf;font-size:12px"></span></div>
+    <pre id="out" hidden></pre>
+  </div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+async function tick(){
+  try{
+    const s = await (await fetch('/stats')).json();
+    const up = Math.round((Date.now() - new Date(s.startedAt))/60000);
+    $('uptime').textContent = `up ${up} min`;
+    $('stats').innerHTML = [
+      ['Requêtes', s.requests], ['Cache hits', s.cacheHits],
+      ['Tokens in', s.tokensIn], ['Tokens out', s.tokensOut], ['Tokens économisés', s.tokensSaved],
+    ].map(([k,v])=>`<div class="stat"><b>${v ?? 0}</b><span>${k}</span></div>`).join('');
+    $('providers').querySelector('tbody').innerHTML = Object.entries(s.providers).map(([n,p])=>
+      `<tr><td>${n}</td><td>${p.calls}</td><td>${p.failures}</td><td class="${p.failures>0?'ko':'ok'}">${p.failures>0?'dégradé':'OK'}</td></tr>`).join('');
+  }catch{}
+}
+$('send').onclick = async () => {
+  const btn = $('send'); btn.disabled = true; $('meta').textContent = '…';
+  const t0 = performance.now();
+  try{
+    const h = {'content-type':'application/json'};
+    if($('key').value) h.authorization = 'Bearer ' + $('key').value;
+    const r = await fetch('/v1/chat/completions', {method:'POST', headers:h, body:JSON.stringify({
+      model: $('model').value || 'mock-1', messages:[{role:'user', content:$('prompt').value}]
+    })});
+    const j = await r.json();
+    if(j.error) throw new Error(j.error.message);
+    $('out').hidden = false;
+    $('out').textContent = j.choices?.[0]?.message?.content ?? JSON.stringify(j, null, 2);
+    $('meta').textContent = `${j.omnilite?.cached ? '⚡ cache hit' : '↻ provider ' + j.omnilite?.provider} · ${Math.round(performance.now()-t0)} ms`;
+  }catch(e){ $('out').hidden=false; $('out').textContent = 'Erreur: ' + e.message; $('meta').textContent=''; }
+  btn.disabled = false;
+};
+tick(); setInterval(tick, 3000);
+</script>
+</body>
+</html>
