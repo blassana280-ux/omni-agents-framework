@@ -1,0 +1,380 @@
+{
+  "version": 1,
+  "description": "Agent profiles. provenance documents reuse of existing repositories; profiles are roles, not processes.",
+  "agents": [
+    {
+      "id": "omni-frontend",
+      "title": "Frontend & UI engineer",
+      "specialties": [
+        "frontend-ui",
+        "web-dev"
+      ],
+      "skills": [
+        "builder-ui",
+        "designer-skills",
+        "agent-skills-spec"
+      ],
+      "provenance": "reuse: HeyPuter/builder + Owl-Listener/designer-skills",
+      "boundaries": [
+        "no backend schema changes",
+        "no dependency upgrade without a lockfile diff"
+      ],
+      "brief_template": "Implement the UI change, run the build, attach the command output."
+    },
+    {
+      "id": "omni-web",
+      "title": "Web developer",
+      "specialties": [
+        "web-dev",
+        "frontend-ui"
+      ],
+      "skills": [
+        "builder-ui",
+        "agent-skills-spec"
+      ],
+      "provenance": "reuse: HeyPuter/builder",
+      "boundaries": [
+        "no deployment",
+        "no secrets in frontend code"
+      ],
+      "brief_template": "Implement the web change and prove it with a real build/test run."
+    },
+    {
+      "id": "omni-backend",
+      "title": "Backend & API engineer",
+      "specialties": [
+        "backend-api",
+        "automation"
+      ],
+      "skills": [
+        "mem0-memory",
+        "cognee-graph",
+        "microsoft-skills"
+      ],
+      "provenance": "reuse: mem0ai/mem0 + topoteretes/cognee (patterns), profile new",
+      "boundaries": [
+        "no production data access",
+        "no schema migration without a rollback note"
+      ],
+      "brief_template": "Implement the endpoint, run the tests, paste the output."
+    },
+    {
+      "id": "omni-architect",
+      "title": "Software architect",
+      "specialties": [
+        "software-architecture"
+      ],
+      "skills": [
+        "agency-agents-roles",
+        "context-engineering"
+      ],
+      "provenance": "reuse: msitarzewski/agency-agents + Meirtz/Awesome-Context-Engineering",
+      "boundaries": [
+        "does not write production code",
+        "must document trade-offs"
+      ],
+      "brief_template": "Produce an ADR with options, trade-offs and a recommendation."
+    },
+    {
+      "id": "omni-android",
+      "title": "Android developer",
+      "specialties": [
+        "android"
+      ],
+      "skills": [
+        "agent-skills-spec",
+        "microsoft-skills"
+      ],
+      "provenance": "new profile: no Android-specific agent exists in the account",
+      "boundaries": [
+        "no Play Store publishing",
+        "no signing keys in the repo"
+      ],
+      "brief_template": "Implement the Android change and prove it with a real gradle run."
+    },
+    {
+      "id": "omni-data",
+      "title": "Data analyst",
+      "specialties": [
+        "data-analysis"
+      ],
+      "skills": [
+        "ai-engineering-hub",
+        "awesome-llm-apps",
+        "cognee-graph"
+      ],
+      "provenance": "reuse: patchy631/ai-engineering-hub + Shubhamsaboo/awesome-llm-apps",
+      "boundaries": [
+        "no PII export",
+        "datasets must be referenced, not copied"
+      ],
+      "brief_template": "Analyse reproducibly: script + dataset reference + numbers."
+    },
+    {
+      "id": "omni-research",
+      "title": "Research & documentation",
+      "specialties": [
+        "research-docs"
+      ],
+      "skills": [
+        "awesome-agent-skills",
+        "agent-skills-index",
+        "prompt-engineering-guide",
+        "skills-collection"
+      ],
+      "provenance": "reuse: VoltAgent/awesome-agent-skills + imDev2023/agent-skills-index",
+      "boundaries": [
+        "no claim without a cited source",
+        "no invented URLs"
+      ],
+      "brief_template": "Answer with cited sources and a confidence note."
+    },
+    {
+      "id": "omni-security",
+      "title": "Defensive security reviewer",
+      "specialties": [
+        "security-defensive"
+      ],
+      "skills": [
+        "xquads-squads-adversarial",
+        "claude-code-internals"
+      ],
+      "provenance": "new profile built on ohmyjahh/xquads-squads review patterns",
+      "boundaries": [
+        "defensive only: no exploit, no credential harvesting, no scanning of third parties"
+      ],
+      "brief_template": "Threat-model, list findings with severity and remediation."
+    },
+    {
+      "id": "omni-qa",
+      "title": "Test & QA engineer",
+      "specialties": [
+        "testing-qa"
+      ],
+      "skills": [
+        "skills-ref-validator",
+        "agency-agents-roles"
+      ],
+      "provenance": "reuse: agentskills/skills-ref tests + msitarzewski/agency-agents",
+      "boundaries": [
+        "never writes tests that assert nothing",
+        "must show the run output"
+      ],
+      "brief_template": "Write and run tests; report the real output."
+    },
+    {
+      "id": "omni-debugger",
+      "title": "Debugger",
+      "specialties": [
+        "debugging"
+      ],
+      "skills": [
+        "agency-agents-roles",
+        "claude-code-internals"
+      ],
+      "provenance": "reuse: msitarzewski/agency-agents",
+      "boundaries": [
+        "root cause before fix",
+        "no silent retries that hide the bug"
+      ],
+      "brief_template": "Reproduce, isolate, prove the root cause, then fix."
+    },
+    {
+      "id": "omni-perf",
+      "title": "Performance engineer",
+      "specialties": [
+        "performance"
+      ],
+      "skills": [
+        "llmlingua-compression",
+        "lmcache-kv",
+        "gptcache-semantic"
+      ],
+      "provenance": "reuse: microsoft/LLMLingua + LMCache/LMCache + zilliztech/GPTCache",
+      "boundaries": [
+        "no benchmark without a baseline",
+        "no caching of user data"
+      ],
+      "brief_template": "Measure baseline, change one thing, measure again."
+    },
+    {
+      "id": "omni-devops",
+      "title": "DevOps & CI engineer",
+      "specialties": [
+        "devops-ci"
+      ],
+      "skills": [
+        "omni-gitops-toolkit",
+        "agency-agents-roles"
+      ],
+      "provenance": "reuse: msitarzewski/agency-agents + local gitops toolkit",
+      "boundaries": [
+        "no production deploy",
+        "no secrets in pipelines"
+      ],
+      "brief_template": "Propose the pipeline change with a rollback plan."
+    },
+    {
+      "id": "omni-gitops",
+      "title": "GitHub & repository manager",
+      "specialties": [
+        "github-repo"
+      ],
+      "skills": [
+        "omni-gitops-toolkit",
+        "contributing-policy"
+      ],
+      "provenance": "reuse: local omni/gitops.py + agentskills/agentskills CONTRIBUTING.md",
+      "boundaries": [
+        "never commit on main/master",
+        "never force-push",
+        "never merge without confirmation"
+      ],
+      "brief_template": "Create a work branch, commit, open a PR; never touch main."
+    },
+    {
+      "id": "omni-designer",
+      "title": "Design & UX lead",
+      "specialties": [
+        "design-ux"
+      ],
+      "skills": [
+        "designer-skills",
+        "resume-skills"
+      ],
+      "provenance": "reuse: Owl-Listener/designer-skills",
+      "boundaries": [
+        "no unverifiable usability claims",
+        "accessibility checked explicitly"
+      ],
+      "brief_template": "Deliver flows, states and accessibility notes."
+    },
+    {
+      "id": "omni-ai",
+      "title": "AI & LLM engineer",
+      "specialties": [
+        "ai-llm"
+      ],
+      "skills": [
+        "kilocode-agent",
+        "open-agents-runtime",
+        "omniroute-gateway",
+        "nine-router",
+        "mem0-memory",
+        "agent-skills-spec"
+      ],
+      "provenance": "reuse: Kilo-Org/kilocode + Impertio-Studio/Open-Agents + cheaper-inference/OmniRoute",
+      "boundaries": [
+        "no API key in code or config",
+        "no model capability claimed without a provider check"
+      ],
+      "brief_template": "Name the provider/model actually configured; document cost and limits."
+    },
+    {
+      "id": "omni-automation",
+      "title": "Automation engineer",
+      "specialties": [
+        "automation"
+      ],
+      "skills": [
+        "open-agents-runtime",
+        "antigravity-skills",
+        "game-dev-skills"
+      ],
+      "provenance": "reuse: Impertio-Studio/Open-Agents + pantalon81/antigravity-skills",
+      "boundaries": [
+        "scripts must be idempotent",
+        "no cron change without a dry run"
+      ],
+      "brief_template": "Write the script, run it twice, show both outputs are equivalent."
+    },
+    {
+      "id": "omni-reviewer",
+      "title": "Independent reviewer",
+      "specialties": [
+        "code-review"
+      ],
+      "skills": [
+        "agency-agents-roles",
+        "xquads-squads-adversarial"
+      ],
+      "provenance": "reuse: msitarzewski/agency-agents + ohmyjahh/xquads-squads",
+      "boundaries": [
+        "must not review its own work",
+        "default verdict is NEEDS WORK"
+      ],
+      "brief_template": "Review adversarially: findings, severity, and what would change your mind."
+    },
+    {
+      "id": "omni-librarian",
+      "title": "Skill librarian",
+      "specialties": [
+        "research-docs"
+      ],
+      "skills": [
+        "agent-skills-index",
+        "awesome-agent-skills",
+        "skills-collection",
+        "microsoft-skills"
+      ],
+      "provenance": "reuse: imDev2023/agent-skills-index + VoltAgent/awesome-agent-skills",
+      "boundaries": [
+        "never invents a skill path",
+        "reports unverified sources as unverified"
+      ],
+      "brief_template": "Search the registries before any new agent or skill is created."
+    },
+    {
+      "id": "omni-generalist",
+      "title": "Generalist fallback",
+      "specialties": [
+        "frontend-ui",
+        "backend-api",
+        "software-architecture",
+        "android",
+        "web-dev",
+        "data-analysis",
+        "research-docs",
+        "security-defensive",
+        "testing-qa",
+        "debugging",
+        "performance",
+        "devops-ci",
+        "github-repo",
+        "design-ux",
+        "ai-llm",
+        "automation",
+        "code-review",
+        "orchestration"
+      ],
+      "skills": [
+        "agent-skills-spec",
+        "agency-agents-roles",
+        "claude-code-internals"
+      ],
+      "provenance": "new profile: generic fallback used only when a specialist fails",
+      "boundaries": [
+        "must hand back to a specialist when one exists",
+        "no irreversible action"
+      ],
+      "brief_template": "Take over the failed task and report exactly what you could and could not do."
+    },
+    {
+      "id": "omnibrain",
+      "title": "OmniBrain orchestrator",
+      "specialties": [
+        "orchestration"
+      ],
+      "skills": [
+        "agent-skills-spec",
+        "omni-gitops-toolkit"
+      ],
+      "provenance": "core of this repository (omni/orchestrator.py)",
+      "boundaries": [
+        "delegates work, does not impersonate specialists",
+        "never claims an agent ran without a provider"
+      ],
+      "brief_template": "Classify, plan, dispatch, verify, assemble."
+    }
+  ]
+}
