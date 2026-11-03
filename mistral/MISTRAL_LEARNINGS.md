@@ -1,0 +1,41 @@
+# MISTRAL — apprentissage continu
+
+## Protocole (après chaque tâche importante)
+1. Analyser la stratégie. 2. Évaluer le résultat avec preuve. 3. Identifier les erreurs. 4. Trouver les causes racines. 5. Extraire les connaissances. 6. Enregistrer la leçon ici (ligne L-xxx suivante). 7. Corriger la méthode dans MISTRAL_MEMORY.md section D si procédurale. 8. Tester la correction à la prochaine occasion. 9. Mesurer avant/après. 10. Conserver uniquement les améliorations validées — sinon revenir à la version précédente (git pour ce miroir, historique de fichiers pour le dossier Knowledge).
+
+## Rubrique d'évaluation (par tâche)
+Résultat (atteint/partiel/échec) · Preuve · Erreurs · Leçon · Méthode changée (oui/non) · À re-vérifier.
+
+## Leçons enregistrées
+
+### L-001 — Auto-tester toute implémentation cryptographique (31/10/2026)
+Erreur : constante sha256 transcrite 0x06990624 au lieu de 0xd6990624 — empreintes fausses, 4 actions bloquées à tort (faux négatifs).
+Cause : transcription manuelle d'une table de constantes.
+Correction : auto-test systématique sur vecteurs connus AVANT toute décision fondée sur un hash. Appliqué comme garde-fou dans chaque exécution depuis.
+Statut : validé (7+ exécutions ultérieures conformes).
+
+### L-002 — Un 502 GitHub peut masquer une écriture réussie (31/10/2026)
+Erreur : 7 créations de branches « échouées » en 502 étaient en réalité réussies côté serveur.
+Cause : erreur proxy asynchrone — le code HTTP ne reflète pas toujours l'état final.
+Correction : après toute erreur d'écriture, vérifier l'état réel (list_branches / list_pull_requests) avant de réessayer ; traiter « already exists » comme un succès. Zéro doublon créé grâce à cette vérification.
+Statut : validé.
+
+### L-003 — Écritures GitHub en série, jamais en rafale parallèle (31/10/2026)
+Erreur : 7 chaînes d'écriture parallèles — 502 multiples + limite de débit secondaire GitHub.
+Correction : écritures sérialisées, lots de 2-4 dépôts, reprise sur l'état réel. Les 21 dépôts suivants : aucun incident.
+Statut : validé.
+
+### L-004 — Ne jamais pousser de contenu issu d'un fetch non déterministe (31/10/2026)
+Constat : le fetcher web (open_url) est non déterministe, insère des retours à la ligne aux frontières de chunks et tronque à ~32 000 caractères.
+Correction : tout contenu poussé passe un verrou d'empreinte (taille + sha256 attendues) ; lecture de contenu de dépôt uniquement via l'API GitHub authentifiée.
+Statut : préventif, validé sur 37 dépôts.
+
+### L-005 — Budget 60 s par exécution, aucun état entre exécutions (31/10/2026)
+Constat : deux exécutions ont dépassé le budget (une PR à reprendre manuellement) ; le sandbox ne conserve aucun état.
+Correction : chaînes courtes (max 4 dépôts par série), fetch + compose + verify + push dans la même exécution, reprise idempotente sur l'état réel après tout arrêt.
+Statut : validé.
+
+### L-006 — Signaler un refus de permission comme blocage, jamais le maquiller (31/10/2026)
+Constat : create_repository → 403 « Resource not accessible by integration ». L'app GitHub ne peut pas créer de dépôts.
+Correction : mesurer l'erreur, la consigner (MISTRAL_MEMORY.md §B), construire ce qui est opérationnel sans cette permission (Knowledge = source durable), et proposer à Lassana les voies de déblocage. Ne jamais prétendre que le miroir GitHub existe.
+Statut : appliqué — puis résolu le 03/11/2026 par hébergement en dossier mistral/ de omni-agents-framework (403 re-testé et confirmé stable ce jour-là).
