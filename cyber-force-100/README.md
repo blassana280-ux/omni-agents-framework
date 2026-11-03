@@ -2,7 +2,10 @@
 
 **Plateforme de cybersécurité défensive : 100 agents permanents, 10 divisions, autonomie encadrée, intégrée à OmniBrain.**
 
-> Statut : **Phase 1 — Fondation** (v0.1.0). Voir [docs/PHASES.md](docs/PHASES.md) pour l'état exact de chaque composant (fonctionnel / partiel / en développement / non implémenté).
+> Statut : **Phase 1 — Fondation** (v0.1.0), CI verte : 82/82 tests passés
+> ([onglet Actions](https://github.com/blassana280-ux/omni-agents-framework/actions)).
+> Voir [docs/PHASES.md](docs/PHASES.md) pour l'état exact de chaque composant
+> (fonctionnel / partiel / en développement / non implémenté).
 
 ## Ce que c'est
 

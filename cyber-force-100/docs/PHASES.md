@@ -13,9 +13,23 @@ Légende : ✅ Fonctionnel · 🟡 Partiellement fonctionnel · 🔵 En dévelop
 | Mémoire 4 niveaux | ✅ | SQLite, cloisonnement collectif/validé |
 | Zero Trust + anti-injection + secrets | ✅ | refus par défaut, garde sur toute tâche |
 | Documentation | ✅ | README, AGENTS.md, docs/ |
-| Tests | 🟡 | suite pytest complète écrite ; exécution locale impossible (pas d'interpréteur dans le bac à sable) → **preuve d'exécution via GitHub Actions CI** |
-| Branche + PR + CI | 🟡 | à la fin de la présente passe : branche `feature/cyber-force-100-foundation`, PR draft, workflow `cf100-ci.yml` |
+| Tests | ✅ | **82/82 tests pytest passés** — preuve d'exécution GitHub Actions (commit 3f5e947, runs des 03/11/2026, jobs `test` verts : install + `validate` + `audit` + `pytest`) |
+| Branche + PR + CI | ✅ | branche `feature/cyber-force-100-foundation`, PR draft #6, workflow `cf100-ci.yml` vert sur les deux runs |
 | Dépôt dédié | ⚪ | création refusée (HTTP 403, scope Administration manquant) — procédure dans docs/OMNIBRAIN-INTEGRATION.md |
+
+### Historique d'intégration (honnêteté opérationnelle)
+
+Le CI a échoué trois fois avant de passer — chaque échec a été corrigé,
+jamais masqué :
+
+1. `load_divisions` globait `registry/division-*.json` au lieu de
+   `registry/divisions/division-*.json` → aucun fichier trouvé ;
+2. `remediation.py` : import `dataclass` manquant → pytest interrompu
+   à la collecte ;
+3. 4 échecs de tests : imports manquants dans `test_evidence.py` /
+   `test_registry.py`, garde d'injection ne couvrant pas
+   « Ignore all previous instructions », journal de preuves ne
+   détectant pas la troncature de fin (sidecar `.head` ajouté).
 
 ## Phase 2 — Intelligence 🔵
 
@@ -35,8 +49,8 @@ Légende : ✅ Fonctionnel · 🟡 Partiellement fonctionnel · 🔵 En dévelop
 - Exécution réelle : ⚪ chaque agent s'exécute via un provider injecté ;
   les providers concrets (analyse réelle de fichiers, scans, API) arrivent
   progressivement — aucun agent ne simule de résultat (refus explicite).
-- Évaluation individuelle : 🔵 compteurs par agent présents ; tableau
-  d'évaluation complet en Phase 6.
+- Évaluation individuelle : 🟡 compteurs par agent (tasks_done/failed,
+  santé) — testés ; tableau d'évaluation complet en Phase 6.
 
 ## Phase 4 — Autonomie 🟡
 
@@ -57,11 +71,13 @@ Légende : ✅ Fonctionnel · 🟡 Partiellement fonctionnel · 🔵 En dévelop
 - API FastAPI : ✅ écrite (health, divisions, agents, preuves, tâches).
 - Front React : ⚪ non commencé.
 
-## Phase 7 — Validation ⚪
+## Phase 7 — Validation 🟡
 
-- Tests unitaires : ✅ écrits (attente preuve CI).
-- Intégration, sécurité, charge, récupération : ⚪/🔵 charge et sécurité
-  avancée à planifier après la première exécution CI verte.
+- Tests unitaires : ✅ **82/82 verts**, preuve CI GitHub Actions.
+- Intégration : ✅ test_integration.py vert (snapshot/restore, auto-audit,
+  export OmniBrain 100 agents, Command Core).
+- Sécurité : 🟡 garde anti-injection, Zero Trust, secrets et chaîne de
+  preuves testés ; audit de charge et pentest de l'API à planifier.
 
 ## Phase 8 — Déploiement ⚪
 
