@@ -56,8 +56,15 @@ registre, auto-audit, suite pytest complète — puis **met les agents en
 marche** : mission réelle de démonstration (`python -m cf100 demo`,
 données temporaires étiquetées, rien de persisté) et évaluation des
 100 agents (`python -m cf100 evaluate`), résultats publiés dans le
-résumé du run (onglet Summary de chaque run). Le CI est la preuve
-d'exécution de référence — consultez l'onglet Actions du dépôt.
+résumé du run (onglet Summary) et en annotations visibles publiquement.
+Le CI est la preuve d'exécution de référence — consultez l'onglet
+Actions du dépôt.
+
+**Mise en marche quotidienne** : le workflow est aussi déclenché par
+`schedule` tous les jours à **08:00 UTC (08:00 GMT, heure du Mali)** —
+les agents partent en mission automatiquement chaque matin, sans
+intervention. GitHub Actions peut ajouter quelques minutes de délai au
+déclenchement planifié.
 
 ## Sauvegardes et récupération
 
