@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cf100"
-version = "0.1.0"
+version = "0.2.0"
 description = "Cyber Force 100 — plateforme de cybersécurité défensive : 100 agents, 10 divisions, autonomie encadrée."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -14,7 +14,7 @@ dependencies = []
 
 [project.optional-dependencies]
 api = ["fastapi>=0.110", "uvicorn>=0.29"]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "httpx>=0.27"]
 
 [tool.setuptools.packages.find]
 include = ["cf100*"]

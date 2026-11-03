@@ -6,6 +6,8 @@ persistante à quatre niveaux et une intégration documentée avec OmniBrain
 (orchestrateur central du dépôt omni-agents-framework).
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
-PHASE = 1  # Fondation
+PHASE = 8  # 1 fondation → 2 intelligence → 3 évaluation → 4 autonomie
+           # (acquise en 1) → 5 OmniBrain → 6 dashboard → 7 validation
+           # → 8 déploiement
