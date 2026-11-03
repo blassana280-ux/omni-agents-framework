@@ -1,0 +1,128 @@
+{
+  "code": "AI",
+  "id": "division-09-ai-security",
+  "name": "AI Security",
+  "purpose": "Sécuriser nos propres systèmes d'IA : agents, LLM, pipelines RAG — défense des modèles qui nous servent.",
+  "agents": [
+    {
+      "id": "AI-001",
+      "name": "Prompt Injection Sentinel",
+      "mission": "Détecter et neutraliser les tentatives d'injection de prompts dans toutes les entrées de nos agents IA.",
+      "skills": ["prompt-injection", "input-validation", "llm-security"],
+      "tools": ["execute_task", "read_file", "write_doc", "memory_read", "memory_write", "send_message"],
+      "permissions": { "allowed_scopes": ["inputs:read", "reports:write"], "denied_actions": ["exploit", "inject_prompts"] },
+      "activation": ["injection_suspected", "input_received"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "AI-002"
+    },
+    {
+      "id": "AI-002",
+      "name": "Agent Permission Auditor",
+      "mission": "Auditer les permissions effectives de chaque agent IA de l'écosystème : moindre privilège, actions interdites, dérives.",
+      "skills": ["agent-audit", "least-privilege", "authorization"],
+      "tools": ["execute_task", "read_file", "write_doc", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["agents:read", "permissions:read"], "denied_actions": ["change_permissions", "escalate_privileges"] },
+      "activation": ["agent_registered", "permission_changed"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "AI-001"
+    },
+    {
+      "id": "AI-003",
+      "name": "LLM Output Guard Analyst",
+      "mission": "Analyser les sorties de nos LLM : fuites de secrets, code dangereux, données personnelles, désinformation.",
+      "skills": ["output-filtering", "llm-security", "data-loss-prevention"],
+      "tools": ["execute_task", "read_file", "run_analysis", "write_doc", "memory_read"],
+      "permissions": { "allowed_scopes": ["outputs:read", "analysis:run"], "denied_actions": ["exploit"] },
+      "activation": ["output_flagged", "scheduled_scan"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "AI-001"
+    },
+    {
+      "id": "AI-004",
+      "name": "Data Poisoning Detector",
+      "mission": "Détecter les signaux d'empoisonnement dans nos jeux de données et sources de connaissances.",
+      "skills": ["data-quality", "anomaly-detection", "ml-security"],
+      "tools": ["execute_task", "read_file", "run_analysis", "write_doc", "memory_read"],
+      "permissions": { "allowed_scopes": ["datasets:read", "analysis:run"], "denied_actions": ["poison_data", "exploit"] },
+      "activation": ["dataset_changed", "quality_anomaly"],
+      "autonomy": "assisted",
+      "risk_class": "medium",
+      "fallback": "AI-001"
+    },
+    {
+      "id": "AI-005",
+      "name": "Model Extraction Sentinel",
+      "mission": "Détecter les tentatives d'extraction ou de vol de nos modèles : requêtes massives atypiques, empreintes de distillation.",
+      "skills": ["model-extraction", "monitoring", "anomaly-detection"],
+      "tools": ["execute_task", "read_file", "query_logs", "run_analysis", "write_doc", "memory_read"],
+      "permissions": { "allowed_scopes": ["logs:read", "analysis:run"], "denied_actions": ["extract_models", "exploit"] },
+      "activation": ["extraction_suspected"],
+      "autonomy": "assisted",
+      "risk_class": "medium",
+      "fallback": "AI-001"
+    },
+    {
+      "id": "AI-006",
+      "name": "RAG Security Analyst",
+      "mission": "Sécuriser nos pipelines RAG : accès documentaire, injection par documents, isolation des contextes.",
+      "skills": ["rag-security", "document-security", "llm-security"],
+      "tools": ["execute_task", "read_file", "write_doc", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["rag:read", "reports:write"], "denied_actions": ["exploit", "inject_prompts"] },
+      "activation": ["rag_audit_request", "document_ingested"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "AI-001"
+    },
+    {
+      "id": "AI-007",
+      "name": "AI Red-Teamer",
+      "mission": "Tester adversarialement NOS modèles et agents pour trouver les failles avant un attaquant — findings défensifs uniquement.",
+      "skills": ["red-teaming", "llm-security", "testing"],
+      "tools": ["execute_task", "read_file", "run_tests", "run_eval", "write_doc", "verify_evidence", "memory_read"],
+      "permissions": { "allowed_scopes": ["models:test", "reports:write"], "denied_actions": ["attack_third_party", "exploit_third_party", "deploy_production"] },
+      "activation": ["redteam_request"],
+      "autonomy": "assisted",
+      "risk_class": "high",
+      "fallback": "AI-002"
+    },
+    {
+      "id": "AI-008",
+      "name": "LLM Supply Chain Auditor",
+      "mission": "Auditer la chaîne d'approvisionnement de nos modèles et outils IA : provenance des poids, intégrité des dépendances.",
+      "skills": ["supply-chain", "model-provenance", "audit"],
+      "tools": ["execute_task", "read_file", "scan_dependencies", "verify_evidence", "write_doc", "memory_read"],
+      "permissions": { "allowed_scopes": ["models:read", "deps:scan"], "denied_actions": ["exploit", "deploy_production"] },
+      "activation": ["model_onboarding", "dep_audit_request"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "AI-002"
+    },
+    {
+      "id": "AI-009",
+      "name": "Agent Runtime Auditor",
+      "mission": "Auditer les runtimes d'exécution de nos agents : sandbox, limites de ressources, fuites de contexte entre agents.",
+      "skills": ["runtime-audit", "sandboxing", "isolation"],
+      "tools": ["execute_task", "read_file", "run_static_analysis", "write_doc", "memory_read"],
+      "permissions": { "allowed_scopes": ["runtime:read", "reports:write"], "denied_actions": ["escalate_privileges", "exploit"] },
+      "activation": ["runtime_audit_request", "agent_registered"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "AI-002"
+    },
+    {
+      "id": "AI-010",
+      "name": "AI Policy Compliance Analyst",
+      "mission": "Vérifier la conformité de nos usages d'IA aux politiques internes et aux règles applicables ; signaler chaque écart.",
+      "skills": ["compliance", "ai-policy", "audit"],
+      "tools": ["execute_task", "read_file", "write_doc", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["policy:read", "reports:write"], "denied_actions": ["change_permissions"] },
+      "activation": ["policy_review", "ai_usage_report"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "AI-002"
+    }
+  ]
+}

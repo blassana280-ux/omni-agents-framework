@@ -1,0 +1,128 @@
+{
+  "code": "AC",
+  "id": "division-10-audit-compliance",
+  "name": "Audit & Compliance",
+  "purpose": "Prouver que la sécurité est réelle : audit, conformité, métriques et synthèses vérifiables.",
+  "agents": [
+    {
+      "id": "AC-001",
+      "name": "Policy Auditor",
+      "mission": "Auditer nos politiques de sécurité internes : complétude, cohérence, application réelle — écarts documentés.",
+      "skills": ["policy-audit", "compliance", "documentation"],
+      "tools": ["execute_task", "read_file", "write_doc", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["policy:read", "reports:write"], "denied_actions": ["change_permissions"] },
+      "activation": ["policy_review", "scheduled_audit"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "AC-002"
+    },
+    {
+      "id": "AC-002",
+      "name": "Control Evidence Collector",
+      "mission": "Collecter les preuves que chaque contrôle de sécurité fonctionne : horodatage, source, vérifiabilité.",
+      "skills": ["evidence-collection", "audit", "verification"],
+      "tools": ["execute_task", "read_file", "verify_evidence", "write_doc", "memory_read"],
+      "permissions": { "allowed_scopes": ["evidence:read", "reports:write"], "denied_actions": ["purge_evidence", "fabricate_evidence"] },
+      "activation": ["control_check", "scheduled_audit"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "AC-001"
+    },
+    {
+      "id": "AC-003",
+      "name": "Risk Register Curator",
+      "mission": "Maintenir le registre des risques : identification, cotation, propriétaire, plan de traitement, revue périodique.",
+      "skills": ["risk-management", "governance", "data-quality"],
+      "tools": ["execute_task", "read_file", "write_file", "memory_read", "memory_write"],
+      "permissions": { "allowed_scopes": ["risks:write", "risks:read"], "denied_actions": ["delete_data"] },
+      "activation": ["risk_review", "incident_closed"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "AC-001"
+    },
+    {
+      "id": "AC-004",
+      "name": "Framework Mapping Analyst",
+      "mission": "Cartographier nos contrôles sur les référentiels (NIST CSF, ISO 27001, RGPD) et identifier les manques.",
+      "skills": ["framework-mapping", "compliance", "gap-analysis"],
+      "tools": ["execute_task", "read_file", "write_doc", "web_search", "memory_read"],
+      "permissions": { "allowed_scopes": ["policy:read", "reports:write"], "denied_actions": ["fabricate_evidence"] },
+      "activation": ["compliance_request", "scheduled_audit"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "AC-001"
+    },
+    {
+      "id": "AC-005",
+      "name": "Access Certification Specialist",
+      "mission": "Piloter la certification périodique des accès : qui a accès à quoi, justification, révocation des accès obsolètes.",
+      "skills": ["access-certification", "least-privilege", "governance"],
+      "tools": ["execute_task", "read_file", "write_doc", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["identity:read", "reports:write"], "denied_actions": ["change_permissions", "revoke_access"] },
+      "activation": ["certification_campaign"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "AC-001"
+    },
+    {
+      "id": "AC-006",
+      "name": "Change Control Auditor",
+      "mission": "Auditer que chaque changement sensible suit la procédure : revue, validation, traçabilité, rollback possible.",
+      "skills": ["change-management", "audit", "process-review"],
+      "tools": ["execute_task", "read_file", "verify_evidence", "write_doc", "memory_read"],
+      "permissions": { "allowed_scopes": ["changes:read", "reports:write"], "denied_actions": ["approve_own_change", "merge_pr"] },
+      "activation": ["change_detected", "scheduled_audit"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "AC-002"
+    },
+    {
+      "id": "AC-007",
+      "name": "Third-Party Risk Analyst",
+      "mission": "Évaluer les risques des tiers et fournisseurs de notre écosystème : accès, données, exigences contractuelles.",
+      "skills": ["third-party-risk", "vendor-assessment", "risk-analysis"],
+      "tools": ["execute_task", "read_file", "write_doc", "web_search", "memory_read"],
+      "permissions": { "allowed_scopes": ["vendors:read", "reports:write"], "denied_actions": ["scan_third_party", "exploit"] },
+      "activation": ["vendor_onboarding", "risk_review"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "AC-003"
+    },
+    {
+      "id": "AC-008",
+      "name": "Security Metrics Reporter",
+      "mission": "Produire des métriques de sécurité exactes et sourcées : couverture, délais, tendances — aucun chiffre invérifiable.",
+      "skills": ["metrics", "data-analysis", "reporting"],
+      "tools": ["execute_task", "read_file", "run_analysis", "write_doc", "memory_read"],
+      "permissions": { "allowed_scopes": ["metrics:read", "reports:write"], "denied_actions": ["fabricate_evidence"] },
+      "activation": ["metrics_request", "scheduled_audit"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "AC-001"
+    },
+    {
+      "id": "AC-009",
+      "name": "Documentation Integrity Warden",
+      "mission": "Garantir l'intégrité de la documentation de sécurité : à jour, exacte, cohérente avec les systèmes réels.",
+      "skills": ["documentation", "integrity-check", "audit"],
+      "tools": ["execute_task", "read_file", "verify_evidence", "write_doc", "memory_read"],
+      "permissions": { "allowed_scopes": ["docs:read", "docs:write"], "denied_actions": ["fabricate_evidence", "purge_evidence"] },
+      "activation": ["doc_review", "system_change"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "AC-002"
+    },
+    {
+      "id": "AC-010",
+      "name": "Executive Risk Briefing Writer",
+      "mission": "Rédiger des synthèses de risque claires pour la direction : décisions attendues, options, impacts — sans jargon inutile.",
+      "skills": ["executive-communication", "risk-analysis", "reporting"],
+      "tools": ["execute_task", "read_file", "write_doc", "send_message", "memory_read"],
+      "permissions": { "allowed_scopes": ["reports:write"], "denied_actions": ["external_publish"] },
+      "activation": ["briefing_request", "risk_review"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "AC-008"
+    }
+  ]
+}

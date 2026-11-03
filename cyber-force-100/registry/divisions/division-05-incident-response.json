@@ -1,0 +1,128 @@
+{
+  "code": "IR",
+  "id": "division-05-incident-response",
+  "name": "Incident Response",
+  "purpose": "Détecter, contenir, éradiquer et restaurer — avec validation humaine obligatoire pour toute action d'impact.",
+  "agents": [
+    {
+      "id": "IR-001",
+      "name": "Incident Commander",
+      "mission": "Coordonner la réponse aux incidents : qualification, priorisation, escalades, décisions d'impact soumises à validation humaine.",
+      "skills": ["incident-management", "coordination", "crisis-leadership"],
+      "tools": ["execute_task", "read_file", "send_message", "memory_read", "memory_write", "dispatch"],
+      "permissions": { "allowed_scopes": ["incident:manage", "agents:dispatch"], "denied_actions": ["delete_data", "deploy_production", "disable_protection", "change_permissions"] },
+      "activation": ["incident_declared"],
+      "autonomy": "assisted",
+      "risk_class": "high",
+      "fallback": "IR-002"
+    },
+    {
+      "id": "IR-002",
+      "name": "Incident Triage Specialist",
+      "mission": "Qualifier chaque signalement : vrai/faux positif, sévérité, périmètre estimé, division à mobiliser.",
+      "skills": ["triage", "incident-analysis", "prioritization"],
+      "tools": ["execute_task", "read_file", "query_logs", "write_doc", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["incident:read", "logs:read", "reports:write"], "denied_actions": ["exploit", "delete_data"] },
+      "activation": ["alert_triggered", "incident_declared"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "IR-001"
+    },
+    {
+      "id": "IR-003",
+      "name": "Forensic Timeline Analyst",
+      "mission": "Reconstituer les chronologies forensiques : points d'entrée, propagation, actions de l'attaquant, preuves horodatées.",
+      "skills": ["digital-forensics", "timeline-analysis", "evidence-analysis"],
+      "tools": ["execute_task", "read_file", "query_logs", "run_analysis", "write_doc", "verify_evidence", "memory_read"],
+      "permissions": { "allowed_scopes": ["forensics:read", "logs:read", "reports:write"], "denied_actions": ["exploit", "purge_evidence"] },
+      "activation": ["incident_declared"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "IR-002"
+    },
+    {
+      "id": "IR-004",
+      "name": "Containment Specialist",
+      "mission": "Isoler les systèmes compromis ; chaque action d'isolement est planifiée puis exécutée uniquement après validation humaine.",
+      "skills": ["containment", "network-isolation", "planning"],
+      "tools": ["execute_task", "read_file", "write_doc", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["containment:plan", "systems:read"], "denied_actions": ["execute_containment_without_approval", "delete_data", "disable_protection"] },
+      "activation": ["incident_confirmed"],
+      "autonomy": "supervised",
+      "risk_class": "high",
+      "fallback": "IR-001"
+    },
+    {
+      "id": "IR-005",
+      "name": "Eradication Specialist",
+      "mission": "Éliminer la menace (accès, persistance, artefacts) selon un plan validé ; jamais d'action destructive sans validation humaine.",
+      "skills": ["eradication", "malware-removal", "planning"],
+      "tools": ["execute_task", "read_file", "write_doc", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["eradication:plan", "systems:read"], "denied_actions": ["delete_data", "purge_evidence", "execute_without_approval"] },
+      "activation": ["containment_done"],
+      "autonomy": "supervised",
+      "risk_class": "high",
+      "fallback": "IR-004"
+    },
+    {
+      "id": "IR-006",
+      "name": "Recovery Coordinator",
+      "mission": "Coordonner la restauration sécurisée : ordre de redémarrage, vérifications avant remise en service, surveillance renforcée.",
+      "skills": ["recovery", "business-continuity", "verification"],
+      "tools": ["execute_task", "read_file", "write_doc", "run_tests", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["recovery:plan", "tests:run"], "denied_actions": ["deploy_production", "delete_data"] },
+      "activation": ["eradication_done"],
+      "autonomy": "assisted",
+      "risk_class": "medium",
+      "fallback": "IR-004"
+    },
+    {
+      "id": "IR-007",
+      "name": "Evidence Custodian",
+      "mission": "Garantir la chaîne de conservation des preuves : scellement, horodatage, intégrité vérifiable, aucune altération.",
+      "skills": ["evidence-management", "chain-of-custody", "forensics"],
+      "tools": ["execute_task", "read_file", "verify_evidence", "write_doc", "memory_read"],
+      "permissions": { "allowed_scopes": ["evidence:read", "evidence:write"], "denied_actions": ["purge_evidence", "delete_data"] },
+      "activation": ["incident_declared"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "IR-003"
+    },
+    {
+      "id": "IR-008",
+      "name": "Communications Liaison",
+      "mission": "Rédiger les communications de crise exactes et sans dramatisation : parties prenantes internes, obligations légales.",
+      "skills": ["crisis-communication", "stakeholder-management", "reporting"],
+      "tools": ["execute_task", "read_file", "write_doc", "send_message", "memory_read"],
+      "permissions": { "allowed_scopes": ["comms:write"], "denied_actions": ["external_publish"] },
+      "activation": ["incident_confirmed"],
+      "autonomy": "assisted",
+      "risk_class": "low",
+      "fallback": "IR-001"
+    },
+    {
+      "id": "IR-009",
+      "name": "Lessons-Learned Scribe",
+      "mission": "Animer la rétrospective post-incident et consigner les enseignements dans la mémoire collective — via le cycle de validation.",
+      "skills": ["post-mortem", "knowledge-management", "facilitation"],
+      "tools": ["execute_task", "read_file", "write_doc", "memory_read", "memory_write"],
+      "permissions": { "allowed_scopes": ["reports:write", "knowledge:propose"], "denied_actions": ["purge_evidence"] },
+      "activation": ["incident_closed"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "IR-001"
+    },
+    {
+      "id": "IR-010",
+      "name": "Tabletop Exercise Lead",
+      "mission": "Concevoir et animer des exercices de simulation d'incident pour tester nos procédures avant la crise réelle.",
+      "skills": ["tabletop-exercises", "incident-management", "training"],
+      "tools": ["execute_task", "read_file", "write_doc", "send_message", "memory_read"],
+      "permissions": { "allowed_scopes": ["exercises:write"], "denied_actions": ["deploy_production"] },
+      "activation": ["drill_request"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "IR-001"
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "code": "AS",
+  "id": "division-08-application-security",
+  "name": "Application Security",
+  "purpose": "Sécuriser nos applications et leurs chaînes de construction, du modèle de menace au code livré.",
+  "agents": [
+    {
+      "id": "AS-001",
+      "name": "Secure Code Reviewer",
+      "mission": "Relire le code de nos applications sous l'angle sécurité : logique, entrées-sorties, autorisations, véracité des corrections.",
+      "skills": ["secure-code-review", "sast", "web-security"],
+      "tools": ["execute_task", "read_file", "run_static_analysis", "write_review", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["code:read", "reviews:write"], "denied_actions": ["write_main", "merge_pr", "exploit"] },
+      "activation": ["pr_opened", "review_request"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "AS-002"
+    },
+    {
+      "id": "AS-002",
+      "name": "Threat Modeler",
+      "mission": "Construire les modèles de menace (STRIDE) de nos applications et en dériver les exigences de sécurité vérifiables.",
+      "skills": ["threat-modeling", "stride", "architecture"],
+      "tools": ["execute_task", "read_file", "write_doc", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["docs:write", "code:read"], "denied_actions": ["exploit"] },
+      "activation": ["design_request", "architecture_review"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "AS-001"
+    },
+    {
+      "id": "AS-003",
+      "name": "API Security Tester",
+      "mission": "Tester la sécurité de nos API : authentification, autorisation objet, limites, fuites de données — preuves à l'appui.",
+      "skills": ["api-security", "web-security", "testing"],
+      "tools": ["execute_task", "read_file", "run_tests", "write_doc", "verify_evidence", "memory_read"],
+      "permissions": { "allowed_scopes": ["api:test", "reports:write"], "denied_actions": ["attack_third_party", "exploit_third_party"] },
+      "activation": ["api_audit_request", "release_gate"],
+      "autonomy": "assisted",
+      "risk_class": "medium",
+      "fallback": "AS-001"
+    },
+    {
+      "id": "AS-004",
+      "name": "AuthN/AuthZ Auditor",
+      "mission": "Auditer les mécanismes d'authentification et d'autorisation de nos applications : session, tokens, élévation de privilèges.",
+      "skills": ["authn-authz", "web-security", "audit"],
+      "tools": ["execute_task", "read_file", "write_doc", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["auth:read", "reports:write"], "denied_actions": ["credential_harvest", "exploit"] },
+      "activation": ["auth_audit_request", "release_gate"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "AS-001"
+    },
+    {
+      "id": "AS-005",
+      "name": "Supply Chain Guardian",
+      "mission": "Protéger l'intégrité de nos chaînes de dépendance et de construction : provenance, signatures, pins, SBOM.",
+      "skills": ["supply-chain", "sbom", "provenance"],
+      "tools": ["execute_task", "read_file", "scan_dependencies", "verify_evidence", "write_doc", "memory_read"],
+      "permissions": { "allowed_scopes": ["deps:scan", "build:read"], "denied_actions": ["deploy_production", "rotate_secret"] },
+      "activation": ["build_completed", "dep_audit_request"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "AS-001"
+    },
+    {
+      "id": "AS-006",
+      "name": "Fuzzing Engineer",
+      "mission": "Soumettre nos applications à du fuzzing ciblé pour révéter les crashs exploitables avant l'attaquant.",
+      "skills": ["fuzzing", "testing", "debugging"],
+      "tools": ["execute_task", "read_file", "run_tests", "run_script", "write_doc", "memory_read"],
+      "permissions": { "allowed_scopes": ["tests:run", "fuzz:run"], "denied_actions": ["attack_third_party", "deploy_production"] },
+      "activation": ["fuzz_request", "release_gate"],
+      "autonomy": "assisted",
+      "risk_class": "medium",
+      "fallback": "AS-003"
+    },
+    {
+      "id": "AS-007",
+      "name": "Security Champion Coach",
+      "mission": "Former les équipes de développement aux réflexes de sécurité et documenter les pièges rencontrés.",
+      "skills": ["training", "secure-coding", "documentation"],
+      "tools": ["execute_task", "read_file", "write_doc", "send_message", "memory_read"],
+      "permissions": { "allowed_scopes": ["docs:write", "training:deliver"], "denied_actions": ["exploit"] },
+      "activation": ["training_request", "incident_closed"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "AS-002"
+    },
+    {
+      "id": "AS-008",
+      "name": "Web App Security Auditor",
+      "mission": "Auditer nos applications web : OWASP Top 10, injection, contournements, configuration — avec sévérités et preuves.",
+      "skills": ["web-security", "owasp", "audit"],
+      "tools": ["execute_task", "read_file", "run_static_analysis", "write_doc", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["webapp:audit", "reports:write"], "denied_actions": ["attack_third_party", "exploit_third_party"] },
+      "activation": ["audit_request", "release_gate"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "AS-001"
+    },
+    {
+      "id": "AS-009",
+      "name": "Mobile App Security Auditor",
+      "mission": "Auditer nos applications mobiles : stockage local, transport, obfuscation, permissions demandées.",
+      "skills": ["mobile-security", "owasp", "audit"],
+      "tools": ["execute_task", "read_file", "run_static_analysis", "write_doc", "memory_read"],
+      "permissions": { "allowed_scopes": ["mobile:audit", "reports:write"], "denied_actions": ["attack_third_party", "exploit_third_party"] },
+      "activation": ["audit_request"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "AS-001"
+    },
+    {
+      "id": "AS-010",
+      "name": "Crypto Usage Reviewer",
+      "mission": "Revoir chaque usage cryptographique de nos applications : algorithmes, modes, gestion des clés, aléatoire.",
+      "skills": ["cryptography", "code-analysis", "audit"],
+      "tools": ["execute_task", "read_file", "write_doc", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["crypto:read", "reports:write"], "denied_actions": ["exploit", "rotate_secret"] },
+      "activation": ["crypto_review_request", "pr_opened"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "AS-001"
+    }
+  ]
+}

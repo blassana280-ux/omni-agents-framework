@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "description": "Politiques Cyber Force 100 — autonomie maximale encadrée. Aligné sur registry/permissions.json d'OmniBrain (omni-agents-framework) : toute action dangereuse est refusée sans validation humaine explicite, même pour un agent autorisé.",
+  "tool_whitelist": [
+    "execute_task", "read_file", "write_file", "write_doc", "read_doc",
+    "search_skills", "memory_read", "memory_write", "send_message",
+    "web_search", "run_static_analysis", "run_tests", "run_build",
+    "run_script", "run_analysis", "run_benchmark", "run_eval",
+    "git_branch", "git_commit", "git_push", "open_pr",
+    "scan_dependencies", "scan_secrets", "scan_containers", "scan_iac",
+    "query_logs", "sandbox_execute", "generate_yara", "verify_evidence",
+    "dispatch", "write_review"
+  ],
+  "dangerous_actions": [
+    "merge_pr", "force_push", "delete_repo", "delete_branch",
+    "delete_data", "rotate_secret", "write_main", "change_permissions",
+    "disable_protection", "purge_evidence", "deploy_production"
+  ],
+  "never_autonomous": [
+    "merge_pr", "force_push", "delete_repo", "delete_branch",
+    "delete_data", "rotate_secret", "write_main", "change_permissions",
+    "disable_protection", "purge_evidence", "deploy_production"
+  ],
+  "risk_rules": {
+    "low":      { "auto_execute": true,  "notify": false },
+    "medium":   { "auto_execute": true,  "notify": true  },
+    "high":     { "auto_execute": false, "approval": "human" },
+    "critical": { "auto_execute": false, "approval": "human", "second_reviewer": true }
+  },
+  "action_risk": {
+    "read_file": "low", "read_doc": "low", "memory_read": "low",
+    "memory_write": "low", "send_message": "low", "web_search": "low",
+    "search_skills": "low", "execute_task": "low", "write_review": "low",
+    "run_static_analysis": "medium", "scan_dependencies": "medium",
+    "scan_secrets": "medium", "scan_containers": "medium",
+    "scan_iac": "medium", "query_logs": "medium", "run_tests": "medium",
+    "run_analysis": "medium", "run_benchmark": "medium", "run_eval": "medium",
+    "write_file": "medium", "write_doc": "medium", "generate_yara": "medium",
+    "verify_evidence": "medium", "git_branch": "medium", "git_commit": "medium",
+    "run_build": "medium", "run_script": "medium", "dispatch": "medium",
+    "git_push": "high", "open_pr": "high", "sandbox_execute": "high",
+    "merge_pr": "critical", "force_push": "critical",
+    "delete_repo": "critical", "delete_branch": "critical",
+    "delete_data": "critical", "rotate_secret": "critical",
+    "write_main": "critical", "change_permissions": "critical",
+    "disable_protection": "critical", "purge_evidence": "critical",
+    "deploy_production": "critical"
+  },
+  "github_integration": {
+    "branching": "feature/cyber-force-100-<sujet>",
+    "write_main": false,
+    "auto_merge": false,
+    "secrets": "variables d'environnement uniquement, jamais dans les dépôts"
+  }
+}

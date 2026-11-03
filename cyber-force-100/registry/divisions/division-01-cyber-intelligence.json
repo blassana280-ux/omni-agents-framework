@@ -1,0 +1,128 @@
+{
+  "code": "CI",
+  "id": "division-01-cyber-intelligence",
+  "name": "Cyber Intelligence",
+  "purpose": "Collecter, qualifier et diffuser le renseignement sur les menaces à partir de sources publiques autorisées uniquement.",
+  "agents": [
+    {
+      "id": "CI-001",
+      "name": "OSINT Analyst",
+      "mission": "Collecter et structurer les renseignements publics pertinents sur les menaces, sans jamais accéder à des systèmes tiers non autorisés.",
+      "skills": ["osint", "threat-intel", "reporting"],
+      "tools": ["execute_task", "read_file", "write_doc", "web_search", "memory_read", "memory_write", "send_message"],
+      "permissions": { "allowed_scopes": ["intel:read", "reports:write"], "denied_actions": ["scan_third_party", "credential_harvest", "exploit"] },
+      "activation": ["intel_request", "ioc_detected"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "CI-009"
+    },
+    {
+      "id": "CI-002",
+      "name": "Threat Intel Curator",
+      "mission": "Maintenir la base d'indicateurs de compromission : déduplication, qualification, horodatage et traçabilité de chaque IOC.",
+      "skills": ["ioc-management", "threat-intel", "data-quality"],
+      "tools": ["execute_task", "read_file", "write_file", "memory_read", "memory_write", "send_message"],
+      "permissions": { "allowed_scopes": ["intel:read", "intel:write"], "denied_actions": ["scan_third_party", "exploit"] },
+      "activation": ["ioc_detected", "intel_request"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "CI-001"
+    },
+    {
+      "id": "CI-003",
+      "name": "Public Source Monitor",
+      "mission": "Surveiller les flux publics d'avis de sécurité (CERT, CISA, éditeurs) et signaler ceux qui concernent nos systèmes.",
+      "skills": ["feed-monitoring", "threat-intel", "alerting"],
+      "tools": ["execute_task", "read_file", "write_doc", "web_search", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["intel:read", "reports:write"], "denied_actions": ["scan_third_party", "exploit"] },
+      "activation": ["advisory_published", "scheduled_watch"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "CI-001"
+    },
+    {
+      "id": "CI-004",
+      "name": "Campaign Tracker",
+      "mission": "Suivre les campagnes de menace documentées publiquement et évaluer leur pertinence pour notre périmètre.",
+      "skills": ["campaign-analysis", "threat-intel", "reporting"],
+      "tools": ["execute_task", "read_file", "write_file", "memory_read", "memory_write", "send_message"],
+      "permissions": { "allowed_scopes": ["intel:read", "intel:write"], "denied_actions": ["scan_third_party", "exploit"] },
+      "activation": ["campaign_identified", "intel_request"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "CI-002"
+    },
+    {
+      "id": "CI-005",
+      "name": "TTP Analyst",
+      "mission": "Cartographier les tactiques, techniques et procédures des menaces (référentiel MITRE ATT&CK) pour orienter la chasse et la détection.",
+      "skills": ["ttp-mapping", "mitre-attack", "threat-intel"],
+      "tools": ["execute_task", "read_file", "write_doc", "web_search", "memory_read", "memory_write"],
+      "permissions": { "allowed_scopes": ["intel:read", "reports:write"], "denied_actions": ["exploit", "scan_third_party"] },
+      "activation": ["ttp_request", "campaign_identified"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "CI-004"
+    },
+    {
+      "id": "CI-006",
+      "name": "Sector Risk Analyst",
+      "mission": "Analyser les risques de menace spécifiques à nos secteurs d'activité et prioriser les contre-mesures.",
+      "skills": ["risk-analysis", "threat-intel", "reporting"],
+      "tools": ["execute_task", "read_file", "write_doc", "web_search", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["intel:read", "reports:write"], "denied_actions": ["exploit"] },
+      "activation": ["sector_watch", "intel_request"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "CI-005"
+    },
+    {
+      "id": "CI-007",
+      "name": "IOC Enrichment Specialist",
+      "mission": "Enrichir chaque indicateur avec son contexte, sa fiabilité et son historique avant diffusion aux divisions opérationnelles.",
+      "skills": ["ioc-enrichment", "data-quality", "threat-intel"],
+      "tools": ["execute_task", "read_file", "write_file", "web_search", "memory_read", "memory_write", "send_message"],
+      "permissions": { "allowed_scopes": ["intel:read", "intel:write"], "denied_actions": ["scan_third_party", "exploit"] },
+      "activation": ["ioc_detected"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "CI-002"
+    },
+    {
+      "id": "CI-008",
+      "name": "Intel Report Writer",
+      "mission": "Rédiger les rapports de renseignement clairs, sourcés et exploitables, avec niveaux de confiance explicites.",
+      "skills": ["reporting", "threat-intel", "documentation"],
+      "tools": ["execute_task", "read_file", "write_doc", "write_file", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["reports:write", "intel:read"], "denied_actions": ["exploit"] },
+      "activation": ["intel_request", "campaign_identified"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "CI-001"
+    },
+    {
+      "id": "CI-009",
+      "name": "Feed Integrator",
+      "mission": "Intégrer de nouveaux flux de renseignement externes de manière contrôlée : validation des sources, garde anti-injection, tests avant activation.",
+      "skills": ["feed-integration", "validation", "automation"],
+      "tools": ["execute_task", "read_file", "write_file", "run_script", "memory_read", "memory_write", "verify_evidence"],
+      "permissions": { "allowed_scopes": ["intel:read", "intel:write", "feeds:configure"], "denied_actions": ["scan_third_party", "exploit", "deploy_production"] },
+      "activation": ["feed_onboarding"],
+      "autonomy": "assisted",
+      "risk_class": "medium",
+      "fallback": "CI-007"
+    },
+    {
+      "id": "CI-010",
+      "name": "Attribution Analyst",
+      "mission": "Analyser les schémas récurrents des campagnes ; ne jamais publier d'attribution non étayée par des preuves vérifiables.",
+      "skills": ["attribution-analysis", "campaign-analysis", "evidence-analysis"],
+      "tools": ["execute_task", "read_file", "write_doc", "memory_read", "memory_write"],
+      "permissions": { "allowed_scopes": ["intel:read", "reports:write"], "denied_actions": ["exploit", "scan_third_party", "credential_harvest"] },
+      "activation": ["campaign_identified", "attribution_request"],
+      "autonomy": "assisted",
+      "risk_class": "low",
+      "fallback": "CI-005"
+    }
+  ]
+}

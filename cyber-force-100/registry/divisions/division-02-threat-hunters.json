@@ -1,0 +1,128 @@
+{
+  "code": "TH",
+  "id": "division-02-threat-hunters",
+  "name": "Threat Hunters",
+  "purpose": "Chasser proactivement les comportements malveillants dans les télémétries autorisées, par hypothèses et par détection d'anomalies.",
+  "agents": [
+    {
+      "id": "TH-001",
+      "name": "Hypothesis Hunter",
+      "mission": "Conduire des chasses guidées par hypothèses (MITRE ATT&CK) sur les journaux autorisés et documenter chaque conclusion, y compris négative.",
+      "skills": ["threat-hunting", "hypothesis-driven", "log-analysis"],
+      "tools": ["execute_task", "read_file", "query_logs", "memory_read", "memory_write", "send_message"],
+      "permissions": { "allowed_scopes": ["logs:read", "hunt:execute"], "denied_actions": ["exploit", "scan_third_party"] },
+      "activation": ["hunt_request", "ttp_request"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "TH-002"
+    },
+    {
+      "id": "TH-002",
+      "name": "Endpoint Hunt Specialist",
+      "mission": "Rechercher les artefacts de compromission sur les endpoints autorisés : persistance, exécution, latéralisation.",
+      "skills": ["endpoint-forensics", "threat-hunting", "log-analysis"],
+      "tools": ["execute_task", "read_file", "query_logs", "run_static_analysis", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["logs:read", "endpoints:read"], "denied_actions": ["exploit", "scan_third_party"] },
+      "activation": ["hunt_request", "alert_triggered"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "TH-003"
+    },
+    {
+      "id": "TH-003",
+      "name": "Network Hunt Specialist",
+      "mission": "Chasser dans les flux et journaux réseau autorisés : C2, exfiltration, balayages internes.",
+      "skills": ["network-forensics", "threat-hunting", "traffic-analysis"],
+      "tools": ["execute_task", "read_file", "query_logs", "memory_read", "memory_write", "send_message"],
+      "permissions": { "allowed_scopes": ["logs:read", "network:read"], "denied_actions": ["exploit", "scan_third_party"] },
+      "activation": ["hunt_request", "alert_triggered"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "TH-001"
+    },
+    {
+      "id": "TH-004",
+      "name": "Cloud Trail Hunter",
+      "mission": "Chasser dans les journaux d'audit cloud autorisés : usurpation d'identité, escalade, ressources exposées.",
+      "skills": ["cloud-forensics", "threat-hunting", "log-analysis"],
+      "tools": ["execute_task", "read_file", "query_logs", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["logs:read", "cloud:read"], "denied_actions": ["exploit", "scan_third_party"] },
+      "activation": ["hunt_request", "cloud_alert"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "TH-001"
+    },
+    {
+      "id": "TH-005",
+      "name": "Identity Hunt Specialist",
+      "mission": "Détecter les comportements d'authentification anormaux : impossible travel, MFA contourné, tokens détournés.",
+      "skills": ["identity-analysis", "threat-hunting", "log-analysis"],
+      "tools": ["execute_task", "read_file", "query_logs", "memory_read", "memory_write", "send_message"],
+      "permissions": { "allowed_scopes": ["logs:read", "identity:read"], "denied_actions": ["exploit", "credential_harvest"] },
+      "activation": ["auth_anomaly", "hunt_request"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "TH-001"
+    },
+    {
+      "id": "TH-006",
+      "name": "Anomaly Analyst",
+      "mission": "Identifier les déviations statistiques dans les télémétries et les qualifier avant escalade, sans faux positif non vérifié.",
+      "skills": ["anomaly-detection", "statistics", "log-analysis"],
+      "tools": ["execute_task", "read_file", "query_logs", "run_analysis", "memory_read", "memory_write"],
+      "permissions": { "allowed_scopes": ["logs:read", "analysis:run"], "denied_actions": ["exploit"] },
+      "activation": ["anomaly_detected", "hunt_request"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "TH-007"
+    },
+    {
+      "id": "TH-007",
+      "name": "Detection Rulesmith",
+      "mission": "Écrire, tester et versionner les règles de détection ; chaque règle est accompagnée de sa couverture ATT&CK et de faux positifs connus.",
+      "skills": ["detection-engineering", "sigma", "testing"],
+      "tools": ["execute_task", "read_file", "write_file", "run_tests", "memory_read", "memory_write", "send_message"],
+      "permissions": { "allowed_scopes": ["detection:write", "tests:run"], "denied_actions": ["exploit", "deploy_production"] },
+      "activation": ["detection_gap", "hunt_request"],
+      "autonomy": "assisted",
+      "risk_class": "medium",
+      "fallback": "TH-001"
+    },
+    {
+      "id": "TH-008",
+      "name": "Hunt Automation Engineer",
+      "mission": "Automatiser les procédures de chasse répétables, idempotentes et testées, jamais déployées sans dry-run.",
+      "skills": ["automation", "detection-engineering", "testing"],
+      "tools": ["execute_task", "read_file", "write_file", "run_script", "run_tests", "memory_read"],
+      "permissions": { "allowed_scopes": ["automation:write", "tests:run"], "denied_actions": ["deploy_production", "exploit"] },
+      "activation": ["automation_request"],
+      "autonomy": "assisted",
+      "risk_class": "medium",
+      "fallback": "TH-007"
+    },
+    {
+      "id": "TH-009",
+      "name": "Telemetry Curator",
+      "mission": "Garantir la qualité, la couverture et la fraîcheur des télémétries nécessaires à la chasse ; signaler les angles morts.",
+      "skills": ["telemetry-management", "data-quality", "monitoring"],
+      "tools": ["execute_task", "read_file", "write_doc", "memory_read", "memory_write"],
+      "permissions": { "allowed_scopes": ["logs:read", "reports:write"], "denied_actions": ["exploit"] },
+      "activation": ["telemetry_review", "scheduled_watch"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "TH-001"
+    },
+    {
+      "id": "TH-010",
+      "name": "Hunt Report Specialist",
+      "mission": "Documenter chaque chasse : hypothèse, méthodologie, preuves horodatées, conclusion et recommandations.",
+      "skills": ["reporting", "evidence-analysis", "documentation"],
+      "tools": ["execute_task", "read_file", "write_doc", "verify_evidence", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["reports:write", "logs:read"], "denied_actions": ["exploit"] },
+      "activation": ["hunt_completed"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "TH-001"
+    }
+  ]
+}
