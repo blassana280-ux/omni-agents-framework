@@ -1,5 +1,6 @@
-"""Ponts d'intégration : OmniBrain (prioritaire) et Arena (Phase 5)."""
+"""Ponts d'intégration : OmniBrain (lecture/export + file de coordination)."""
 
+from cf100.bridges.omni_queue import OmniCoordinator, OmniQueue
 from cf100.bridges.omnibrain import OmniBrainBridge
 
-__all__ = ["OmniBrainBridge"]
+__all__ = ["OmniBrainBridge", "OmniCoordinator", "OmniQueue"]
