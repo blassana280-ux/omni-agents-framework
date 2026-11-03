@@ -1,8 +1,10 @@
 name: CF100 CI
 
+# push limité à main : la PR #6 déclenche déjà pull_request à chaque
+# commit de la branche — le double déclencheur doublonnait chaque run.
 on:
   push:
-    branches: [main, feature/cyber-force-100-foundation]
+    branches: [main]
     paths:
       - "cyber-force-100/**"
       - ".github/workflows/cf100-ci.yml"

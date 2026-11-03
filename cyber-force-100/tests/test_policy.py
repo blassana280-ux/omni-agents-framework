@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from cf100.agents.models import Autonomy, RiskClass
@@ -35,6 +37,35 @@ def test_ledger_rejects_agent_approval(ledger):
         ledger.approve("delete_data", approver="IR-001")
     with pytest.raises(ValueError):
         ledger.approve("delete_data", approver="DYN-123-x")
+
+
+def test_approval_without_ttl_persists(ledger):
+    # comportement historique : sans TTL, l'approbation reste valable
+    ledger.approve("merge_pr", approver="Lassana Bah")
+    assert ledger.has_valid_approval("merge_pr")
+
+
+def test_approval_ttl_expires(ledger):
+    # avec TTL court, l'approbation expire et est ignorée
+    ledger.approve("deploy_production", approver="Lassana Bah",
+                   ttl_seconds=0.05)
+    assert ledger.has_valid_approval("deploy_production")
+    time.sleep(0.1)
+    assert not ledger.has_valid_approval("deploy_production")
+
+
+def test_expired_approval_does_not_unlock_dangerous_action(registry,
+                                                            policy_engine,
+                                                            ledger):
+    ledger.approve("rotate_secret", approver="Lassana Bah",
+                   ttl_seconds=0.05)
+    time.sleep(0.1)
+    agent = registry.by_id("AS-001")
+    agent.tools = list(agent.tools) + ["rotate_secret"]
+    decision = policy_engine.authorize(agent, "rotate_secret", {})
+    assert not decision.allowed
+    assert decision.needs_approval
+    agent.tools.remove("rotate_secret")
 
 
 def test_default_deny_unknown_tool(registry, policy_engine):

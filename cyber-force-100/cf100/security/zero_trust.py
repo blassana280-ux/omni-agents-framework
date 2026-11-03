@@ -2,11 +2,13 @@
 
 Aucune confiance implicite : chaque interaction d'un agent passe par
 authenticate() puis par une autorisation explicite. Un principal inconnu
-est toujours refusé.
+est toujours refusé. Un humain n'est authentifié QUE sur présentation
+du secret partagé de l'annuaire — jamais sur son seul identifiant.
 """
 
 from __future__ import annotations
 
+import hmac
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
@@ -33,11 +35,19 @@ def authenticate(principal_id: str, token: Optional[str] = None,
                  registry: Optional[Registry] = None,
                  human_ids: Optional[Dict[str, str]] = None) -> Principal:
     """Authentifie un principal. Les humains viennent d'un annuaire
-    explicite (human_ids : {id: secret partagé}) ; les agents doivent
-    exister dans le registre. Les tokens d'agents sont vérifiés par
-    l'orchestrateur à la distribution — ici on vérifie l'existence.
+    explicite (human_ids : {id: secret partagé}) et DOIVENT présenter
+    le secret correspondant (comparaison à temps constant) ; les agents
+    doivent exister dans le registre. Les tokens d'agents sont vérifiés
+    par l'orchestrateur à la distribution — ici on vérifie l'existence.
     """
     if human_ids and principal_id in human_ids:
+        expected = human_ids[principal_id]
+        if not token or not hmac.compare_digest(
+                str(token).encode("utf-8"),
+                str(expected).encode("utf-8")):
+            raise IdentityError(
+                f"authentification de {principal_id} échouée : secret "
+                f"absent ou invalide (refus par défaut)")
         return Principal(principal_id, "human", True, time.time())
     if registry is not None:
         spec = registry.by_id(principal_id)

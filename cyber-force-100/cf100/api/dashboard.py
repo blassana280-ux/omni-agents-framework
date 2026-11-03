@@ -3,7 +3,8 @@
 Une page unique servie par GET /dashboard : HTML + CSS + JavaScript
 vanilla qui interrogent l'API locale (/health, /divisions, /agents,
 /evaluation, /evidence/verify). Aucune ressource externe : la page
-fonctionne hors ligne et n'exfiltre rien.
+fonctionne hors ligne et n'exfiltre rien. Toute donnée interpolée en
+HTML est échappée (défense XSS en profondeur).
 """
 
 from __future__ import annotations
@@ -65,9 +66,12 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 "use strict";
 const TAGS = {"opérationnel": "v-op", "à surveiller": "v-sur",
               "inactif": "v-ina", "défaillant": "v-def"};
+const esc = s => String(s).replace(/[&<>"']/g,
+  c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;",
+         '"': "&quot;", "'": "&#39;"}[c]));
 function card(num, lab, cls) {
-  return `<div class="card ${cls || ""}"><div class="num">${num}</div>
-          <div class="lab">${lab}</div></div>`;
+  return `<div class="card ${cls || ""}"><div class="num">${esc(num)}</div>
+          <div class="lab">${esc(lab)}</div></div>`;
 }
 async function jget(url) {
   const r = await fetch(url);
@@ -82,14 +86,16 @@ async function main() {
     card(health.status, "état", health.status === "ok" ? "ok" : "bad");
   const divisions = await jget("/divisions");
   document.querySelector("#divisions tbody").innerHTML = divisions.map(d =>
-    `<tr><td>${d.code}</td><td>${d.name}</td><td>${d.agents.length}</td></tr>`
+    `<tr><td>${esc(d.code)}</td><td>${esc(d.name)}</td>
+     <td>${esc(d.agents.length)}</td></tr>`
   ).join("");
   const evaluation = await jget("/evaluation");
   document.querySelector("#eval tbody").innerHTML =
     evaluation.agents.slice(0, 100).map(a =>
-    `<tr><td>${a.id}</td><td>${a.division}</td><td>${a.state}</td>
-     <td>${a.tasks_done}</td><td>${a.tasks_failed}</td>
-     <td><span class="tag ${TAGS[a.verdict] || "v-ina"}">${a.verdict}
+    `<tr><td>${esc(a.id)}</td><td>${esc(a.division)}</td>
+     <td>${esc(a.state)}</td>
+     <td>${esc(a.tasks_done)}</td><td>${esc(a.tasks_failed)}</td>
+     <td><span class="tag ${TAGS[a.verdict] || "v-ina"}">${esc(a.verdict)}
      </span></td></tr>`).join("");
   const evidence = await jget("/evidence/verify");
   document.getElementById("evidence").innerHTML =

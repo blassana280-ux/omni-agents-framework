@@ -114,3 +114,32 @@ jamais masqué :
 - CI/CD de production (déploiement auto) : ⚪ volontairement absent —
   `deploy_production` est une action dangereuse exigeant une validation
   humaine enregistrée, y compris pour CF100 lui-même.
+
+## Revue de code pré-fusion (03/11/2026)
+
+Revue du code critique de la PR #6 avant décision de fusion :
+security/ (policy, zero_trust, input_guard, secrets), api/ (app,
+dashboard), providers/stdlib, bridges/omni_queue, core/ (evidence,
+command, supervisor, evaluation, base), workflow CI, Dockerfile.
+
+### Constats corrigés (commit « fix(cf100): durcissement sécurité issu de la revue de code »)
+
+| Constat | Gravité | Correctif |
+|---|---|---|
+| `authenticate()` acceptait un humain sur son seul identifiant : le secret partagé de l'annuaire (`human_ids`) n'était jamais comparé | moyenne | secret exigé et comparé à temps constant (`hmac.compare_digest`) ; sans secret valide → `IdentityError` (refus par défaut) ; 2 tests négatifs ajoutés |
+| Les approbations du registre n'expiraient jamais : une validation unique d'une action critique déverrouillait cette action indéfiniment | moyenne | TTL optionnel (`ttl_seconds`) sur `ApprovalLedger.approve()` ; les approbations expirées sont ignorées par `has_valid_approval()` ; 3 tests ajoutés |
+| Comparaison du token API en temps variable (`!=`) | faible | `hmac.compare_digest` sur octets |
+| Interpolations HTML du dashboard sans échappement (XSS en profondeur si les données deviennent dynamiques) | faible | échappement systématique via `esc()` |
+| Runs CI doublonnés (triggers push + pull_request) | mineur | push limité à `main` ; la PR déclenche déjà un run par commit |
+
+### Limites assumées (documentées, non corrigées)
+
+- Le sidecar `evidence.jsonl.head` protège la troncature tant que
+  lui-même n'est pas réécrit : un attaquant disposant d'une écriture
+  sur le système de fichiers peut falsifier journal ET sidecar. La
+  réponse (export signé/chiffré des preuves) est hors périmètre local.
+- Les providers stdlib lisent tout chemin fourni dans la tâche :
+  outil d'analyse locale défensive, pas de restriction de racine —
+  l'entrée se fait par le Command Core et la garde anti-injection.
+- La garde anti-injection est à motifs regex : volontairement simple,
+  complémentaire de la validation humaine, pas un remplacement.

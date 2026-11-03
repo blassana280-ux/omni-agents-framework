@@ -7,7 +7,11 @@ Règles absolues (alignées sur OmniBrain, registry/permissions.json) :
 - risque haut : plan uniquement, exécution après validation humaine ;
 - risque critique : validation humaine + second relecteur.
 
-Le registre des approbations est persistant et auditable.
+Le registre des approbations est persistant et auditable. Chaque
+approbation peut porter une durée de validité (`ttl_seconds`) : une
+approbation expirée est ignorée — sans TTL, elle persiste
+(comportement historique), un TTL court est recommandé pour les
+actions critiques.
 """
 
 from __future__ import annotations
@@ -91,18 +95,27 @@ class ApprovalLedger:
             path = cf100_approval_path()
         self.path = pathlib.Path(path)
 
-    def approve(self, action: str, approver: str, note: str = "") -> str:
-        """Enregistre une validation humaine. approver doit être humain."""
+    def approve(self, action: str, approver: str, note: str = "",
+                ttl_seconds: Optional[float] = None) -> str:
+        """Enregistre une validation humaine. approver doit être humain.
+
+        ttl_seconds : durée de validité optionnelle. Sans TTL,
+        l'approbation persiste (compatibilité) ; avec TTL, elle est
+        ignorée par has_valid_approval() une fois expirée.
+        """
         if not approver or approver.startswith(("DYN-", "CI-", "TH-", "VR-",
                 "DP-", "IR-", "MA-", "NS-", "AS-", "AI-", "AC-", "omni-")):
             raise ValueError("seul un humain peut valider une action "
                              "(approbateur : " + repr(approver) + ")")
-        token = f"APR-{int(time.time())}-{len(self.list()) + 1}"
-        self.path.parent.mkdir(parents=True, exist_ok=True)
         entries = self.list()
-        entries.append({"token": token, "action": action,
-                        "approver": approver, "note": note,
-                        "granted_at": time.time()})
+        token = f"APR-{int(time.time())}-{len(entries) + 1}"
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        entry = {"token": token, "action": action,
+                 "approver": approver, "note": note,
+                 "granted_at": time.time()}
+        if ttl_seconds is not None:
+            entry["expires_at"] = entry["granted_at"] + ttl_seconds
+        entries.append(entry)
         self.path.write_text(json.dumps(entries, indent=2, ensure_ascii=False),
                              encoding="utf-8")
         return token
@@ -113,7 +126,16 @@ class ApprovalLedger:
         return json.loads(self.path.read_text(encoding="utf-8"))
 
     def has_valid_approval(self, action: str) -> bool:
-        return any(e["action"] == action for e in self.list())
+        """True si une approbation NON EXPIRÉE existe pour l'action."""
+        now = time.time()
+        for entry in self.list():
+            if entry.get("action") != action:
+                continue
+            expires_at = entry.get("expires_at")
+            if expires_at is not None and now >= float(expires_at):
+                continue  # approbation expirée : ignorée
+            return True
+        return False
 
 
 def cf100_approval_path():

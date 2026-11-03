@@ -20,6 +20,7 @@ reste ouverte — à ne pas exposer publiquement dans ce cas.
 
 from __future__ import annotations
 
+import hmac
 import os
 from typing import Any, Dict
 
@@ -50,11 +51,13 @@ def create_app(registry: Registry | None = None):
     @app.middleware("http")
     async def token_auth(request: Request, call_next):
         """Zero Trust applicatif : token exigé sur toutes les routes
-        ouvertes au travail, sauf santé et tableau de bord."""
+        ouvertes au travail, sauf santé et tableau de bord. La
+        comparaison se fait à temps constant (anti timing attack)."""
         expected = os.environ.get("CF100_API_TOKEN", "")
         if expected and request.url.path not in OPEN_PATHS:
             provided = request.headers.get("X-API-Token", "")
-            if provided != expected:
+            if not hmac.compare_digest(provided.encode("utf-8"),
+                                       expected.encode("utf-8")):
                 return JSONResponse(
                     {"detail": "en-tête X-API-Token manquant ou invalide"},
                     status_code=401)
