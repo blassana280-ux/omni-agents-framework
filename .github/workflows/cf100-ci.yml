@@ -1,7 +1,7 @@
 name: CF100 CI
 
-# push limité à main : la PR #6 déclenche déjà pull_request à chaque
-# commit de la branche — le double déclencheur doublonnait chaque run.
+# push limité à main : une PR déclenche déjà un run par commit de sa
+# branche (pull_request) — le double déclencheur doublonnait chaque run.
 on:
   push:
     branches: [main]
@@ -63,3 +63,55 @@ jobs:
             echo "$out" | tail -30 | tac | while IFS= read -r l; do printf '::error::%s\n' "$l"; done
             exit $rc
           fi
+
+      - name: Mise en marche des agents — mission réelle (données temporaires étiquetées)
+        run: |
+          python -m cf100 demo | tee /tmp/cf100-demo.json
+          {
+            echo '### 🛡️ Mise en marche des agents — mission réelle'
+            echo ''
+            echo '```json'
+            cat /tmp/cf100-demo.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Résultats des agents — annotations visibles publiquement
+        run: |
+          python - <<'PY'
+          import json
+          with open("/tmp/cf100-demo.json", encoding="utf-8") as fh:
+              d = json.load(fh)
+          q = d["queue_replies"]
+          inj = d["injection"]
+          wave = d["vague_parallèle"]
+          p = d["preuves"]
+          ev = d["évaluation"]
+          msgs = [
+              "MISSION REELLE : {ok}/{total} reponses queue OmniBrain OK".format(
+                  ok=q["ok"], total=q["total"]),
+              "INJECTION : {inj}".format(inj=inj),
+              "VAGUE PARALLELE (division TH) : {wave}".format(wave=wave["ok"]),
+              "PREUVES : intactes={ok} entrees={n}".format(
+                  ok=p["intactes"], n=p["entrées"]),
+              "APPRENTISSAGE applique : {learn}".format(
+                  learn=d["apprentissage_appliqué"]),
+              "EVALUATION : {op} operationnels {sur} a surveiller "
+              "{ina} inactifs {defa} defaillants (total {tot})".format(
+                  op=ev["opérationnel"], sur=ev["à surveiller"],
+                  ina=ev["inactif"], defa=ev["défaillant"],
+                  tot=ev["total"]),
+              "DONNEES : {donnees}".format(donnees=d["données"]),
+          ]
+          for m in msgs:
+              print("::notice::" + m)
+          PY
+
+      - name: Évaluation des 100 agents (verdicts factuels)
+        run: |
+          {
+            echo '### 📊 Évaluation des 100 agents'
+            echo ''
+            echo '```'
+            python -m cf100 evaluate
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
