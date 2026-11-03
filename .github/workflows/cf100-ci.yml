@@ -1,8 +1,12 @@
 name: CF100 CI
 
+# Mise en marche quotidienne des agents : tous les jours à 08:00 UTC
+# (08:00 GMT — heure du Mali ; GitHub cron est en UTC).
 # push limité à main : une PR déclenche déjà un run par commit de sa
 # branche (pull_request) — le double déclencheur doublonnait chaque run.
 on:
+  schedule:
+    - cron: "0 8 * * *"
   push:
     branches: [main]
     paths:
