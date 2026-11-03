@@ -1,0 +1,65 @@
+name: CF100 CI
+
+# push limité à main : la PR #6 déclenche déjà pull_request à chaque
+# commit de la branche — le double déclencheur doublonnait chaque run.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cyber-force-100/**"
+      - ".github/workflows/cf100-ci.yml"
+  pull_request:
+    paths:
+      - "cyber-force-100/**"
+      - ".github/workflows/cf100-ci.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cyber-force-100
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install (cœur + extras)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[api,dev]"
+
+      - name: Validation du registre (10 divisions × 10 agents)
+        run: |
+          set +e
+          out=$(python -m cf100 validate 2>&1)
+          rc=$?
+          echo "$out"
+          if [ $rc -ne 0 ]; then
+            echo "$out" | tail -15 | tac | while IFS= read -r l; do printf '::error::%s\n' "$l"; done
+            exit $rc
+          fi
+
+      - name: Auto-audit (registre, preuves, secrets)
+        run: |
+          set +e
+          out=$(python -m cf100 audit 2>&1)
+          rc=$?
+          echo "$out"
+          if [ $rc -ne 0 ]; then
+            echo "$out" | tail -15 | tac | while IFS= read -r l; do printf '::error::%s\n' "$l"; done
+            exit $rc
+          fi
+
+      - name: Tests unitaires et d'intégration
+        run: |
+          set +e
+          out=$(pytest -q --tb=line 2>&1)
+          rc=$?
+          echo "$out"
+          if [ $rc -ne 0 ]; then
+            echo "$out" | tail -30 | tac | while IFS= read -r l; do printf '::error::%s\n' "$l"; done
+            exit $rc
+          fi

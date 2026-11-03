@@ -1,0 +1,9 @@
+# Données locales et secrets — jamais versionnés
+__pycache__/
+*.pyc
+.pytest_cache/
+data/
+*.db
+*.db-journal
+.env
+.env.*

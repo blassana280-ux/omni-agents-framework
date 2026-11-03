@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cf100"
+version = "0.2.0"
+description = "Cyber Force 100 — plateforme de cybersécurité défensive : 100 agents, 10 divisions, autonomie encadrée."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Propriétaire — Lassana Bah" }
+authors = [{ name = "Lassana Bah" }]
+dependencies = []
+
+[project.optional-dependencies]
+api = ["fastapi>=0.110", "uvicorn>=0.29"]
+dev = ["pytest>=8.0", "httpx>=0.27"]
+
+[tool.setuptools.packages.find]
+include = ["cf100*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

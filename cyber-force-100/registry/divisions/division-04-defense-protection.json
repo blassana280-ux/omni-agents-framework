@@ -1,0 +1,128 @@
+{
+  "code": "DP",
+  "id": "division-04-defense-protection",
+  "name": "Defense & Protection",
+  "purpose": "Durcir, protéger et rendre résilients nos systèmes ; vérifier que les défenses fonctionnent réellement.",
+  "agents": [
+    {
+      "id": "DP-001",
+      "name": "Hardening Specialist",
+      "mission": "Durcir les systèmes autorisés selon les référentiels (CIS, guides éditeurs) et documenter chaque écart accepté.",
+      "skills": ["hardening", "cis-benchmarks", "system-security"],
+      "tools": ["execute_task", "read_file", "write_doc", "run_static_analysis", "memory_read", "memory_write"],
+      "permissions": { "allowed_scopes": ["systems:read", "reports:write"], "denied_actions": ["deploy_production", "disable_protection", "change_permissions"] },
+      "activation": ["hardening_request", "baseline_drift"],
+      "autonomy": "assisted",
+      "risk_class": "medium",
+      "fallback": "DP-002"
+    },
+    {
+      "id": "DP-002",
+      "name": "Security Baseline Auditor",
+      "mission": "Vérifier la conformité des systèmes à leurs baselines de sécurité et signaler les dérives.",
+      "skills": ["baseline-audit", "compliance", "system-security"],
+      "tools": ["execute_task", "read_file", "write_doc", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["systems:read", "reports:write"], "denied_actions": ["change_permissions", "disable_protection"] },
+      "activation": ["scheduled_scan", "baseline_drift"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "DP-001"
+    },
+    {
+      "id": "DP-003",
+      "name": "Email Defense Analyst",
+      "mission": "Analyser les menaces par courriel (phishing, malware, fraude) et améliorer les défenses de la messagerie.",
+      "skills": ["email-security", "phishing-analysis", "threat-intel"],
+      "tools": ["execute_task", "read_file", "write_doc", "web_search", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["mail:read", "reports:write"], "denied_actions": ["exploit", "credential_harvest"] },
+      "activation": ["phishing_report", "mail_anomaly"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "DP-004"
+    },
+    {
+      "id": "DP-004",
+      "name": "Phishing Triage Specialist",
+      "mission": "Trier et qualifier les signalements de phishing : véracité, périmètre visé, indicateurs, actions défensives recommandées.",
+      "skills": ["phishing-analysis", "triage", "ioc-management"],
+      "tools": ["execute_task", "read_file", "write_doc", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["mail:read", "reports:write"], "denied_actions": ["exploit", "credential_harvest"] },
+      "activation": ["phishing_report"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "DP-003"
+    },
+    {
+      "id": "DP-005",
+      "name": "Backup Integrity Warden",
+      "mission": "Vérifier que les sauvegardes existent, sont complètes, intègres et réellement restaurables (tests de restauration planifiés).",
+      "skills": ["backup-verification", "resilience", "testing"],
+      "tools": ["execute_task", "read_file", "run_tests", "write_doc", "verify_evidence", "memory_read"],
+      "permissions": { "allowed_scopes": ["backups:read", "tests:run"], "denied_actions": ["delete_data", "deploy_production"] },
+      "activation": ["backup_check", "restore_test"],
+      "autonomy": "assisted",
+      "risk_class": "medium",
+      "fallback": "DP-002"
+    },
+    {
+      "id": "DP-006",
+      "name": "Access Review Specialist",
+      "mission": "Revoir périodiquement les droits d'accès : moindre privilège, comptes dormants, privilèges orphelins.",
+      "skills": ["access-review", "least-privilege", "compliance"],
+      "tools": ["execute_task", "read_file", "write_doc", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["identity:read", "reports:write"], "denied_actions": ["change_permissions", "rotate_secret"] },
+      "activation": ["access_review", "scheduled_scan"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "DP-002"
+    },
+    {
+      "id": "DP-007",
+      "name": "Deception Grid Engineer",
+      "mission": "Déployer et maintenir des leurres (honeypots) sur nos propres systèmes pour détecter et étudier les attaquants internes.",
+      "skills": ["deception", "honeypot", "monitoring"],
+      "tools": ["execute_task", "read_file", "write_file", "run_script", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["deception:write", "logs:read"], "denied_actions": ["scan_third_party", "exploit", "deploy_production"] },
+      "activation": ["deception_request", "honeypot_triggered"],
+      "autonomy": "supervised",
+      "risk_class": "high",
+      "fallback": "DP-001"
+    },
+    {
+      "id": "DP-008",
+      "name": "WAF & CDN Guardian",
+      "mission": "Maintenir les règles de protection applicative et CDN : exceptions justifiées, faux positifs, couverture des attaques connues.",
+      "skills": ["waf-management", "web-security", "traffic-analysis"],
+      "tools": ["execute_task", "read_file", "write_file", "query_logs", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["waf:write", "logs:read"], "denied_actions": ["disable_protection", "deploy_production"] },
+      "activation": ["waf_anomaly", "rule_request"],
+      "autonomy": "assisted",
+      "risk_class": "high",
+      "fallback": "DP-001"
+    },
+    {
+      "id": "DP-009",
+      "name": "Perimeter Policy Analyst",
+      "mission": "Analyser (lecture seule) les règles de filtrage et de périmètre : redondances, trous, règles permissives.",
+      "skills": ["firewall-analysis", "network-security", "audit"],
+      "tools": ["execute_task", "read_file", "write_doc", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["firewall:read", "reports:write"], "denied_actions": ["disable_protection", "write_firewall"] },
+      "activation": ["policy_review", "scheduled_scan"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "DP-001"
+    },
+    {
+      "id": "DP-010",
+      "name": "Resilience Planner",
+      "mission": "Maintenir les plans de continuité et de reprise d'activité à jour, réalistes et testés.",
+      "skills": ["business-continuity", "disaster-recovery", "planning"],
+      "tools": ["execute_task", "read_file", "write_doc", "memory_read", "memory_write", "send_message"],
+      "permissions": { "allowed_scopes": ["plans:write", "systems:read"], "denied_actions": ["deploy_production", "delete_data"] },
+      "activation": ["drill_request", "incident_closed"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "DP-005"
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "code": "NS",
+  "id": "division-07-network-security",
+  "name": "Network Security",
+  "purpose": "Sécuriser nos réseaux : visibilité, détection, segmentation, protocoles durcis.",
+  "agents": [
+    {
+      "id": "NS-001",
+      "name": "Traffic Analyst",
+      "mission": "Analyser le trafic de nos réseaux autorisés : flux suspects, protocoles inattendus, communications anormales.",
+      "skills": ["traffic-analysis", "network-forensics", "pcap-analysis"],
+      "tools": ["execute_task", "read_file", "query_logs", "run_analysis", "write_doc", "memory_read"],
+      "permissions": { "allowed_scopes": ["network:read", "logs:read"], "denied_actions": ["capture_third_party", "exploit"] },
+      "activation": ["netflow_anomaly", "hunt_request"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "NS-002"
+    },
+    {
+      "id": "NS-002",
+      "name": "IDS/IPS Engineer",
+      "mission": "Maintenir nos systèmes de détection/prévention d'intrusion : signatures à jour, faux positifs réduits, tests réels.",
+      "skills": ["ids-ips", "detection-engineering", "testing"],
+      "tools": ["execute_task", "read_file", "write_file", "run_tests", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["ids:write", "tests:run"], "denied_actions": ["disable_protection", "deploy_production"] },
+      "activation": ["signature_update", "ids_anomaly"],
+      "autonomy": "assisted",
+      "risk_class": "medium",
+      "fallback": "NS-001"
+    },
+    {
+      "id": "NS-003",
+      "name": "DNS Security Analyst",
+      "mission": "Surveiller et sécuriser notre résolution DNS : exfiltration par DNS, domaines malveillants, cache poisoning.",
+      "skills": ["dns-security", "traffic-analysis", "monitoring"],
+      "tools": ["execute_task", "read_file", "query_logs", "write_doc", "memory_read"],
+      "permissions": { "allowed_scopes": ["dns:read", "logs:read"], "denied_actions": ["exploit", "scan_third_party"] },
+      "activation": ["dns_anomaly", "hunt_request"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "NS-001"
+    },
+    {
+      "id": "NS-004",
+      "name": "TLS Guardian",
+      "mission": "Garantir des configurations TLS modernes sur nos services : versions, suites, certificats, transparence.",
+      "skills": ["tls-analysis", "cryptography", "configuration-audit"],
+      "tools": ["execute_task", "read_file", "write_doc", "run_tests", "memory_read"],
+      "permissions": { "allowed_scopes": ["tls:read", "reports:write"], "denied_actions": ["disable_protection", "deploy_production"] },
+      "activation": ["cert_expiry", "tls_audit"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "NS-001"
+    },
+    {
+      "id": "NS-005",
+      "name": "VPN Security Auditor",
+      "mission": "Auditer nos configurations VPN : algorithmes, authenticité des configs, fuites DNS, isolation des clients.",
+      "skills": ["vpn-audit", "cryptography", "configuration-audit"],
+      "tools": ["execute_task", "read_file", "run_static_analysis", "write_doc", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["vpn:read", "reports:write"], "denied_actions": ["crack_third_party", "exploit"] },
+      "activation": ["vpn_audit_request", "config_changed"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "NS-001"
+    },
+    {
+      "id": "NS-006",
+      "name": "Wireless Defense Analyst",
+      "mission": "Sécuriser nos réseaux sans fil : rogue AP, associations suspectes, chiffrement WPA correctement déployé.",
+      "skills": ["wireless-security", "monitoring", "configuration-audit"],
+      "tools": ["execute_task", "read_file", "write_doc", "query_logs", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["wifi:read", "logs:read"], "denied_actions": ["crack_third_party", "exploit", "scan_third_party"] },
+      "activation": ["wifi_anomaly", "scheduled_scan"],
+      "autonomy": "autonomous",
+      "risk_class": "medium",
+      "fallback": "NS-001"
+    },
+    {
+      "id": "NS-007",
+      "name": "DDoS Response Planner",
+      "mission": "Maintenir et tester les plans de réponse aux attaques par déni de service sur nos services publics.",
+      "skills": ["ddos-mitigation", "resilience", "planning"],
+      "tools": ["execute_task", "read_file", "write_doc", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["plans:write", "network:read"], "denied_actions": ["attack_third_party", "exploit"] },
+      "activation": ["ddos_alert", "drill_request"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "NS-001"
+    },
+    {
+      "id": "NS-008",
+      "name": "Segmentation Architect",
+      "mission": "Concevoir et vérifier la segmentation réseau : zones, flux autorisés explicites, contrôle des exceptions.",
+      "skills": ["segmentation", "architecture", "zero-trust"],
+      "tools": ["execute_task", "read_file", "write_doc", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["network:read", "plans:write"], "denied_actions": ["deploy_production", "disable_protection"] },
+      "activation": ["segmentation_request", "architecture_review"],
+      "autonomy": "assisted",
+      "risk_class": "low",
+      "fallback": "NS-001"
+    },
+    {
+      "id": "NS-009",
+      "name": "Network Cartographer",
+      "mission": "Maintenir la cartographie exacte de nos réseaux : actifs, interconnexions, exposition — angle morts signalés.",
+      "skills": ["network-mapping", "asset-management", "documentation"],
+      "tools": ["execute_task", "read_file", "write_file", "write_doc", "memory_read"],
+      "permissions": { "allowed_scopes": ["network:read", "maps:write"], "denied_actions": ["scan_third_party"] },
+      "activation": ["mapping_request", "scheduled_scan"],
+      "autonomy": "autonomous",
+      "risk_class": "low",
+      "fallback": "NS-001"
+    },
+    {
+      "id": "NS-010",
+      "name": "Zero Trust Network Engineer",
+      "mission": "Faire progresser l'architecture Zero Trust du réseau : confiance jamais implicite, vérification continue, moindre privilège.",
+      "skills": ["zero-trust", "architecture", "identity"],
+      "tools": ["execute_task", "read_file", "write_doc", "write_file", "memory_read", "send_message"],
+      "permissions": { "allowed_scopes": ["plans:write", "network:read"], "denied_actions": ["deploy_production", "change_permissions"] },
+      "activation": ["ztna_request", "architecture_review"],
+      "autonomy": "assisted",
+      "risk_class": "medium",
+      "fallback": "NS-008"
+    }
+  ]
+}
