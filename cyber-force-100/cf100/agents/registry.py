@@ -16,7 +16,7 @@ from typing import Any, Dict, Iterator, List, Optional
 from cf100.agents.models import AgentSpec, Autonomy, Division, RiskClass
 from cf100.config import REGISTRY_DIR
 
-DIVISION_FILES_PATTERN = "division-*.json"
+DIVISION_FILES_PATTERN = "divisions/division-*.json"
 POLICY_FILE = "policies.json"
 
 EXPECTED_DIVISION_COUNT = 10
