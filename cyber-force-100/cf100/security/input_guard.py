@@ -12,12 +12,17 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
 INJECTION_PATTERNS: List[re.Pattern] = [
-    re.compile(r"(?i)ignore (all|previous|prior|the above) (instructions|prompts?|rules)"),
+    re.compile(r"(?i)ignore\s+(all\s+|any\s+|the\s+)?"
+               r"(previous\s+|prior\s+|above\s+)?"
+               r"(instructions|prompts?|rules)"),
     re.compile(r"(?i)disregard (all|your|the) (previous|prior) (instructions|rules)"),
     re.compile(r"(?i)you are now (a|an|the)"),
     re.compile(r"(?i)new instructions:?"),
     re.compile(r"(?i)system prompt\s*:", re.IGNORECASE),
     re.compile(r"(?i)reveal (your|the) (system|initial) (prompt|instructions)"),
+    re.compile(r"(?i)reveal\s+(your\s+|the\s+|all\s+)?"
+               r"(secrets?|tokens?|credentials?|keys?|env(ironment)?\s*"
+               r"(vars?|variables?))"),
     re.compile(r"(?i)exfiltrat(e|ion)"),
     re.compile(r"(?i)send (all|the) (secrets?|tokens?|credentials?|data) (to|at)"),
     re.compile(r"(?i)curl\s+\S+\s*\|\s*(ba)?sh"),        # pipe to shell

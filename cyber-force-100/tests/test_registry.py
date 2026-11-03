@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 
-from cf100.agents.registry import RegistryError, validate_registry
+from cf100.agents.registry import (Registry, RegistryError,
+                                   validate_registry)
 from cf100.agents.models import Autonomy, RiskClass
 
 EXPECTED_CODES = ["CI", "TH", "VR", "DP", "IR", "MA", "NS", "AS", "AI", "AC"]

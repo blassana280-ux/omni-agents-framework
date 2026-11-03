@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 
+from cf100.core.evidence import EvidenceEngine
+
 
 def test_chain_verifies_when_intact(evidence):
     evidence.record("task_start", agent="CI-001")

@@ -72,6 +72,10 @@ class CyberAgent:
                                f"profil ({action})")
         decision = self.policy.authorize(self.spec, action, context or {})
         if not decision.allowed:
+            # une action dangereuse bloque l'agent en attente de validation
+            # humaine, même refusée par ailleurs (moindre privilège)
+            if decision.needs_approval or self.policy.is_dangerous(action):
+                self.state = AgentState.AWAITING_APPROVAL
             raise ActionDenied(
                 f"{self.spec.id} : action {action} refusée — {decision.reason}")
         if decision.needs_approval:
