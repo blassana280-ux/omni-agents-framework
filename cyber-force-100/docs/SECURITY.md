@@ -62,10 +62,13 @@ les contenus externes passent par `gate_external()`.
 - Analyse des dépendances et scans : Phase 4+, uniquement avec permissions
   réelles sur les cibles.
 
-## Limites assumées (Phase 1)
+## Limites assumées (version 0.2.0)
 
-- Les agents s'exécutent via un **provider injecté** (aucun appel externe
-  intégré) : aucun agent ne « tourne » en continu sans infrastructure
-  d'exécution — c'est documenté, pas masqué.
-- L'API n'a pas encore d'authentification : à ne pas exposer publiquement
-  avant la Phase 7 (tests de sécurité).
+- Les providers réels couvrent les outils d'analyse locale (fichiers,
+  secrets, dépendances, journaux, preuves) ; toute autre action est
+  refusée via `ProviderUnavailable` — jamais simulée.
+- L'API gère une authentification par token (`CF100_API_TOKEN` → en-tête
+  `X-API-Token`, routes ouvertes limitées à `/health` et `/dashboard`),
+  mais ni TLS ni rate-limiting : exposer derrière un reverse proxy TLS
+  uniquement (voir docs/DEPLOYMENT.md). Sans la variable d'environnement,
+  l'API reste ouverte — à ne bind que sur localhost.

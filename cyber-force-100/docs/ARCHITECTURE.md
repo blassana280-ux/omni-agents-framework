@@ -36,9 +36,10 @@
 | **Agents** | `cf100/agents/` | Spécifications (`models.py`), registre + invariants (`registry.py`), cycle de vie (`base.py`), agents dynamiques (`dynamic.py`), santé (`health.py`). |
 | **Sécurité** | `cf100/security/` | Moteur de politiques (`policy.py`), Zero Trust (`zero_trust.py`), secrets (`secrets.py`), garde anti-injection (`input_guard.py`). |
 | **Mémoire** | `cf100/memory/` | Stockage SQLite append-only (`store.py`), 4 niveaux avec cloisonnement (`tiers.py`). |
-| **Cœur** | `cf100/core/` | Commandement (`command.py`), décision adaptative (`decision.py`), prédiction EWMA (`predictive.py`), orchestration (`orchestrator.py`), conflits (`conflict.py`), remédiation contrôlée (`remediation.py`), auto-audit (`selfaudit.py`), récupération (`recovery.py`), évolution des savoirs (`knowledge.py`), preuves (`evidence.py`). |
-| **Ponts** | `cf100/bridges/` | OmniBrain : lecture des registres du dépôt `omni-agents-framework`, détection de compétences chevauchantes, export au format OmniBrain. |
-| **API** | `cf100/api/` | FastAPI optionnelle (`/health`, `/divisions`, `/agents`, `/evidence`, `POST /tasks`). |
+| **Cœur** | `cf100/core/` | Commandement (`command.py`), décision adaptative (`decision.py`), prédiction EWMA (`predictive.py`), orchestration (`orchestrator.py`), supervision de missions (`supervisor.py`), évaluation des agents (`evaluation.py`), conflits (`conflict.py`), remédiation contrôlée (`remediation.py`), auto-audit (`selfaudit.py`), récupération (`recovery.py`), évolution des savoirs (`knowledge.py`), preuves (`evidence.py`). |
+| **Providers** | `cf100/providers/` | Exécution réelle stdlib (`stdlib.py`) : lecture de fichiers (SHA-256), analyse statique, secrets, dépendances, journaux, vérification de preuves. `make_provider_for()` refuse toute action sans implémentation réelle (`ProviderUnavailable`). |
+| **Ponts** | `cf100/bridges/` | OmniBrain : lecture des registres, détection de compétences chevauchantes, export au format OmniBrain (`omnibrain.py`) ; coordination bidirectionnelle par file JSONL inbox/outbox avec acks (`omni_queue.py`). |
+| **API** | `cf100/api/` | FastAPI optionnelle (`/health`, `/divisions`, `/agents`, `/agents/{id}`, `/evidence`, `/evidence/verify`, `/evaluation`, `/dashboard`, `POST /tasks`), authentification par token `CF100_API_TOKEN`, tableau de bord HTML sans CDN (`dashboard.py`). |
 
 ## Flux d'une tâche
 

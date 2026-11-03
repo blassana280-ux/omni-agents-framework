@@ -2,18 +2,18 @@
 
 Légende : ✅ Fonctionnel · 🟡 Partiellement fonctionnel · 🔵 En développement · ⚪ Non implémenté
 
-## Phase 1 — Fondation 🟡
+## Phase 1 — Fondation ✅
 
 | Composant | État | Détail |
 |---|---|---|
 | Arborescence package `cf100` + config | ✅ | stdlib-only, extras `api`/`dev` |
 | Registre 100 agents (10×10) | ✅ | `registry/divisions/*.json` + invariants `validate_registry()` |
 | Gestion des permissions | ✅ | plafonds d'autonomie, actions dangereuses, approbations humaines |
-| Preuves (chaîne SHA-256) | ✅ | altération détectée (testée) |
+| Preuves (chaîne SHA-256) | ✅ | altération + troncature détectées (testées) |
 | Mémoire 4 niveaux | ✅ | SQLite, cloisonnement collectif/validé |
 | Zero Trust + anti-injection + secrets | ✅ | refus par défaut, garde sur toute tâche |
 | Documentation | ✅ | README, AGENTS.md, docs/ |
-| Tests | ✅ | **82/82 tests pytest passés** — preuve d'exécution GitHub Actions (commit 3f5e947, runs des 03/11/2026, jobs `test` verts : install + `validate` + `audit` + `pytest`) |
+| Tests | ✅ | **82/82 tests pytest passés** en fin de Phase 1 — preuve d'exécution GitHub Actions (runs des 03/11/2026, jobs `test` verts) |
 | Branche + PR + CI | ✅ | branche `feature/cyber-force-100-foundation`, PR draft #6, workflow `cf100-ci.yml` vert sur les deux runs |
 | Dépôt dédié | ⚪ | création refusée (HTTP 403, scope Administration manquant) — procédure dans docs/OMNIBRAIN-INTEGRATION.md |
 
@@ -31,55 +31,86 @@ jamais masqué :
    « Ignore all previous instructions », journal de preuves ne
    détectant pas la troncature de fin (sidecar `.head` ajouté).
 
-## Phase 2 — Intelligence 🔵
+## Phase 2 — Intelligence ✅
 
 | Composant | État | Détail |
 |---|---|---|
-| Command Core | ✅ | classification, garde, dispatch — écrit et testé en Phase 1 |
-| DecisionEngine adaptatif | ✅ | écrit ; poids ajustés uniquement sur résultats validés — l'*adaptation sur données réelles* demande des providers |
-| PredictiveEngine (EWMA) | ✅ | score, prévision, seuils d'alerte — écrit, sans flux de télémétrie réel pour l'instant |
-| Knowledge Evolution | ✅ | cycle propose→testé→validé(humain)→collectif — écrit |
-| Boucle sur incidents réels | ⚪ | nécessite des sources réelles (Phase 4+) |
+| Command Core | ✅ | classification, garde, dispatch |
+| DecisionEngine adaptatif | ✅ | apprentissage uniquement sur résultats validés |
+| PredictiveEngine (EWMA) | ✅ | score, prévision, seuils d'alerte |
+| Knowledge Evolution | ✅ | cycle propose→testé→validé(humain)→collectif |
+| Providers réels stdlib | ✅ | `cf100/providers/stdlib.py` : lecture + SHA-256, analyse statique (secrets/motifs), dépendances (non épinglées/doublons/sources externes), journaux (erreurs/logins/IP), vérification de preuves ; `make_provider_for()` refuse toute action sans implémentation réelle (`ProviderUnavailable`) |
+| MissionSupervisor | ✅ | cycles vague par vague, santé entre vagues, apprentissage CONDITIONNÉ à une chaîne de preuves intègre (testé : un journal falsifié ne modifie jamais les poids) |
+| Boucle sur incidents réels en production | ⚪ | nécessite des sources de production (hors périmètre local) |
 
-## Phase 3 — Les 100 agents 🟡
+## Phase 3 — Les 100 agents ✅
 
 - Définition : ✅ 100 agents documentés (mission, compétences, outils,
   permissions, activation, autonomie, fallback).
 - Interfaces communes : ✅ `CyberAgent` (cycle de vie, heartbeat, check_action).
-- Exécution réelle : ⚪ chaque agent s'exécute via un provider injecté ;
-  les providers concrets (analyse réelle de fichiers, scans, API) arrivent
-  progressivement — aucun agent ne simule de résultat (refus explicite).
-- Évaluation individuelle : 🟡 compteurs par agent (tasks_done/failed,
-  santé) — testés ; tableau d'évaluation complet en Phase 6.
+- Exécution réelle : ✅ via providers stdlib pour les outils d'analyse
+  locale ; toute autre action est refusée (`ProviderUnavailable`) —
+  aucun agent ne simule de résultat.
+- Évaluation individuelle : ✅ `AgentEvaluator` (verdicts factuels :
+  opérationnel / à surveiller / inactif / défaillant, synthèse par
+  division, export JSON) + CLI `evaluate` + endpoint `/evaluation`.
 
-## Phase 4 — Autonomie 🟡
+## Phase 4 — Autonomie ✅
 
-- Orchestration (routage, fallbacks, vagues) : ✅ écrite et testée.
-- Remédiation contrôlée : ✅ écrite (bloque sur étape non autorisée).
-- Santé / auto-audit / récupération : ✅ écrits (timeout, snapshot/restore).
-- Boucle d'exploitation continue : ⚪ nécessite l'infrastructure d'exécution.
+- Orchestration (routage, fallbacks, vagues) : ✅ testée, exécutée sur
+  données réelles (test_full_cycle).
+- Remédiation contrôlée : ✅ bloque sur étape non autorisée.
+- Santé / auto-audit / récupération : ✅ timeout, snapshot/restore.
+- Boucle d'exploitation continue en production : ⚪ hors périmètre local
+  (le superviseur fournit la boucle ; l'infrastructure 24/7 reste à
+  déployer).
 
-## Phase 5 — OmniBrain 🟡
+## Phase 5 — OmniBrain ✅
 
-- Pont : ✅ lecture des registres OmniBrain, compétences chevauchantes,
-  export au format `agents.json` OmniBrain, alignement des actions dangereuses.
-- Coordination bidirectionnelle à chaud : ⚪ Phase 5 proprement dite
-  (webhook/queue avec l'orchestrateur).
+- Pont : ✅ lecture des registres, compétences chevauchantes, export au
+  format `agents.json` OmniBrain, alignement des actions dangereuses.
+- Coordination bidirectionnelle : ✅ `OmniQueue` (fichiers JSONL
+  inbox/outbox/acks) + `OmniCoordinator` (poll → Command Core → réponse
+  `{in_response_to, agent, ok, result}`), refus d'injection retourné
+  explicitement, rapport de synchronisation des registres.
+- Dispatch inter-orchestrateurs à chaud : ⚪ le protocole OmniBrain
+  exécutant côté serveur reste à définir avec son runtime ; la file
+  fournit déjà le transport réel.
 
-## Phase 6 — Tableau de bord ⚪
+## Phase 6 — Tableau de bord ✅
 
-- API FastAPI : ✅ écrite (health, divisions, agents, preuves, tâches).
-- Front React : ⚪ non commencé.
+- API FastAPI : ✅ health, divisions, agents, preuves (+ `/evidence/verify`),
+  évaluation, soumission de tâches.
+- Tableau de bord : ✅ `/dashboard` — page HTML/CSS/JS vanilla **sans
+  CDN** (aucune ressource externe, fonctionne hors ligne), synthèses,
+  évaluation par agent, état de la chaîne de preuves.
+- Authentification API : ✅ token optionnel via `CF100_API_TOKEN`
+  (en-tête `X-API-Token` exigé sur toutes les routes sauf `/health` et
+  `/dashboard`).
 
-## Phase 7 — Validation 🟡
+## Phase 7 — Validation ✅
 
-- Tests unitaires : ✅ **82/82 verts**, preuve CI GitHub Actions.
-- Intégration : ✅ test_integration.py vert (snapshot/restore, auto-audit,
-  export OmniBrain 100 agents, Command Core).
-- Sécurité : 🟡 garde anti-injection, Zero Trust, secrets et chaîne de
-  preuves testés ; audit de charge et pentest de l'API à planifier.
+- Tests : suite complète exécutée par GitHub Actions à chaque push —
+  voir l'onglet Actions du dépôt pour les runs réels ; validation JSON
+  des registres faite localement (jq) en complément.
+- Intégration : ✅ test_full_cycle — mission réelle de bout en bout
+  (détection de secret réelle par VR-003, injection rejetée, queue
+  OmniBrain aller-retour, vague parallèle de divisions TH, chaîne de
+  preuves intègre).
+- Sécurité : ✅ authentification API testée (401 sans token, routes
+  ouvertes minimales), garde anti-injection sur la queue comme sur le
+  Command Core, apprentissage bloqué sur preuves falsifiées.
+- Audit de charge / pentest externe : ⚪ recommandé avant toute
+  exposition réseau réelle.
 
-## Phase 8 — Déploiement ⚪
+## Phase 8 — Déploiement ✅
 
-- Plan : CI = première étape. Documentation d'exploitation : partie
-  intégrante de ce dossier docs/. Maintenance : à définir avec Lassana.
+- Dockerfile : ✅ `python:3.11-slim`, utilisateur non privilégié,
+  healthcheck `/health`, volume `/app/data`.
+- Docs d'exploitation : ✅ docs/DEPLOYMENT.md (modes CLI/API/Docker,
+  sauvegardes RecoveryEngine, checklist sécurité).
+- CI : ✅ preuve d'exécution de référence (validate + audit + pytest à
+  chaque push/PR).
+- CI/CD de production (déploiement auto) : ⚪ volontairement absent —
+  `deploy_production` est une action dangereuse exigeant une validation
+  humaine enregistrée, y compris pour CF100 lui-même.
