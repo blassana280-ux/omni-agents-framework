@@ -1,0 +1,605 @@
+{
+  "specialties": {
+    "frontend-ui": {
+      "title": "Frontend & UI",
+      "triggers": [
+        "css",
+        "ui",
+        "frontend",
+        "front-end",
+        "interface",
+        "bouton",
+        "button",
+        "react",
+        "tailwind",
+        "composant",
+        "component",
+        "écran",
+        "screen",
+        "maquette"
+      ],
+      "weight": 1.2,
+      "agents": [
+        "omni-frontend",
+        "omni-web",
+        "omni-generalist"
+      ],
+      "fallbacks": [
+        "omni-generalist"
+      ],
+      "objective_template": "Frontend & UI for the request: {request}",
+      "acceptance_criteria": [
+        "implementation_runs",
+        "ui_spec_respected",
+        "accessibility_checked",
+        "evidence_attached"
+      ]
+    },
+    "backend-api": {
+      "title": "Backend & API",
+      "triggers": [
+        "api",
+        "endpoint",
+        "rest",
+        "graphql",
+        "sql",
+        "base de données",
+        "database",
+        "fastapi",
+        "flask",
+        "django",
+        "node",
+        "backend",
+        "service",
+        "migration"
+      ],
+      "weight": 1.2,
+      "agents": [
+        "omni-backend",
+        "omni-generalist"
+      ],
+      "fallbacks": [
+        "omni-generalist"
+      ],
+      "objective_template": "Backend & API for the request: {request}",
+      "acceptance_criteria": [
+        "implementation_runs",
+        "tests_green",
+        "api_contract_documented",
+        "evidence_attached"
+      ]
+    },
+    "software-architecture": {
+      "title": "Software architecture",
+      "triggers": [
+        "architecture",
+        "conception",
+        "design system",
+        "modélisation",
+        "modelisation",
+        "adr",
+        "couplage",
+        "coupling",
+        "scalabilité",
+        "scalability",
+        "monolithe",
+        "microservices"
+      ],
+      "weight": 1.1,
+      "agents": [
+        "omni-architect",
+        "omni-generalist"
+      ],
+      "fallbacks": [
+        "omni-generalist"
+      ],
+      "objective_template": "Software architecture for the request: {request}",
+      "acceptance_criteria": [
+        "adr_written",
+        "tradeoffs_documented",
+        "evidence_attached"
+      ]
+    },
+    "android": {
+      "title": "Android development",
+      "triggers": [
+        "android",
+        "kotlin",
+        "gradle",
+        "apk",
+        "play store",
+        "jetpack",
+        "compose"
+      ],
+      "weight": 1.3,
+      "agents": [
+        "omni-android",
+        "omni-generalist"
+      ],
+      "fallbacks": [
+        "omni-generalist"
+      ],
+      "objective_template": "Android development for the request: {request}",
+      "acceptance_criteria": [
+        "build_green",
+        "manifest_valid",
+        "evidence_attached"
+      ]
+    },
+    "web-dev": {
+      "title": "Web development",
+      "triggers": [
+        "web",
+        "site",
+        "html",
+        "navigateur",
+        "browser",
+        "vite",
+        "nextjs",
+        "next.js",
+        "ssr",
+        "pwa",
+        "dom"
+      ],
+      "weight": 1.0,
+      "agents": [
+        "omni-frontend",
+        "omni-web",
+        "omni-generalist"
+      ],
+      "fallbacks": [
+        "omni-generalist"
+      ],
+      "objective_template": "Web development for the request: {request}",
+      "acceptance_criteria": [
+        "implementation_runs",
+        "responsive_checked",
+        "evidence_attached"
+      ]
+    },
+    "data-analysis": {
+      "title": "Data analysis",
+      "triggers": [
+        "données",
+        "data",
+        "dataset",
+        "pandas",
+        "analyse",
+        "analysis",
+        "csv",
+        "statistique",
+        "statistics",
+        "dashboard",
+        "métrique",
+        "metric"
+      ],
+      "weight": 1.1,
+      "agents": [
+        "omni-data",
+        "omni-generalist"
+      ],
+      "fallbacks": [
+        "omni-generalist"
+      ],
+      "objective_template": "Data analysis for the request: {request}",
+      "acceptance_criteria": [
+        "analysis_reproducible",
+        "dataset_referenced",
+        "evidence_attached"
+      ]
+    },
+    "research-docs": {
+      "title": "Research & documentation",
+      "triggers": [
+        "documentation",
+        "doc",
+        "recherche",
+        "research",
+        "veille",
+        "comparatif",
+        "benchmark",
+        "note",
+        "guide",
+        "tutoriel",
+        "readme"
+      ],
+      "weight": 1.0,
+      "agents": [
+        "omni-research",
+        "omni-librarian",
+        "omni-generalist"
+      ],
+      "fallbacks": [
+        "omni-generalist"
+      ],
+      "objective_template": "Research & documentation for the request: {request}",
+      "acceptance_criteria": [
+        "sources_cited",
+        "facts_verified",
+        "evidence_attached"
+      ]
+    },
+    "security-defensive": {
+      "title": "Defensive cybersecurity",
+      "triggers": [
+        "sécurité",
+        "securite",
+        "security",
+        "faille",
+        "vulnerabilité",
+        "vulnerability",
+        "cve",
+        "audit",
+        "durcissement",
+        "hardening",
+        "fuite",
+        "secret"
+      ],
+      "weight": 1.3,
+      "agents": [
+        "omni-security",
+        "omni-generalist"
+      ],
+      "fallbacks": [
+        "omni-generalist"
+      ],
+      "objective_template": "Defensive cybersecurity for the request: {request}",
+      "acceptance_criteria": [
+        "threat_model_written",
+        "remediation_steps",
+        "no_offensive_payload",
+        "evidence_attached"
+      ]
+    },
+    "testing-qa": {
+      "title": "Tests & QA",
+      "triggers": [
+        "test",
+        "tests",
+        "pytest",
+        "unittest",
+        "qa",
+        "couverture",
+        "coverage",
+        "régression",
+        "regression",
+        "e2e",
+        "playwright"
+      ],
+      "weight": 1.2,
+      "agents": [
+        "omni-qa",
+        "omni-generalist"
+      ],
+      "fallbacks": [
+        "omni-generalist"
+      ],
+      "objective_template": "Tests & QA for the request: {request}",
+      "acceptance_criteria": [
+        "tests_run",
+        "results_attached",
+        "no_skipped_without_reason",
+        "evidence_attached"
+      ]
+    },
+    "debugging": {
+      "title": "Debugging",
+      "triggers": [
+        "bug",
+        "debug",
+        "erreur",
+        "error",
+        "traceback",
+        "exception",
+        "crash",
+        "panne",
+        "reproduce",
+        "reproduction",
+        "régression"
+      ],
+      "weight": 1.2,
+      "agents": [
+        "omni-debugger",
+        "omni-generalist"
+      ],
+      "fallbacks": [
+        "omni-generalist"
+      ],
+      "objective_template": "Debugging for the request: {request}",
+      "acceptance_criteria": [
+        "root_cause_identified",
+        "fix_verified",
+        "evidence_attached"
+      ]
+    },
+    "performance": {
+      "title": "Performance optimization",
+      "triggers": [
+        "performance",
+        "lent",
+        "slow",
+        "latence",
+        "latency",
+        "optimisation",
+        "optimize",
+        "profile",
+        "profilage",
+        "cache",
+        "mémoire",
+        "n+1",
+        "throughput"
+      ],
+      "weight": 1.2,
+      "agents": [
+        "omni-perf",
+        "omni-generalist"
+      ],
+      "fallbacks": [
+        "omni-generalist"
+      ],
+      "objective_template": "Performance optimization for the request: {request}",
+      "acceptance_criteria": [
+        "baseline_measured",
+        "after_measured",
+        "evidence_attached"
+      ]
+    },
+    "devops-ci": {
+      "title": "DevOps & CI/CD",
+      "triggers": [
+        "ci",
+        "cd",
+        "github actions",
+        "pipeline",
+        "deploy",
+        "déploiement",
+        "docker",
+        "kubernetes",
+        "terraform",
+        "infra",
+        "workflow"
+      ],
+      "weight": 1.2,
+      "agents": [
+        "omni-devops",
+        "omni-generalist"
+      ],
+      "fallbacks": [
+        "omni-generalist"
+      ],
+      "objective_template": "DevOps & CI/CD for the request: {request}",
+      "acceptance_criteria": [
+        "pipeline_runs",
+        "rollback_plan",
+        "evidence_attached"
+      ]
+    },
+    "github-repo": {
+      "title": "GitHub & repository management",
+      "triggers": [
+        "github",
+        "pull request",
+        "pr",
+        "branche",
+        "branch",
+        "commit",
+        "fork",
+        "issue",
+        "lfs",
+        "protection"
+      ],
+      "weight": 1.1,
+      "agents": [
+        "omni-gitops",
+        "omni-generalist"
+      ],
+      "fallbacks": [
+        "omni-generalist"
+      ],
+      "objective_template": "GitHub & repository management for the request: {request}",
+      "acceptance_criteria": [
+        "branch_created",
+        "pr_opened",
+        "main_untouched",
+        "evidence_attached"
+      ]
+    },
+    "design-ux": {
+      "title": "Design & UX",
+      "triggers": [
+        "design",
+        "ux",
+        "ergonomie",
+        "wireframe",
+        "prototype",
+        "figma",
+        "accessibilité",
+        "accessibility",
+        "parcours",
+        "persona"
+      ],
+      "weight": 1.1,
+      "agents": [
+        "omni-designer",
+        "omni-generalist"
+      ],
+      "fallbacks": [
+        "omni-generalist"
+      ],
+      "objective_template": "Design & UX for the request: {request}",
+      "acceptance_criteria": [
+        "user_flow_documented",
+        "accessibility_checked",
+        "evidence_attached"
+      ]
+    },
+    "ai-llm": {
+      "title": "AI & LLM engineering",
+      "triggers": [
+        "llm",
+        "ia",
+        "ai",
+        "rag",
+        "embedding",
+        "prompt",
+        "agent",
+        "modèle",
+        "model",
+        "fine-tuning",
+        "inférence",
+        "inference",
+        "token"
+      ],
+      "weight": 1.2,
+      "agents": [
+        "omni-ai",
+        "omni-generalist"
+      ],
+      "fallbacks": [
+        "omni-generalist"
+      ],
+      "objective_template": "AI & LLM engineering for the request: {request}",
+      "acceptance_criteria": [
+        "model_or_provider_named",
+        "cost_and_limits_documented",
+        "evidence_attached"
+      ]
+    },
+    "automation": {
+      "title": "Automation",
+      "triggers": [
+        "automatisation",
+        "automation",
+        "script",
+        "cron",
+        "batch",
+        "orchestration",
+        "workflow",
+        "tâche répétitive",
+        "pipeline de tâches"
+      ],
+      "weight": 1.0,
+      "agents": [
+        "omni-backend",
+        "omni-automation",
+        "omni-generalist"
+      ],
+      "fallbacks": [
+        "omni-generalist"
+      ],
+      "objective_template": "Automation for the request: {request}",
+      "acceptance_criteria": [
+        "script_runs",
+        "idempotent",
+        "evidence_attached"
+      ]
+    },
+    "code-review": {
+      "title": "Independent code review",
+      "triggers": [
+        "revue de code",
+        "code review",
+        "review",
+        "relire",
+        "audit de code",
+        "contradictoire",
+        "adversarial"
+      ],
+      "weight": 1.3,
+      "agents": [
+        "omni-reviewer",
+        "omni-generalist"
+      ],
+      "fallbacks": [
+        "omni-generalist"
+      ],
+      "objective_template": "Independent code review for the request: {request}",
+      "acceptance_criteria": [
+        "findings_listed",
+        "severity_assigned",
+        "no_self_review",
+        "evidence_attached"
+      ]
+    },
+    "orchestration": {
+      "title": "OmniBrain orchestration",
+      "triggers": [],
+      "weight": 1.0,
+      "agents": [
+        "omni-generalist"
+      ],
+      "fallbacks": [
+        "omni-generalist"
+      ],
+      "objective_template": "OmniBrain orchestration for the request: {request}",
+      "acceptance_criteria": [
+        "squad_planned",
+        "gates_evaluated",
+        "trace_written"
+      ]
+    }
+  },
+  "size_thresholds": {
+    "min_score": 1.0,
+    "max_squad": 8,
+    "explicit_complex_markers": [
+      "escouade",
+      "squad",
+      "de bout en bout",
+      "end-to-end",
+      "full stack",
+      "fullstack",
+      "toute l'équipe",
+      "au complet"
+    ]
+  },
+  "required_specialties": [
+    "frontend-ui",
+    "backend-api",
+    "software-architecture",
+    "android",
+    "web-dev",
+    "data-analysis",
+    "research-docs",
+    "security-defensive",
+    "testing-qa",
+    "debugging",
+    "performance",
+    "devops-ci",
+    "github-repo",
+    "design-ux",
+    "ai-llm",
+    "automation",
+    "code-review",
+    "orchestration"
+  ],
+  "squad_templates": {
+    "fullstack-feature": {
+      "specialties": [
+        "software-architecture",
+        "backend-api",
+        "frontend-ui",
+        "testing-qa",
+        "code-review"
+      ],
+      "description": "feature from design to reviewed delivery"
+    },
+    "incident-response": {
+      "specialties": [
+        "debugging",
+        "performance",
+        "code-review"
+      ],
+      "description": "diagnose, fix, verify"
+    },
+    "secure-release": {
+      "specialties": [
+        "security-defensive",
+        "testing-qa",
+        "devops-ci",
+        "github-repo"
+      ],
+      "description": "ship safely through a reviewed PR"
+    }
+  }
+}

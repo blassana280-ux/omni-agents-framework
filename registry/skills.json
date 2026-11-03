@@ -1,0 +1,336 @@
+{
+  "version": 1,
+  "description": "Skill registry. verification: path-verified = file path checked; repo-exists = repository checked; unverified = asserted only.",
+  "skills": [
+    {
+      "id": "agent-skills-spec",
+      "title": "Agent Skills specification",
+      "source": "agentskills/agentskills:docs/specification.mdx",
+      "verification": "path-verified",
+      "specialties": [
+        "research-docs",
+        "ai-llm",
+        "automation"
+      ],
+      "notes": "authoritative format requirements"
+    },
+    {
+      "id": "skills-ref-validator",
+      "title": "skills-ref reference validator",
+      "source": "agentskills/agentskills:skills-ref/",
+      "verification": "path-verified",
+      "specialties": [
+        "testing-qa",
+        "ai-llm"
+      ],
+      "notes": "demonstration validator, not an SDK"
+    },
+    {
+      "id": "contributing-policy",
+      "title": "Contribution & AI-disclosure policy",
+      "source": "agentskills/agentskills:CONTRIBUTING.md",
+      "verification": "path-verified",
+      "specialties": [
+        "github-repo",
+        "research-docs"
+      ],
+      "notes": "authority for upstream contributions"
+    },
+    {
+      "id": "designer-skills",
+      "title": "Designer skills",
+      "source": "Owl-Listener/designer-skills",
+      "verification": "repo-exists",
+      "specialties": [
+        "design-ux",
+        "frontend-ui"
+      ],
+      "notes": "design/UX skill collection"
+    },
+    {
+      "id": "builder-ui",
+      "title": "Builder UI generation",
+      "source": "HeyPuter/builder",
+      "verification": "repo-exists",
+      "specialties": [
+        "frontend-ui",
+        "web-dev"
+      ],
+      "notes": "AI app/UI builder"
+    },
+    {
+      "id": "agency-agents-roles",
+      "title": "Agency agent role library",
+      "source": "msitarzewski/agency-agents",
+      "verification": "repo-exists",
+      "specialties": [
+        "software-architecture",
+        "testing-qa",
+        "debugging",
+        "devops-ci",
+        "backend-api"
+      ],
+      "notes": "shell-based agent role definitions"
+    },
+    {
+      "id": "xquads-squads-adversarial",
+      "title": "Adversarial review squads",
+      "source": "ohmyjahh/xquads-squads",
+      "verification": "repo-exists",
+      "specialties": [
+        "code-review",
+        "security-defensive"
+      ],
+      "notes": "multi-agent review patterns"
+    },
+    {
+      "id": "awesome-agent-skills",
+      "title": "Awesome agent skills index",
+      "source": "VoltAgent/awesome-agent-skills",
+      "verification": "repo-exists",
+      "specialties": [
+        "research-docs"
+      ],
+      "notes": "skill discovery list"
+    },
+    {
+      "id": "agent-skills-index",
+      "title": "Agent skills index",
+      "source": "imDev2023/agent-skills-index",
+      "verification": "repo-exists",
+      "specialties": [
+        "research-docs"
+      ],
+      "notes": "skill discovery index"
+    },
+    {
+      "id": "prompt-engineering-guide",
+      "title": "Prompt Engineering Guide",
+      "source": "dair-ai/Prompt-Engineering-Guide",
+      "verification": "repo-exists",
+      "specialties": [
+        "ai-llm",
+        "research-docs"
+      ],
+      "notes": "prompting references"
+    },
+    {
+      "id": "ai-engineering-hub",
+      "title": "AI engineering hub",
+      "source": "patchy631/ai-engineering-hub",
+      "verification": "repo-exists",
+      "specialties": [
+        "data-analysis",
+        "ai-llm"
+      ],
+      "notes": "RAG/agent notebooks"
+    },
+    {
+      "id": "awesome-llm-apps",
+      "title": "Awesome LLM apps",
+      "source": "Shubhamsaboo/awesome-llm-apps",
+      "verification": "repo-exists",
+      "specialties": [
+        "ai-llm",
+        "data-analysis"
+      ],
+      "notes": "application patterns"
+    },
+    {
+      "id": "mem0-memory",
+      "title": "Mem0 memory layer",
+      "source": "mem0ai/mem0",
+      "verification": "repo-exists",
+      "specialties": [
+        "ai-llm",
+        "backend-api"
+      ],
+      "notes": "long-term agent memory"
+    },
+    {
+      "id": "cognee-graph",
+      "title": "Cognee knowledge graph",
+      "source": "topoteretes/cognee",
+      "verification": "repo-exists",
+      "specialties": [
+        "ai-llm",
+        "data-analysis"
+      ],
+      "notes": "graph memory / ECL pipelines"
+    },
+    {
+      "id": "hindsight-memory",
+      "title": "Hindsight agent memory",
+      "source": "vectorize-io/hindsight",
+      "verification": "repo-exists",
+      "specialties": [
+        "ai-llm"
+      ],
+      "notes": "agent memory backend"
+    },
+    {
+      "id": "llmlingua-compression",
+      "title": "LLMLingua prompt compression",
+      "source": "microsoft/LLMLingua",
+      "verification": "repo-exists",
+      "specialties": [
+        "performance",
+        "ai-llm"
+      ],
+      "notes": "token compression"
+    },
+    {
+      "id": "lmcache-kv",
+      "title": "LMCache KV caching",
+      "source": "LMCache/LMCache",
+      "verification": "repo-exists",
+      "specialties": [
+        "performance",
+        "ai-llm"
+      ],
+      "notes": "KV cache layer"
+    },
+    {
+      "id": "gptcache-semantic",
+      "title": "GPTCache semantic cache",
+      "source": "zilliztech/GPTCache",
+      "verification": "repo-exists",
+      "specialties": [
+        "performance",
+        "ai-llm"
+      ],
+      "notes": "semantic caching"
+    },
+    {
+      "id": "kilocode-agent",
+      "title": "Kilo Code agent",
+      "source": "Kilo-Org/kilocode",
+      "verification": "repo-exists",
+      "specialties": [
+        "ai-llm",
+        "frontend-ui"
+      ],
+      "notes": "agentic coding client"
+    },
+    {
+      "id": "open-agents-runtime",
+      "title": "Open-Agents runtime",
+      "source": "Impertio-Studio/Open-Agents",
+      "verification": "repo-exists",
+      "specialties": [
+        "ai-llm",
+        "automation"
+      ],
+      "notes": "agent runtime/orchestration"
+    },
+    {
+      "id": "omniroute-gateway",
+      "title": "OmniRoute model gateway",
+      "source": "cheaper-inference/OmniRoute",
+      "verification": "repo-exists",
+      "specialties": [
+        "ai-llm"
+      ],
+      "notes": "model routing"
+    },
+    {
+      "id": "nine-router",
+      "title": "9router",
+      "source": "decolua/9router",
+      "verification": "repo-exists",
+      "specialties": [
+        "ai-llm",
+        "automation"
+      ],
+      "notes": "multi-provider routing"
+    },
+    {
+      "id": "context-engineering",
+      "title": "Awesome Context Engineering",
+      "source": "Meirtz/Awesome-Context-Engineering",
+      "verification": "repo-exists",
+      "specialties": [
+        "ai-llm",
+        "software-architecture"
+      ],
+      "notes": "context engineering patterns"
+    },
+    {
+      "id": "antigravity-skills",
+      "title": "Antigravity skills",
+      "source": "pantalon81/antigravity-skills",
+      "verification": "repo-exists",
+      "specialties": [
+        "ai-llm",
+        "automation"
+      ],
+      "notes": "skill pack"
+    },
+    {
+      "id": "skills-collection",
+      "title": "Skills collection",
+      "source": "alexander-kastil/skills-collection",
+      "verification": "repo-exists",
+      "specialties": [
+        "research-docs",
+        "ai-llm"
+      ],
+      "notes": "community skills"
+    },
+    {
+      "id": "microsoft-skills",
+      "title": "Microsoft skills",
+      "source": "microsoft/skills",
+      "verification": "repo-exists",
+      "specialties": [
+        "research-docs",
+        "backend-api"
+      ],
+      "notes": "vendor skill pack"
+    },
+    {
+      "id": "resume-skills",
+      "title": "Resume skills",
+      "source": "Paramchoudhary/ResumeSkills",
+      "verification": "repo-exists",
+      "specialties": [
+        "design-ux",
+        "research-docs"
+      ],
+      "notes": "document/design skills"
+    },
+    {
+      "id": "omni-gitops-toolkit",
+      "title": "OmniBrain gitops toolkit",
+      "source": "blassana280-ux/omni-agents-framework:omni/gitops.py",
+      "verification": "path-verified",
+      "specialties": [
+        "github-repo",
+        "devops-ci"
+      ],
+      "notes": "branch/PR automation with safety rails"
+    },
+    {
+      "id": "claude-code-internals",
+      "title": "How Claude Code works",
+      "source": "Windy3f3f3f3f/how-claude-code-works",
+      "verification": "repo-exists",
+      "specialties": [
+        "ai-llm",
+        "automation"
+      ],
+      "notes": "agent client internals"
+    },
+    {
+      "id": "game-dev-skills",
+      "title": "Game dev agent skills",
+      "source": "gamedev-skills/awesome-gamedev-agent-skills",
+      "verification": "repo-exists",
+      "specialties": [
+        "automation",
+        "frontend-ui"
+      ],
+      "notes": "game dev skill pack"
+    }
+  ]
+}

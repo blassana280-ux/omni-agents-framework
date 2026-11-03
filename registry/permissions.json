@@ -1,0 +1,480 @@
+{
+  "defaults": {
+    "allowed_tools": [
+      "execute_task",
+      "read_file",
+      "search_skills",
+      "memory_read",
+      "send_message"
+    ],
+    "max_parallel": 1,
+    "allow_dangerous": false
+  },
+  "dangerous_actions": [
+    "merge_pr",
+    "force_push",
+    "delete_repo",
+    "delete_branch",
+    "rotate_secret",
+    "write_main"
+  ],
+  "agents": {
+    "omni-frontend": {
+      "allowed_tools": [
+        "execute_task",
+        "read_file",
+        "search_skills",
+        "memory_read",
+        "send_message",
+        "write_file",
+        "run_build",
+        "run_tests"
+      ],
+      "max_parallel": 2,
+      "path_rules": [
+        {
+          "action": "write_file",
+          "deny_prefix": ".git/"
+        },
+        {
+          "action": "write_file",
+          "deny_prefix": ".env"
+        }
+      ]
+    },
+    "omni-web": {
+      "allowed_tools": [
+        "execute_task",
+        "read_file",
+        "search_skills",
+        "memory_read",
+        "send_message",
+        "write_file",
+        "run_build"
+      ],
+      "max_parallel": 2,
+      "path_rules": [
+        {
+          "action": "write_file",
+          "deny_prefix": ".git/"
+        },
+        {
+          "action": "write_file",
+          "deny_prefix": ".env"
+        }
+      ]
+    },
+    "omni-backend": {
+      "allowed_tools": [
+        "execute_task",
+        "read_file",
+        "search_skills",
+        "memory_read",
+        "send_message",
+        "write_file",
+        "run_tests",
+        "run_migration_dryrun"
+      ],
+      "max_parallel": 2,
+      "path_rules": [
+        {
+          "action": "write_file",
+          "deny_prefix": ".git/"
+        },
+        {
+          "action": "write_file",
+          "deny_prefix": ".env"
+        }
+      ]
+    },
+    "omni-architect": {
+      "allowed_tools": [
+        "execute_task",
+        "read_file",
+        "search_skills",
+        "memory_read",
+        "send_message",
+        "read_file",
+        "write_adr"
+      ],
+      "max_parallel": 2,
+      "path_rules": [
+        {
+          "action": "write_file",
+          "deny_prefix": ".git/"
+        },
+        {
+          "action": "write_file",
+          "deny_prefix": ".env"
+        }
+      ]
+    },
+    "omni-android": {
+      "allowed_tools": [
+        "execute_task",
+        "read_file",
+        "search_skills",
+        "memory_read",
+        "send_message",
+        "write_file",
+        "run_gradle"
+      ],
+      "max_parallel": 2,
+      "path_rules": [
+        {
+          "action": "write_file",
+          "deny_prefix": ".git/"
+        },
+        {
+          "action": "write_file",
+          "deny_prefix": ".env"
+        }
+      ]
+    },
+    "omni-data": {
+      "allowed_tools": [
+        "execute_task",
+        "read_file",
+        "search_skills",
+        "memory_read",
+        "send_message",
+        "read_file",
+        "run_analysis",
+        "write_file"
+      ],
+      "max_parallel": 2,
+      "path_rules": [
+        {
+          "action": "write_file",
+          "deny_prefix": ".git/"
+        },
+        {
+          "action": "write_file",
+          "deny_prefix": ".env"
+        }
+      ]
+    },
+    "omni-research": {
+      "allowed_tools": [
+        "execute_task",
+        "read_file",
+        "search_skills",
+        "memory_read",
+        "send_message",
+        "read_file",
+        "web_search",
+        "write_doc"
+      ],
+      "max_parallel": 2,
+      "path_rules": [
+        {
+          "action": "write_file",
+          "deny_prefix": ".git/"
+        },
+        {
+          "action": "write_file",
+          "deny_prefix": ".env"
+        }
+      ]
+    },
+    "omni-security": {
+      "allowed_tools": [
+        "execute_task",
+        "read_file",
+        "search_skills",
+        "memory_read",
+        "send_message",
+        "read_file",
+        "run_static_analysis"
+      ],
+      "max_parallel": 2,
+      "path_rules": [
+        {
+          "action": "write_file",
+          "deny_prefix": ".git/"
+        },
+        {
+          "action": "write_file",
+          "deny_prefix": ".env"
+        }
+      ]
+    },
+    "omni-qa": {
+      "allowed_tools": [
+        "execute_task",
+        "read_file",
+        "search_skills",
+        "memory_read",
+        "send_message",
+        "write_file",
+        "run_tests"
+      ],
+      "max_parallel": 2,
+      "path_rules": [
+        {
+          "action": "write_file",
+          "deny_prefix": ".git/"
+        },
+        {
+          "action": "write_file",
+          "deny_prefix": ".env"
+        }
+      ]
+    },
+    "omni-debugger": {
+      "allowed_tools": [
+        "execute_task",
+        "read_file",
+        "search_skills",
+        "memory_read",
+        "send_message",
+        "read_file",
+        "run_tests",
+        "run_repro"
+      ],
+      "max_parallel": 2,
+      "path_rules": [
+        {
+          "action": "write_file",
+          "deny_prefix": ".git/"
+        },
+        {
+          "action": "write_file",
+          "deny_prefix": ".env"
+        }
+      ]
+    },
+    "omni-perf": {
+      "allowed_tools": [
+        "execute_task",
+        "read_file",
+        "search_skills",
+        "memory_read",
+        "send_message",
+        "read_file",
+        "run_benchmark",
+        "write_file"
+      ],
+      "max_parallel": 2,
+      "path_rules": [
+        {
+          "action": "write_file",
+          "deny_prefix": ".git/"
+        },
+        {
+          "action": "write_file",
+          "deny_prefix": ".env"
+        }
+      ]
+    },
+    "omni-devops": {
+      "allowed_tools": [
+        "execute_task",
+        "read_file",
+        "search_skills",
+        "memory_read",
+        "send_message",
+        "read_file",
+        "write_file",
+        "run_pipeline_dryrun"
+      ],
+      "max_parallel": 2,
+      "path_rules": [
+        {
+          "action": "write_file",
+          "deny_prefix": ".git/"
+        },
+        {
+          "action": "write_file",
+          "deny_prefix": ".env"
+        }
+      ]
+    },
+    "omni-gitops": {
+      "allowed_tools": [
+        "execute_task",
+        "read_file",
+        "search_skills",
+        "memory_read",
+        "send_message",
+        "git_branch",
+        "git_commit",
+        "git_push",
+        "open_pr"
+      ],
+      "max_parallel": 2,
+      "path_rules": [
+        {
+          "action": "write_file",
+          "deny_prefix": ".git/"
+        },
+        {
+          "action": "write_file",
+          "deny_prefix": ".env"
+        }
+      ]
+    },
+    "omni-designer": {
+      "allowed_tools": [
+        "execute_task",
+        "read_file",
+        "search_skills",
+        "memory_read",
+        "send_message",
+        "read_file",
+        "write_doc"
+      ],
+      "max_parallel": 2,
+      "path_rules": [
+        {
+          "action": "write_file",
+          "deny_prefix": ".git/"
+        },
+        {
+          "action": "write_file",
+          "deny_prefix": ".env"
+        }
+      ]
+    },
+    "omni-ai": {
+      "allowed_tools": [
+        "execute_task",
+        "read_file",
+        "search_skills",
+        "memory_read",
+        "send_message",
+        "read_file",
+        "write_file",
+        "run_eval"
+      ],
+      "max_parallel": 2,
+      "path_rules": [
+        {
+          "action": "write_file",
+          "deny_prefix": ".git/"
+        },
+        {
+          "action": "write_file",
+          "deny_prefix": ".env"
+        }
+      ]
+    },
+    "omni-automation": {
+      "allowed_tools": [
+        "execute_task",
+        "read_file",
+        "search_skills",
+        "memory_read",
+        "send_message",
+        "write_file",
+        "run_script"
+      ],
+      "max_parallel": 2,
+      "path_rules": [
+        {
+          "action": "write_file",
+          "deny_prefix": ".git/"
+        },
+        {
+          "action": "write_file",
+          "deny_prefix": ".env"
+        }
+      ]
+    },
+    "omni-reviewer": {
+      "allowed_tools": [
+        "execute_task",
+        "read_file",
+        "search_skills",
+        "memory_read",
+        "send_message",
+        "read_file",
+        "write_review"
+      ],
+      "max_parallel": 2,
+      "path_rules": [
+        {
+          "action": "write_file",
+          "deny_prefix": ".git/"
+        },
+        {
+          "action": "write_file",
+          "deny_prefix": ".env"
+        }
+      ]
+    },
+    "omni-librarian": {
+      "allowed_tools": [
+        "execute_task",
+        "read_file",
+        "search_skills",
+        "memory_read",
+        "send_message",
+        "read_file",
+        "search_skills"
+      ],
+      "max_parallel": 2,
+      "path_rules": [
+        {
+          "action": "write_file",
+          "deny_prefix": ".git/"
+        },
+        {
+          "action": "write_file",
+          "deny_prefix": ".env"
+        }
+      ]
+    },
+    "omni-generalist": {
+      "allowed_tools": [
+        "execute_task",
+        "read_file",
+        "search_skills",
+        "memory_read",
+        "send_message",
+        "read_file",
+        "write_file",
+        "run_tests"
+      ],
+      "max_parallel": 2,
+      "path_rules": [
+        {
+          "action": "write_file",
+          "deny_prefix": ".git/"
+        },
+        {
+          "action": "write_file",
+          "deny_prefix": ".env"
+        }
+      ]
+    },
+    "omnibrain": {
+      "allowed_tools": [
+        "execute_task",
+        "read_file",
+        "search_skills",
+        "memory_read",
+        "send_message",
+        "dispatch",
+        "read_file",
+        "search_skills",
+        "memory_write_shared",
+        "send_message",
+        "open_pr",
+        "git_branch",
+        "git_commit"
+      ],
+      "max_parallel": 8,
+      "path_rules": [
+        {
+          "action": "write_file",
+          "deny_prefix": ".git/"
+        },
+        {
+          "action": "write_file",
+          "deny_prefix": ".env"
+        }
+      ]
+    }
+  }
+}
