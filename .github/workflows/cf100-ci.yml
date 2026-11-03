@@ -1,0 +1,39 @@
+name: CF100 CI
+
+on:
+  push:
+    branches: [main, feature/cyber-force-100-foundation]
+    paths:
+      - "cyber-force-100/**"
+      - ".github/workflows/cf100-ci.yml"
+  pull_request:
+    paths:
+      - "cyber-force-100/**"
+      - ".github/workflows/cf100-ci.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cyber-force-100
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install (cœur + extras)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[api,dev]"
+
+      - name: Validation du registre (10 divisions × 10 agents)
+        run: python -m cf100 validate
+
+      - name: Auto-audit (registre, preuves, secrets)
+        run: python -m cf100 audit
+
+      - name: Tests unitaires et d'intégration
+        run: pytest -q
