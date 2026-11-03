@@ -30,10 +30,34 @@ jobs:
           pip install -e ".[api,dev]"
 
       - name: Validation du registre (10 divisions × 10 agents)
-        run: python -m cf100 validate
+        run: |
+          set +e
+          out=$(python -m cf100 validate 2>&1)
+          rc=$?
+          echo "$out"
+          if [ $rc -ne 0 ]; then
+            echo "$out" | tail -15 | tac | while IFS= read -r l; do printf '::error::%s\n' "$l"; done
+            exit $rc
+          fi
 
       - name: Auto-audit (registre, preuves, secrets)
-        run: python -m cf100 audit
+        run: |
+          set +e
+          out=$(python -m cf100 audit 2>&1)
+          rc=$?
+          echo "$out"
+          if [ $rc -ne 0 ]; then
+            echo "$out" | tail -15 | tac | while IFS= read -r l; do printf '::error::%s\n' "$l"; done
+            exit $rc
+          fi
 
       - name: Tests unitaires et d'intégration
-        run: pytest -q
+        run: |
+          set +e
+          out=$(pytest -q --tb=line 2>&1)
+          rc=$?
+          echo "$out"
+          if [ $rc -ne 0 ]; then
+            echo "$out" | tail -30 | tac | while IFS= read -r l; do printf '::error::%s\n' "$l"; done
+            exit $rc
+          fi
