@@ -7,7 +7,7 @@ cohérentes. Tout problème est listé tel quel, jamais masqué.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from cf100.agents.registry import Registry, load_divisions, load_policies, \
     validate_registry
