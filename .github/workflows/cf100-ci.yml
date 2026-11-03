@@ -1,7 +1,7 @@
 name: CF100 CI
 
-# push limité à main : la PR #6 déclenche déjà pull_request à chaque
-# commit de la branche — le double déclencheur doublonnait chaque run.
+# push limité à main : une PR déclenche déjà un run par commit de sa
+# branche (pull_request) — le double déclencheur doublonnait chaque run.
 on:
   push:
     branches: [main]
@@ -63,3 +63,23 @@ jobs:
             echo "$out" | tail -30 | tac | while IFS= read -r l; do printf '::error::%s\n' "$l"; done
             exit $rc
           fi
+
+      - name: Mise en marche des agents — mission réelle (données temporaires étiquetées)
+        run: |
+          {
+            echo '### 🛡️ Mise en marche des agents — mission réelle'
+            echo ''
+            echo '```json'
+            python -m cf100 demo
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Évaluation des 100 agents (verdicts factuels)
+        run: |
+          {
+            echo '### 📊 Évaluation des 100 agents'
+            echo ''
+            echo '```'
+            python -m cf100 evaluate
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

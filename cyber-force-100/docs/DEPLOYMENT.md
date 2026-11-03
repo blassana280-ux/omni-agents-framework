@@ -52,7 +52,11 @@ persistance.
 
 `.github/workflows/cf100-ci.yml` (à la racine du dépôt hôte) exécute à
 chaque push/PR touchant `cyber-force-100/**` : installation, validation du
-registre, auto-audit, suite pytest complète. Le CI est la preuve
+registre, auto-audit, suite pytest complète — puis **met les agents en
+marche** : mission réelle de démonstration (`python -m cf100 demo`,
+données temporaires étiquetées, rien de persisté) et évaluation des
+100 agents (`python -m cf100 evaluate`), résultats publiés dans le
+résumé du run (onglet Summary de chaque run). Le CI est la preuve
 d'exécution de référence — consultez l'onglet Actions du dépôt.
 
 ## Sauvegardes et récupération
