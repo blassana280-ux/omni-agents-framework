@@ -20,8 +20,8 @@
 ## v0.1.0 — 31 octobre 2026
 - Audit complet de l'environnement GitHub : 44 dépôts (41 publics, 3 privés), état AGENTS.md vérifié sur les 41 publics le même jour.
 - Création du dossier Knowledge « Mission MISTRAL » : KNOWLEDGE.md (identité + protocole de démarrage), memory.md (4 couches), skills.md, learnings.md (L-001 à L-006), architecture.md, tasks.md, agents-registry.md, benchmarks.md, changelog.md.
-- Registre d'agents réel : disponibilité vérifiée, statut honnête par entrée (profils lisibles vs services actifs — aucun service actif prétendu).
+- Registre d'agents réel : disponibilité vérifiée statut honnête par entrée (profils lisibles vs services actifs — aucun service actife prétendu).
 - 6 leçons issues de la mission OmniBrain du 31/10/2026 (dont L-006 : signalement du refus 403 de création de dépôt).
 - 10 benchmarks définis : 5 opérationnels, 5 à vérifier (tests 1, 5, 6, 7).
 - Miroir GitHub : BLOQUÉ (create_repository → 403 « Resource not accessible by integration ») — hébergement en attente de décision de Lassana ; le dossier Knowledge est la source opérationnelle.
-- Contexte hérité : mission OmniBrain du 31/10/2026 — 37 dépôts réparés, 37 PRs ouverts, 0 fusion.
+- Contexte hérité : mission OmniBrain du 31/10/2026 — 37 dépôts réparés, 37 PRs ouvertes, 0 fusion.
