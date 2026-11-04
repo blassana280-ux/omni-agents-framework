@@ -45,3 +45,8 @@ Constat 1 : search_repositories "user:blassana280-ux" ne renvoyait que 5 dépôt
 Constat 2 : les dépôts privés, illisibles (403) le 31/10, sont désormais lisibles par l'app GitHub (vérifié sur optimiser-mes-agents-IA et omni-research-100).
 Correction : pour tout inventaire de compte, requêter fork:false ET fork:true puis dédupliquer ; re-tester les permissions supposées perdues à chaque session importante au lieu de se fier à une mémoire ancienne.
 Statut : validé le 04/11/2026 (50 dépôts uniques dénombrés vs 44 en mémoire).
+
+### L-008 — get_file_contents ne retourne pas le contenu dans la valeur sandbox (04/11/2026)
+Constat : la valeur retournée dans le sandbox est une enveloppe « successfully downloaded text file (SHA: …) » de 81 caractères ; le contenu complet du fichier arrive en « Additional content » HORS sandbox. Une comparaison exacte in-sandbox échoue donc systématiquement (faux « non conforme »).
+Correction : la vérification post-poussée se fait sur le contenu « Additional content » rapporté par l'outil (comparaison octet par octet hors sandbox), jamais sur la valeur de retour ; ne jamais conclure à une poussée ratée sur la seule valeur sandbox.
+Statut : validé le 04/11/2026 (commit e8b4ca0 vérifié conforme via Additional content après faux négatif in-sandbox).

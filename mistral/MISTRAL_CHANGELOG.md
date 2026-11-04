@@ -1,5 +1,11 @@
 # MISTRAL — changelog
 
+## v0.1.3 — 4 novembre 2026 (2e session)
+- Miroir synchronisé : commit e8b4ca0 (MISTRAL_SKILLS/MEMORY/LEARNINGS/CHANGELOG v0.1.2) sur mistral/init-v0.1.0 — PR #5 à jour ; contenu distant re-relu (leçon L-008 : la vérification passe par le contenu « Additional content », la valeur sandbox ne contient pas le fichier).
+- T-004 exécuté : audit sécurité CI/CD en mode escouade (profil secops + revue adverse appsec) — ~120 workflows inventoriés (15 dépôts avec workflows), 8 lus intégralement ; verdict 0 CRITICAL / 2 MEDIUM / 3 LOW + 1 fiabilité ; rapport mistral/audit-securite.md (rapport local : audit-securite.md). Réserve : forks non indexés par la recherche GitHub.
+- T-006 exécuté : benchmarks 1, 5, 6, 7 → PASS avec preuves (benchmarks.md) — mode réel = adoption de profils, pas de runtime externe.
+- T-008 créée : audit OmniRoute (24 workflows) + 8 workflows agency-agents restants.
+
 ## v0.1.2 — 4 novembre 2026
 - Intégration des collections de skills GitHub : inventaire frais de 50 dépôts uniques (46 publics + 4 privés, recherche fork:false + fork:true dédupliquée) ; 5 nouveaux dépôts découverts (vibeship-spawner-skills 462 skills/35 catégories, skills-Claude-vid-o- 13 skills Remotion, gemini-skills, skills-open-IA, opencode) + omni-research-100 (privé, nouveau).
 - Accès privé rétabli : get_file_contents réussit sur les dépôts privés (403 du 31/10 obsolète pour la lecture) — memory.md §B et learnings.md L-007 mis à jour.
