@@ -1,5 +1,13 @@
 # MISTRAL — changelog
 
+## v0.1.4 — 4 novembre 2026 (3e session)
+- PR #5 fusionnée (merge commit 344e90e) : le miroir MISTRAL est désormais sur main d'omni-agents-framework.
+- T-001 exécuté : 37/37 PRs de réparation AGENTS.md fusionnées (squash) sur les 37 dépôts OmniBrain, sur autorisation « Fait le nécessaire » ; aucune PR renforcement-quotidien touchée.
+- T-002 exécuté : PR #3 (orchestrateur) déjà fusionnée le 03/11 ; PR #4 clôturée comme supersédée — justification complète dans le corps de la PR (l'intention est satisfaite par #3, fusionner l'overlay serait une régression).
+- Miroir resynchronisé sur mistral/init-v0.1.0 : MISTRAL_LEARNINGS (L-010), MISTRAL_MEMORY, MISTRAL_TASKS, MISTRAL_CHANGELOG (v0.1.4) — vérification octet-exact (taille + md5 + blob SHA distant), méthode L-010 (read_file direct, zéro transcription).
+- Leçon L-010 : lecture fs directe depuis le sandbox + oracle md5sum bash + blob SHA distant ; la transcription manuelle (texte ou base64) est abandonnée.
+- PRs #1 (OmniRouteLite) et #2 (OmniRoute Mobile) d'omni-agents-framework : hors périmètre, toujours ouvertes — décision Lassana.
+
 ## v0.1.3 — 4 novembre 2026 (2e session)
 - Miroir synchronisé : commit e8b4ca0 (MISTRAL_SKILLS/MEMORY/LEARNINGS/CHANGELOG v0.1.2) sur mistral/init-v0.1.0 — PR #5 à jour ; contenu distant re-relu (leçon L-008 : la vérification passe par le contenu « Additional content », la valeur sandbox ne contient pas le fichier).
 - T-004 exécuté : audit sécurité CI/CD en mode escouade (profil secops + revue adverse appsec) — ~120 workflows inventoriés (15 dépôts avec workflows), 8 lus intégralement ; verdict 0 CRITICAL / 2 MEDIUM / 3 LOW + 1 fiabilité ; rapport mistral/audit-securite.md (rapport local : audit-securite.md). Réserve : forks non indexés par la recherche GitHub.
@@ -20,7 +28,7 @@
 ## v0.1.0 — 31 octobre 2026
 - Audit complet de l'environnement GitHub : 44 dépôts (41 publics, 3 privés), état AGENTS.md vérifié sur les 41 publics le même jour.
 - Création du dossier Knowledge « Mission MISTRAL » : KNOWLEDGE.md (identité + protocole de démarrage), memory.md (4 couches), skills.md, learnings.md (L-001 à L-006), architecture.md, tasks.md, agents-registry.md, benchmarks.md, changelog.md.
-- Registre d'agents réel : disponibilité vérifiée statut honnête par entrée (profils lisibles vs services actifs — aucun service actife prétendu).
+- Registre d'agents réel : disponibilité vérifiée, statut honnête par entrée (profils lisibles vs services actifs — aucun service actif prétendu).
 - 6 leçons issues de la mission OmniBrain du 31/10/2026 (dont L-006 : signalement du refus 403 de création de dépôt).
 - 10 benchmarks définis : 5 opérationnels, 5 à vérifier (tests 1, 5, 6, 7).
 - Miroir GitHub : BLOQUÉ (create_repository → 403 « Resource not accessible by integration ») — hébergement en attente de décision de Lassana ; le dossier Knowledge est la source opérationnelle.
