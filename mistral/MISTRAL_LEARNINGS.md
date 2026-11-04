@@ -1,7 +1,7 @@
 # MISTRAL — apprentissage continu
 
 ## Protocole (après chaque tâche importante)
-1. Analyser la stratégie. 2. Évaluer le résultat avec preuve. 3. Identifier les erreurs. 4. Trouver les causes racines. 5. Extraire les connaissances. 6. Enregistrer la leçon ici (ligne L-xxx suivante). 7. Corriger la méthode dans MISTRAL_MEMORY.md section D si procédurale. 8. Tester la correction à la prochaine occasion. 9. Mesurer avant/après. 10. Conserver uniquement les améliorations validées — sinon revenir à la version précédente (git pour ce miroir, historique de fichiers pour le dossier Knowledge).
+1. Analyser la stratégie. 2. Évaluer le résultat avec preuve. 3. Identifier les erreurs. 4. Trouver les causes racines. 5. Extraire les connaissances. 6. Enregistrer la leçon ici (ligne L-xxx suivante). 7. Corriger la méthode dans [memory.md](memory.md) section D si procédurale. 8. Tester la correction à la prochaine occasion. 9. Mesurer avant/après. 10. Conserver uniquement les améliorations validées — sinon revenir à la version précédente (git pour le miroir GitHub, historique de fichiers pour ce dossier).
 
 ## Rubrique d'évaluation (par tâche)
 Résultat (atteint/partiel/échec) · Preuve · Erreurs · Leçon · Méthode changée (oui/non) · À re-vérifier.
@@ -37,5 +37,11 @@ Statut : validé.
 
 ### L-006 — Signaler un refus de permission comme blocage, jamais le maquiller (31/10/2026)
 Constat : create_repository → 403 « Resource not accessible by integration ». L'app GitHub ne peut pas créer de dépôts.
-Correction : mesurer l'erreur, la consigner (MISTRAL_MEMORY.md §B), construire ce qui est opérationnel sans cette permission (Knowledge = source durable), et proposer à Lassana les voies de déblocage. Ne jamais prétendre que le miroir GitHub existe.
+Correction : mesurer l'erreur, la consigner (memory.md §B), construire ce qui est opérationnel sans cette permission (Knowledge = source durable), et proposer à Lassana les voies de déblocage. Ne jamais prétendre que le miroir GitHub existe.
 Statut : appliqué — puis résolu le 03/11/2026 par hébergement en dossier mistral/ de omni-agents-framework (403 re-testé et confirmé stable ce jour-là).
+
+### L-007 — La recherche GitHub exclut les forks par défaut ; l'accès privé évolue (04/11/2026)
+Constat 1 : search_repositories "user:blassana280-ux" ne renvoyait que 5 dépôts — les forks sont exclus par défaut (il faut `fork:true` en second appel).
+Constat 2 : les dépôts privés, illisibles (403) le 31/10, sont désormais lisibles par l'app GitHub (vérifié sur optimiser-mes-agents-IA et omni-research-100).
+Correction : pour tout inventaire de compte, requêter fork:false ET fork:true puis dédupliquer ; re-tester les permissions supposées perdues à chaque session importante au lieu de se fier à une mémoire ancienne.
+Statut : validé le 04/11/2026 (50 dépôts uniques dénombrés vs 44 en mémoire).
