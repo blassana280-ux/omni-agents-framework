@@ -56,3 +56,9 @@ Constat : MISTRAL_CHANGELOG.md poussé avec 3528 octets vs 3529 locaux — conte
 Cause : transcription manuelle du contenu du fichier dans le code sandbox (le seul chemin de transfert utilisé était la frappe).
 Correction : pour toute synchronisation miroir, encoder le fichier local en base64 (bash), décoder en sandbox via un décodeur pur auto-testé sur vecteurs connus AVANT usage, pousser le contenu décodé ; verrou final = taille GitHub == taille locale (bash wc -c).
 Statut : validé le 04/11/2026 (correctif poussé, tailles alignées 3529 = 3529).
+
+### L-010 — La transcription manuelle (texte ou base64) reste faillible ; lire le fichier local directement depuis le sandbox (04/11/2026)
+Constat : deux correctifs base64 consécutifs du miroir ont introduit de nouvelles erreurs à chaque re-copie ; copier ~8 000 caractères à la main produit 1-2 erreurs par tentative, quelle que soit la méthode (texte ou base64).
+Cause : aucun canal fiable entre le contexte de l'agent et le sandbox pour les longues chaînes ; régénérer une longue chaîne n'est jamais une copie exacte.
+Correction : le sandbox expose tools.file_system.read_file (lecture directe du fichier local, contenu retourné comme valeur) — zéro transcription ; verrouiller par md5 (implémentation pur JS auto-testée contre des vecteurs validés par l'oracle bash md5sum) + taille + blob SHA distant (get_file_contents, champs name/size/sha). Piège JS : les décalages sont pris mod 32 (x >>> 32 == x >>> 0) — encoder la longueur bit en deux mots lo/hi. Vérifier toute constante mémorisée contre un oracle externe avant de s'y fier (md5("abc") mémorisé était faux).
+Statut : validé le 04/11/2026 (commit 743903a : MISTRAL_LEARNINGS.md 5928 o, blob SHA e5368191 conforme, toutes gardes passées). Synchronisée au miroir le 04/11/2026 (v0.1.4).
