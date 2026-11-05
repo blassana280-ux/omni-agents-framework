@@ -1,5 +1,10 @@
 # MISTRAL — changelog
 
+## v0.1.5 — 4 novembre 2026 (3e session, suite)
+- Revue puis fusion des PRs #1 (OmniRouteLite — passerelle Node zéro dépendance) et #2 (OmniRoute Mobile — Android Kotlin/Compose) d'omni-agents-framework, sur autorisation « fait le mieux possible » : revue code + sécurité (localhost par défaut + Bearer optionnel + limite payload côté Lite ; serveur LAN avec clé optionnelle côté Mobile), fusions 9ec54c5 / a105f70.
+- AGENTS.md de main vérifié intact après chaque fusion (2167 o, blob 6f5120b0) — les branches portaient une version ancienne (1682 o) mais sans conflit ni régression.
+- Plus aucune PR ouverte sur omni-agents-framework.
+
 ## v0.1.4 — 4 novembre 2026 (3e session)
 - PR #5 fusionnée (merge commit 344e90e) : le miroir MISTRAL est désormais sur main d'omni-agents-framework.
 - T-001 exécuté : 37/37 PRs de réparation AGENTS.md fusionnées (squash) sur les 37 dépôts OmniBrain, sur autorisation « Fait le nécessaire » ; aucune PR renforcement-quotidien touchée.
