@@ -2,3 +2,6 @@
 __pycache__/
 *.py[cod]
 audit.json
+OmniRouteLite/secrets/
+OmniRouteLite/config.json
+OmniRouteLite/config.test.json

@@ -10,7 +10,8 @@
       "name": "mistral",
       "type": "openai",
       "baseUrl": "https://api.mistral.ai",
-      "apiKey": "VOTRE_CLE_MISTRAL",
+      "apiKeyEnv": "MISTRAL_API_KEY",
+      "apiKeyFile": "secrets/mistral.key",
       "models": ["mistral-large-latest", "mistral-small-latest"]
     },
     {
