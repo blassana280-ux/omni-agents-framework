@@ -1,0 +1,37 @@
+{
+  "port": 8787,
+  "host": "127.0.0.1",
+  "gatewayKey": "",
+  "cache": { "enabled": true, "ttlMs": 3600000 },
+  "compression": { "enabled": true },
+  "routing": { "strategy": "priority" },
+  "providers": [
+    {
+      "name": "mistral",
+      "type": "openai",
+      "baseUrl": "https://api.mistral.ai",
+      "apiKey": "VOTRE_CLE_MISTRAL",
+      "models": ["mistral-large-latest", "mistral-small-latest"]
+    },
+    {
+      "name": "groq",
+      "type": "openai",
+      "baseUrl": "https://api.groq.com/openai",
+      "apiKey": "VOTRE_CLE_GROQ",
+      "models": ["llama-3.3-70b-versatile"]
+    },
+    {
+      "name": "anthropic",
+      "type": "anthropic",
+      "baseUrl": "https://api.anthropic.com",
+      "apiKey": "VOTRE_CLE_ANTHROPIC",
+      "models": ["claude-sonnet-4-5"]
+    },
+    {
+      "name": "mock",
+      "type": "mock",
+      "models": ["mock-1"],
+      "enabled": true
+    }
+  ]
+}
