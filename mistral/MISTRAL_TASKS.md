@@ -1,8 +1,7 @@
 # MISTRAL — tâches et objectifs en cours
 
 ## En attente de décision (Lassana décide)
-- Aucune — T-001, T-002 et la fusion de la PR #5 ont été exécutées le 04/11/2026 sur autorisation « Fait le nécessaire ».
-- Hors périmètre MISTRAL, toujours ouvertes : PRs #1 (OmniRouteLite) et #2 (OmniRoute Mobile) d'omni-agents-framework — projets séparés, décision Lassana.
+- Aucune — T-001, T-002, la PR #5 et les PRs #1/#2 (OmniRouteLite / OmniRoute Mobile) ont été exécutées le 04/11/2026 sur autorisation de Lassana. Plus aucune PR ouverte sur omni-agents-framework.
 
 ## Planifiées (MISTRAL)
 - T-005 : explorer le connecteur scheduled_tasks pour des évaluations périodiques réelles (aucun faux automatisme).
@@ -10,6 +9,7 @@
 - T-008 (issu de T-004) : auditer OmniRoute en détail (24 workflows, dont deploy-vps / docker-publish / electron-release / npm-publish) + lire les 8 workflows agency-agents restants.
 
 ## Terminé
+- 04/11/2026 (3e session, suite) — PRs #1 (OmniRouteLite) et #2 (OmniRoute Mobile) relues (code + sécurité) puis fusionnées sur autorisation « fait le mieux possible » : commits 9ec54c5 / a105f70. AGENTS.md de main vérifié intact après chaque fusion (2167 o, blob 6f5120b0). Plus aucune PR ouverte sur omni-agents-framework.
 - 04/11/2026 (3e session) — T-001 exécuté : 37/37 PRs de réparation AGENTS.md fusionnées (squash, une par dépôt OmniBrain) sur autorisation « Fait le nécessaire ». Aucune PR renforcement-quotidien touchée.
 - 04/11/2026 (3e session) — T-002 exécuté : PR #3 (orchestrateur) déjà fusionnée le 03/11 ; PR #4 clôturée comme supersédée avec justification complète dans le corps de la PR (l'intention est satisfaite par #3, fusion = régression).
 - 04/11/2026 (3e session) — PR #5 fusionnée (merge commit 344e90e) : le miroir MISTRAL est sur main d'omni-agents-framework. Sync v0.1.4 poussée sur la branche (LEARNINGS L-010, MEMORY, TASKS, CHANGELOG).
