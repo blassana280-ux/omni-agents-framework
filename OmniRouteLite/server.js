@@ -6,6 +6,18 @@ const fs = require('fs');
 const path = require('path');
 const core = require('./core.js');
 
+// ---- clés API sécurisées (ADR-SEC-KEYS) ----
+// Résolution : apiKeyEnv (variable d'environnement) > apiKeyFile (fichier local chmod 600)
+// > apiKey en clair (hérité, déconseillé). La clé n'est jamais affichée ni journalisée.
+function readApiKeyFile(rel) {
+  try { return fs.readFileSync(path.resolve(__dirname, rel), 'utf8').trim(); } catch { return ''; }
+}
+function resolveApiKey(p) {
+  if (p.apiKeyEnv && process.env[p.apiKeyEnv]) return process.env[p.apiKeyEnv].trim();
+  if (p.apiKeyFile) { const k = readApiKeyFile(p.apiKeyFile); if (k) return k; }
+  return (p.apiKey || '').trim();
+}
+
 const cfgPath = path.join(__dirname, process.env.OMNILITE_CONFIG || 'config.json');
 const cfg = fs.existsSync(cfgPath) ? JSON.parse(fs.readFileSync(cfgPath, 'utf8')) : {};
 const PORT = Number(process.env.PORT || cfg.port || 8787);
@@ -43,12 +55,13 @@ function authorized(req) {
 
 // ---- provider call (OpenAI-compatible or Anthropic) ----
 async function callProvider(p, body, timeoutMs) {
+  const key = resolveApiKey(p);
   const out = {
     name: p.name,
     url: p.type === 'anthropic' ? `${p.baseUrl}/v1/messages` : `${p.baseUrl}/v1/chat/completions`,
     headers: p.type === 'anthropic'
-      ? { 'content-type': 'application/json', 'x-api-key': p.apiKey, 'anthropic-version': '2023-06-01' }
-      : { 'content-type': 'application/json', authorization: `Bearer ${p.apiKey}` },
+      ? { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' }
+      : { 'content-type': 'application/json', authorization: `Bearer ${key}` },
     body: p.type === 'anthropic' ? core.toAnthropic(body) : { model: body.model, messages: body.messages, temperature: body.temperature, max_tokens: body.max_tokens },
   };
   const ctrl = new AbortController();
@@ -146,4 +159,4 @@ if (require.main === module) {
     if (!GATEWAY_KEY && HOST !== '127.0.0.1') console.warn('⚠ Pas de gatewayKey et écoute hors localhost : toute personne sur le réseau peut appeler l\'API.');
   });
 }
-module.exports = { server, chatCompletions, stats };
+module.exports = { server, chatCompletions, stats, resolveApiKey };
