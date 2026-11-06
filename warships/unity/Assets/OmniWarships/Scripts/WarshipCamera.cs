@@ -59,9 +59,10 @@ namespace OmniWarships.Unity
             TouchInputController input = _director.Input;
             if (input != null)
             {
-                _yaw += input.CameraOrbitDelta.x;
-                _pitch -= input.CameraOrbitDelta.y;
-                _dist = Mathf.Clamp(_dist * input.CameraZoomFactor, 70f, 900f);
+                Vector2 o = input.ConsumeOrbit();
+                _yaw += o.x;
+                _pitch += o.y;
+                _dist = Mathf.Clamp(_dist * input.ConsumeZoom(), 70f, 900f);
             }
             _pitch = Mathf.Clamp(_pitch, 8f, 78f);
 
