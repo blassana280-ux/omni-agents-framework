@@ -38,7 +38,14 @@ runs (chaque échec corrigé puis re-testé) :
    (7e1aa424) ;
 5. **RUN VERT (38 s)** : run 42282487303 — les 6 générateurs exécutés,
    FBX vérifiés (tailles réelles), committés par le bot (9c1db33a) et
-   publiés en artefact omni-warships-fbx (FBX + logs).
+   publiés en artefact omni-warships-fbx (FBX + logs) ;
+6. re-run déclenché par le push des docs : le filtre paths s'évalue sur
+   le diff cumulé de la PR → les FBX régénérés (horodatage binaire neuf)
+   ont été RE-commités par le bot (078bd4ec) — churn qui déplace la tête
+   de la PR à chaque push sans jamais stabiliser les checks ;
+7. **correctif d'idempotence (904cd4f7)** : le workflow ne committe plus
+   que si Resources/Models ne contient aucun .fbx. La génération reste
+   vérifiée à chaque run (job vert), sans commit ni déplacement de tête.
 
 FBX réellement produits (tailles vérifiées dans le dépôt, commit 9c1db33a) :
 
