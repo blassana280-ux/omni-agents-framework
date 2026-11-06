@@ -10,6 +10,9 @@
 #   run 4 : Blender portable OK, chemins ../../ toujours faux → aucun FBX/log.
 # CORRECTIONS : chemins ../../../ (3 niveaux), --python-exit-code 1, PYTHONPATH,
 # annotation ::error:: avec extrait de traceback (set -e desactive autour du pipeline).
+# IDEMPOTENCE : les FBX regeneres portent un nouvel horodatage → un commit
+# systematique deplacerait la tete de PR a chaque run (churn sans fin).
+# Les FBX ne sont commits QUE si Resources/Models ne contient encore aucun .fbx.
 name: Warships Assets (Blender FBX)
 
 on:
@@ -94,20 +97,26 @@ jobs:
             echo "OK $f.fbx : $size octets"
           done
 
-      - name: Integration des FBX dans le projet Unity (commit)
+      - name: Integration des FBX dans le projet Unity (commit UNIQUEMENT si absent)
         run: |
+          MODELS_DIR="warships/unity/Assets/OmniWarships/Resources/Models"
+          mkdir -p "$MODELS_DIR"
+          EXISTING=$(find "$MODELS_DIR" -name "*.fbx" | wc -l)
+          if [ "$EXISTING" -gt 0 ]; then
+            echo "FBX deja presents dans Resources/Models ($EXISTING fichier(s)) — la regeneration ne change que l'horodatage binaire."
+            echo "Aucun commit : la generation reste verifiee (job vert) sans deplacer la tete de la PR."
+            exit 0
+          fi
           git config user.name "omni-warships-bot"
           git config user.email "actions@github.com"
-          mkdir -p warships/unity/Assets/OmniWarships/Resources/Models
-          cp "$GITHUB_WORKSPACE"/artifacts/fbx/*.fbx \
-             warships/unity/Assets/OmniWarships/Resources/Models/
-          git add warships/unity/Assets/OmniWarships/Resources/Models
-          if [ -n "$(git status --porcelain warships/unity/Assets/OmniWarships/Resources/Models)" ]; then
+          cp "$GITHUB_WORKSPACE"/artifacts/fbx/*.fbx "$MODELS_DIR"/
+          git add "$MODELS_DIR"
+          if [ -n "$(git status --porcelain "$MODELS_DIR")" ]; then
             git commit -m "chore(assets): FBX reels generes par Blender 4.2.3 LTS en CI (destroyer, frigate, carrier, submarine, aircraft, equipment)"
             git push
             echo "FBX commites dans Resources/Models (charges au runtime par ShipModelLibrary)."
           else
-            echo "FBX inchanges — aucun commit (idempotent)."
+            echo "Rien a committer (idempotent)."
           fi
 
       - name: Artefact FBX + logs telechargeables
