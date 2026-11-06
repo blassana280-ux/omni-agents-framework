@@ -11,6 +11,16 @@ namespace OmniWarships.Unity
         public static Vector2 JoystickCenter { get { return new Vector2(170f, Screen.height - 150f); } }
         public const float JoystickRadius = 115f;
 
+        public static Rect JoystickRectGUI
+        {
+            get
+            {
+                Vector2 c = JoystickCenter;
+                return new Rect(c.x - JoystickRadius, c.y - JoystickRadius,
+                    JoystickRadius * 2f, JoystickRadius * 2f);
+            }
+        }
+
         public static Rect WeaponRect(int index)
         {
             return new Rect(Screen.width - 120 - index * 110, Screen.height - 100, 100, 70);
@@ -55,12 +65,13 @@ namespace OmniWarships.Unity
         // joystick
         private bool _joyActive;
         private int _joyFinger = -1;
-        private Vector2 _joyVec; // -1..1
+        private Vector2 _joyVec; // x : barre -1..1, y : gaz -1..1 (avant = +1)
 
         // camera
         private readonly Dictionary<int, Vector2> _camFingers = new Dictionary<int, Vector2>();
         private Vector2 _orbitAccum;
         private float _zoomAccum = 1f;
+        private float _lastPinchDist = -1f;
         private Vector2 _mousePrev;
 
         // armes
@@ -115,7 +126,7 @@ namespace OmniWarships.Unity
         {
             ShipState player = _director == null ? null : _director.PlayerShip;
             if (player == null) return;
-            var ids = ContactIds(player);
+            List<string> ids = ContactIds(player);
             if (ids.Count == 0) { _targetId = null; _targetIndex = 0; return; }
             _targetIndex = (_targetIndex + 1) % ids.Count;
             _targetId = ids[_targetIndex];
@@ -137,7 +148,6 @@ namespace OmniWarships.Unity
             ShipState player = _director == null ? null : _director.PlayerShip;
             if (player == null) return;
             if (_targetId != null && player.Contacts.ContainsKey(_targetId)) return;
-            // auto : premier contact vivant
             foreach (string id in ContactIds(player))
             {
                 ShipState s = _director.Sim.Ship(id);
@@ -148,8 +158,37 @@ namespace OmniWarships.Unity
 
         private void Update()
         {
+            bool keySteering = HandleKeys();
             HandleTouches();
-            HandleMouseAndKeys();
+            HandleMouse();
+
+            // relachement : retour au neutre (ni touche, ni doigt sur le joystick)
+            if (!keySteering && _joyFinger == -1)
+            {
+                _joyVec = Vector2.zero;
+                _joyActive = false;
+            }
+        }
+
+        private bool HandleKeys()
+        {
+            float throttle = 0f, rudder = 0f;
+            if (Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.W)) throttle += 1f;
+            if (Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.S)) throttle -= 1f;
+            if (Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A)) rudder -= 1f;
+            if (Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D)) rudder += 1f;
+            if (throttle != 0f || rudder != 0f)
+            {
+                _joyVec = new Vector2(rudder, throttle);
+                _joyActive = true;
+            }
+            if (Input.GetKeyDown(KeyCode.Space)) QueueFireKeyByKind(WeaponKind.Gun);
+            if (Input.GetKeyDown(KeyCode.X)) QueueFireKeyByKind(WeaponKind.Ssm);
+            if (Input.GetKeyDown(KeyCode.C)) QueueFireKeyByKind(WeaponKind.Torpedo);
+            if (Input.GetKeyDown(KeyCode.Tab)) CycleTarget();
+            float wheel = Input.GetAxis("Mouse ScrollWheel");
+            if (Mathf.Abs(wheel) > 0.001f) _zoomAccum *= 1f - wheel * 1.5f;
+            return throttle != 0f || rudder != 0f;
         }
 
         private void HandleTouches()
@@ -158,8 +197,7 @@ namespace OmniWarships.Unity
             for (int i = 0; i < Input.touchCount; i++)
             {
                 Touch t = Input.GetTouch(i);
-                Vector2 pos = t.position;
-                pos.y = Screen.height - pos.y; // coordonnees GUI (origine en haut)
+                Vector2 pos = ScreenToGui(t.position);
 
                 if (t.phase == TouchPhase.Began)
                 {
@@ -168,21 +206,11 @@ namespace OmniWarships.Unity
                         _joyActive = true;
                         _joyFinger = t.fingerId;
                     }
-                    else if (HitWeaponButton(pos, null))
+                    else if (HitWeaponButton(pos) == null)
                     {
-                        // traite dans HitWeaponButton
-                    }
-                    else if (HudLayout.TargetRect.Contains(pos))
-                    {
-                        CycleTarget();
-                    }
-                    else if (HudLayout.QualityRect.Contains(pos))
-                    {
-                        _director.CycleQualityProfile();
-                    }
-                    else
-                    {
-                        _camFingers[t.fingerId] = t.position; // origine bas
+                        if (HudLayout.TargetRect.Contains(pos)) CycleTarget();
+                        else if (HudLayout.QualityRect.Contains(pos)) _director.CycleQualityProfile();
+                        else _camFingers[t.fingerId] = t.position;
                     }
                 }
                 else if (t.phase == TouchPhase.Moved || t.phase == TouchPhase.Stationary)
@@ -196,7 +224,7 @@ namespace OmniWarships.Unity
                     else if (_camFingers.ContainsKey(t.fingerId))
                     {
                         Vector2 prev = _camFingers[t.fingerId];
-                        _orbitAccum += (t.position - prev) * 0.12f;
+                        _orbitAccum += new Vector2(t.position.x - prev.x, -(t.position.y - prev.y)) * 0.12f;
                         _camFingers[t.fingerId] = t.position;
                     }
                 }
@@ -211,19 +239,22 @@ namespace OmniWarships.Unity
                     _camFingers.Remove(t.fingerId);
                 }
             }
-            // pincer (2 doigts camera)
+
             if (_camFingers.Count >= 2)
             {
-                Vector2[] pts = new Vector2[2];
+                Vector2 p0 = Vector2.zero, p1 = Vector2.zero;
                 int k = 0;
                 foreach (KeyValuePair<int, Vector2> kv in _camFingers)
                 {
-                    pts[k++] = kv.Value;
+                    if (k == 0) p0 = kv.Value; else if (k == 1) p1 = kv.Value;
+                    k++;
                     if (k >= 2) break;
                 }
-                float dist = Vector2.Distance(pts[0], pts[1]);
-                float last = _lastPinchDist <= 0f ? dist : _lastPinchDist;
-                if (last > 1f) _zoomAccum *= last / Mathf.Max(1f, dist);
+                float dist = Vector2.Distance(p0, p1);
+                if (_lastPinchDist > 0f && dist > 1f)
+                {
+                    _zoomAccum *= _lastPinchDist / dist;
+                }
                 _lastPinchDist = dist;
             }
             else
@@ -232,14 +263,37 @@ namespace OmniWarships.Unity
             }
         }
 
-        private float _lastPinchDist = -1f;
+        private void HandleMouse()
+        {
+            if (Input.GetMouseButtonDown(0))
+            {
+                Vector2 p = ScreenToGui(Input.mousePosition);
+                bool hudHit = HitWeaponButton(p) != null
+                    || HudLayout.TargetRect.Contains(p)
+                    || HudLayout.QualityRect.Contains(p);
+                bool joy = HudLayout.JoystickRectGUI.Contains(p);
+                if (!hudHit && !joy) _mousePrev = Input.mousePosition;
+            }
+            if (Input.GetMouseButton(0) && _mousePrev != Vector2.zero)
+            {
+                Vector2 delta = (Vector2)Input.mousePosition - _mousePrev;
+                _orbitAccum += new Vector2(delta.x, -delta.y) * 0.12f;
+                _mousePrev = Input.mousePosition;
+            }
+            if (Input.GetMouseButtonUp(0)) _mousePrev = Vector2.zero;
+        }
 
-        /// <summary>Teste les boutons d'armes ; declenche le tir si presse. Renvoie l'arme ou null.</summary>
-        private WeaponSpec HitWeaponButton(Vector2 guiPos, List<WeaponSpec> cached)
+        private static Vector2 ScreenToGui(Vector3 p)
+        {
+            return new Vector2(p.x, Screen.height - p.y);
+        }
+
+        /// <summary>Teste les boutons d'armes ; declenche le tir si presse.</summary>
+        private WeaponSpec HitWeaponButton(Vector2 guiPos)
         {
             ShipState player = _director == null ? null : _director.PlayerShip;
             if (player == null) return null;
-            List<WeaponSpec> weapons = cached ?? UsableWeapons(player);
+            List<WeaponSpec> weapons = UsableWeapons(player);
             for (int i = 0; i < weapons.Count; i++)
             {
                 if (HudLayout.WeaponRect(i).Contains(guiPos))
@@ -258,63 +312,6 @@ namespace OmniWarships.Unity
             {
                 _pendingFires.Add(weaponId);
             }
-        }
-
-        private void HandleMouseAndKeys()
-        {
-            // clavier (edition/desktop) : fleches ou WASD + barres
-            float throttle = 0f, rudder = 0f;
-            if (Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.W)) throttle += 1f;
-            if (Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.S)) throttle -= 1f;
-            if (Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A)) rudder -= 1f;
-            if (Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D)) rudder += 1f;
-            if (throttle != 0f || rudder != 0f)
-            {
-                _joyVec = new Vector2(rudder, -throttle); // avant = pousser vers le haut
-                _joyActive = true;
-            }
-
-            if (Input.GetKeyDown(KeyCode.Space)) QueueFireKeyByKind(WeaponKind.Gun);
-            if (Input.GetKeyDown(KeyCode.X)) QueueFireKeyByKind(WeaponKind.Ssm);
-            if (Input.GetKeyDown(KeyCode.C)) QueueFireKeyByKind(WeaponKind.Torpedo);
-            if (Input.GetKeyDown(KeyCode.Tab))
-            {
-                CycleTarget();
-                Event e = Event.current;
-                if (e != null && e.type == EventType.KeyDown && e.keyCode == KeyCode.Tab) e.Use();
-            }
-
-            // souris : boutons via GUI (meme logique), glisser = camera
-            if (Input.GetMouseButtonDown(0))
-            {
-                Vector2 p = Input.mousePosition;
-                p.y = Screen.height - p.y;
-                ShipState player = _director == null ? null : _director.PlayerShip;
-                if (player != null)
-                {
-                    bool hudHit = HitWeaponButton(p, null) != null
-                        || HudLayout.TargetRect.Contains(p) || HudLayout.QualityRect.Contains(p);
-                    if (!hudHit && !HudLayout.JoystickRectGUI.Contains(p)) _mousePrev = Input.mousePosition;
-                }
-            }
-            if (Input.GetMouseButton(0) && _mousePrev != Vector2.zero)
-            {
-                Vector2 delta = (Vector2)Input.mousePosition - _mousePrev;
-                if (delta.magnitude > 0.1f && !HudLayout.JoystickRectGUI.Contains(ScreenToGui(Input.mousePosition)))
-                {
-                    _orbitAccum += new Vector2(delta.x, -delta.y) * 0.12f;
-                }
-                _mousePrev = Input.mousePosition;
-            }
-            if (Input.GetMouseButtonUp(0)) _mousePrev = Vector2.zero;
-
-            float wheel = Input.GetAxis("Mouse ScrollWheel");
-            if (Mathf.Abs(wheel) > 0.001f) _zoomAccum *= 1f - wheel * 1.5f;
-        }
-
-        private static Vector2 ScreenToGui(Vector3 p)
-        {
-            return new Vector2(p.x, Screen.height - p.y);
         }
 
         private void QueueFireKeyByKind(WeaponKind kind)
