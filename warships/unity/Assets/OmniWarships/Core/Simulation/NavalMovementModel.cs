@@ -1,59 +1,73 @@
+using System;
 using OmniWarships.Core.Common;
 using OmniWarships.Core.Spec;
 
 namespace OmniWarships.Core.Simulation
 {
     /// <summary>
-    /// Physique navale simplifiee mais realiste : acceleration, frottement,
-    /// influence de l'etat de la mer et des degats de propulsion.
+    /// Physique de navigation : inertie, poussee limitee, marche arriere
+    /// reduite (25 % de la deceleration), virage proportionnel a la vitesse.
+    /// Deterministe, pas a pas fixe.
     /// </summary>
     public static class NavalMovementModel
     {
-        public static void Update(ShipState s, float throttle, float dt)
+        public const float ReverseThrustFactor = 0.25f;
+        public const float TurnSpeedRef = 0.3f; // fraction de vitesse max pour le virage nominal
+
+        public static void Step(ShipState s, ShipCommand cmd, OceanModel ocean, float dt, float t)
         {
-            float maxMs = s.Spec.MaxSpeedMs;
-            float accel = s.Spec.AccelMs2;
+            if (s.Sunk)
+            {
+                // un navire coule : il decelere et s'arrete
+                s.SpeedMs *= 0.9f;
+                s.Pos = s.Pos + Vec2.FromHeadingDeg(s.HeadingDeg) * (s.SpeedMs * dt);
+                return;
+            }
 
-            // propulsion endommagee : reduit accel et vitesse max
-            bool propOk = s.HasSystem(ShipSystemKind.Propulsion);
-            bool steerOk = s.HasSystem(ShipSystemKind.Steering);
-            float hpFactor = 0.5f + 0.5f * s.FractionHp;
-            if (!propOk) hpFactor *= 0.4f;
-            accel *= hpFactor;
-            maxMs *= hpFactor;
+            float propEff = s.Eff(ShipSystemKind.Propulsion);
+            float steerEff = s.Eff(ShipSystemKind.Steering);
 
-            float target = throttle * maxMs;
-            if (throttle < 0f) target = throttle * maxMs * 0.35f; // marche arriere lente
+            float maxSpeed = s.Spec.MaxSpeedMs * Math.Max(0.05f, propEff);
+            float throttle = Math.Max(-1f, Math.Min(1f, cmd.Throttle));
 
-            // trainee : converge vers la cible
-            s.Speed += (target - s.Speed) * Math.Min(1f, accel * dt / Math.Max(1f, Math.Abs(target - s.Speed)));
-            s.Speed = Clamp(s.Speed, -maxMs * 0.35f, maxMs);
+            // vitesse cible et acceleration bornee
+            float target;
+            float accel;
+            if (throttle >= 0f)
+            {
+                target = maxSpeed * throttle;
+                accel = s.Spec.AccelMs2;
+            }
+            else
+            {
+                target = maxSpeed * throttle * 0.35f; // marche arriere lente
+                accel = s.Spec.AccelMs2 * ReverseThrustFactor;
+            }
+            float dv = target - s.SpeedMs;
+            float maxDv = accel * dt;
+            if (dv > maxDv) dv = maxDv;
+            if (dv < -maxDv) dv = -maxDv;
+            s.SpeedMs += dv;
 
-            // offrande a la mer : la vague ralentit le navire
-            float waveDrag = 1f - 0.08f * OceanAt(s);
-            s.Speed *= waveDrag;
+            // legere trainee quadratique quand on coupe la puissance
+            if (Math.Abs(throttle) < 0.01f)
+            {
+                s.SpeedMs *= 1f - 0.02f * dt;
+            }
 
-            Vec2 fwd = Vec2.FromHeadingDeg(s.HeadingDeg);
-            s.Pos += fwd * (s.Speed * dt);
+            // virage : necessite de la vitesse, amplitude ∝ vitesse
+            float speedFactor = Math.Abs(s.SpeedMs) / Math.Max(1f, s.Spec.MaxSpeedMs * TurnSpeedRef);
+            if (speedFactor > 1f) speedFactor = 1f;
+            float turnDegS = s.Spec.TurnDegS * speedFactor * steerEff;
+            s.HeadingDeg += Math.Max(-1f, Math.Min(1f, cmd.Rudder)) * turnDegS * dt;
+            if (s.HeadingDeg < 0f) s.HeadingDeg += 360f;
+            if (s.HeadingDeg >= 360f) s.HeadingDeg -= 360f;
 
-            // derive du vent
-            s.Pos += Vec2.FromHeadingDeg(90f) * (WindAt(s) * 0.02f * dt);
-        }
+            s.Pos = s.Pos + Vec2.FromHeadingDeg(s.HeadingDeg) * (s.SpeedMs * dt);
 
-        private static float OceanAt(ShipState s)
-        {
-            // approximation locale : mer module 3 par defaut
-            return 0.5f;
-        }
-
-        private static float WindAt(ShipState s)
-        {
-            return 2f;
-        }
-
-        private static float Clamp(float v, float lo, float hi)
-        {
-            return v < lo ? lo : (v > hi ? hi : v);
+            // reponse aux vagues
+            s.RollDeg = ocean.RollAt(s.Pos, s.HeadingDeg, s.Spec.BeamM, t);
+            s.PitchDeg = ocean.PitchAt(s.Pos, s.HeadingDeg, s.Spec.LengthM, t);
         }
     }
 }

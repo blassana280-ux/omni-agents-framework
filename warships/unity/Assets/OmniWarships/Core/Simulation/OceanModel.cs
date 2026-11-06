@@ -4,107 +4,81 @@ using OmniWarships.Core.Common;
 namespace OmniWarships.Core.Simulation
 {
     /// <summary>
-    /// Ocean deterministe : houle de Gerstner parametree par l'etat de la
-    /// mer, reproduite a l'identique dans le rendu (meme graine, memes
-    /// amplitudes) pour que la flottabilite CPU corresponde aux vagues GPU.
+    /// Ocean de Gerstner (4 composantes) : fonction deterministe de (x, z, t)
+    /// et de l'etat de mer. Identique en CI et dans Unity (flottabilite).
     /// </summary>
     public sealed class OceanModel
     {
-        public const float SeaWaterDensity = 1025f;
+        public const int ComponentCount = 4;
 
         public readonly int SeaState;
         public readonly float WindMs;
-        public readonly float WaveHeight;
-        public readonly float WaveLength;
-        public readonly float WavePeriod;
-
-        private readonly Rng _rng;
-        private readonly GerstnerWave[] _waves;
+        private readonly float[] _amp = new float[ComponentCount];
+        private readonly float[] _waveLen = new float[ComponentCount];
+        private readonly float[] _dirDeg = new float[ComponentCount];
+        private readonly float[] _phase = new float[ComponentCount];
 
         public OceanModel(int seaState, float windMs, int seed)
         {
             SeaState = Math.Max(0, Math.Min(9, seaState));
             WindMs = windMs;
-
-            // echelle Douglas simplifiee : hauteur significative par etat de mer
-            WaveHeight = SeaState switch
+            var rng = new Rng(seed);
+            for (int i = 0; i < ComponentCount; i++)
             {
-                0 => 0.05f,
-                1 => 0.3f,
-                2 => 0.6f,
-                3 => 1.0f,
-                4 => 1.6f,
-                5 => 2.5f,
-                6 => 4.0f,
-                7 => 6.0f,
-                8 => 8.5f,
-                _ => 11.0f
-            };
-            WaveLength = 40f + WindMs * 8f;
-            WavePeriod = (float)Math.Sqrt(WaveLength / 1.56f); // vague en eau profonde
-
-            _rng = new Rng(seed * 7 + 13);
-            int count = 6;
-            _waves = new GerstnerWave[count];
-            for (int i = 0; i < count; i++)
-            {
-                float f = i / (float)count;
-                _waves[i] = new GerstnerWave
-                {
-                    DirDeg = _rng.NextRange(f * 360f, (f + 1f) * 360f),
-                    Amp = WaveHeight * (1f / (i + 1)) / 2f,
-                    Len = WaveLength * _rng.NextRange(0.6f, 1.4f),
-                    Phase = _rng.NextRange(0f, 360f)
-                };
+                // amplitude par composante croissant avec l'etat de mer
+                _amp[i] = 0.22f * SeaState * (1f - 0.18f * i);
+                _waveLen[i] = 45f + 30f * i + rng.NextFloat() * 25f;
+                _dirDeg[i] = rng.NextRange(-25f, 25f);
+                _phase[i] = rng.NextRange(0f, (float)(2 * Math.PI));
             }
         }
 
-        public float HeightAt(Vec2 pos, float t)
+        public float MaxAmplitude
+        {
+            get
+            {
+                float s = 0f;
+                for (int i = 0; i < ComponentCount; i++) s += _amp[i];
+                return s;
+            }
+        }
+
+        /// <summary>Hauteur de la houle (m) a la position (x, z) au temps t.</summary>
+        public float HeightAt(float x, float z, float t)
         {
             float h = 0f;
-            for (int i = 0; i < _waves.Length; i++)
+            for (int i = 0; i < ComponentCount; i++)
             {
-                var w = _waves[i];
-                var dir = Vec2.FromHeadingDeg(w.DirDeg);
-                float k = 2f * (float)Math.PI / w.Len;
-                float x = Vec2.Dot(pos, dir) * k + w.Phase * Deg2Rad + t * SpeedOf(w.Len);
-                h += w.Amp * (float)Math.Sin(x);
+                Vec2 d = Vec2.FromHeadingDeg(_dirDeg[i]);
+                float k = (float)(2 * Math.PI / _waveLen[i]);
+                float phase = k * (d.X * x + d.Y * z) - k * (float)Math.Sqrt(6.25 * _waveLen[i]) * t + _phase[i];
+                h += _amp[i] * (float)Math.Sin(phase);
             }
             return h;
         }
 
-        public float RollAt(Vec2 pos, float t, float beamM)
+        /// <summary>Gite approximative (degres) sur l'axe traversier du navire.</summary>
+        public float RollAt(Vec2 pos, float headingDeg, float beamM, float t)
         {
-            // pente locale : derivee de la houle, tangente, convertie en degres
-            const float eps = 0.5f;
-            float hL = HeightAt(pos + new Vec2(-eps, 0f), t);
-            float hR = HeightAt(pos + new Vec2(eps, 0f), t);
-            float slope = (hR - hL) / (2f * eps);
-            return (float)(Math.Atan(slope * beamM * 0.5f) * 180.0 / Math.PI);
+            Vec2 across = Vec2.FromHeadingDeg(headingDeg + 90f);
+            float half = Math.Max(2f, beamM * 0.5f);
+            float port = HeightAt((pos + across * half).X, (pos + across * half).Y, t);
+            float star = HeightAt((pos - across * half).X, (pos - across * half).Y, t);
+            float roll = (float)(Math.Atan2(port - star, 2 * half) * 180.0 / Math.PI);
+            float cap = SeaState * 2.5f;
+            if (roll > cap) roll = cap;
+            if (roll < -cap) roll = -cap;
+            return roll;
         }
 
-        public float PitchAt(Vec2 pos, float t, float lengthM)
+        /// <summary>Tangage approximatif (degres) sur l'axe longitudinal.</summary>
+        public float PitchAt(Vec2 pos, float headingDeg, float lengthM, float t)
         {
-            const float eps = 0.5f;
-            float hF = HeightAt(pos + new Vec2(0f, eps), t);
-            float hB = HeightAt(pos + new Vec2(0f, -eps), t);
-            float slope = (hF - hB) / (2f * eps);
-            return (float)(Math.Atan(slope * lengthM * 0.3f) * 180.0 / Math.PI);
-        }
-
-        private static float Deg2Rad { get { return (float)(Math.PI / 180.0); } }
-
-        private static float SpeedOf(float len)
-        {
-            return 2f * (float)Math.PI / (float)Math.Sqrt(len / 1.56f);
-        }
-
-        private struct GerstnerWave
-        {
-            public float DirDeg;
-            public float Amp;
-            public float Len;
-            public float Phase;
+            Vec2 fwd = Vec2.FromHeadingDeg(headingDeg);
+            float half = Math.Max(5f, lengthM * 0.4f);
+            float bow = HeightAt((pos + fwd * half).X, (pos + fwd * half).Y, t);
+            float stern = HeightAt((pos - fwd * half).X, (pos - fwd * half).Y, t);
+            return (float)(Math.Atan2(bow - stern, 2 * half) * 180.0 / Math.PI);
         }
     }
 }

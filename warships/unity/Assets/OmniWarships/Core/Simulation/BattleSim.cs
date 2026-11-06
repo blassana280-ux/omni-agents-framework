@@ -10,212 +10,305 @@ namespace OmniWarships.Core.Simulation
 
     public sealed class BattleEvent
     {
+        public int Tick;
         public BattleEventKind Kind;
-        public float Time;          // s
-        public string Source;       // navire tireur
-        public string Target;       // navire cible
-        public string Weapon;       // id arme
-        public float X, Y;          // position evenement
-        public float Detail;        // extra : degats, vitesse...
-    }
-
-    public sealed class FireRequest
-    {
-        public string WeaponId;
+        public string ShipId;
         public string TargetId;
-    }
+        public string Detail;
 
-    public sealed class ShipCommand
-    {
-        public float Throttle;      // -1..1
-        public float Rudder;        // -1..1
-        public List<FireRequest> Fires = new List<FireRequest>();
+        public static BattleEvent Launch(int tick, string ship, string weapon, string target)
+        {
+            return new BattleEvent { Tick = tick, Kind = BattleEventKind.Launch, ShipId = ship, TargetId = target, Detail = weapon };
+        }
+        public static BattleEvent Hit(int tick, string projectile, string target, float damage)
+        {
+            return new BattleEvent { Tick = tick, Kind = BattleEventKind.Hit, ShipId = projectile, TargetId = target, Detail = damage.ToString("0") };
+        }
+        public static BattleEvent Damage(int tick, string target, string compartment, bool destroyed)
+        {
+            return new BattleEvent { Tick = tick, Kind = BattleEventKind.Damage, ShipId = target, Detail = compartment + (destroyed ? ":detruit" : "") };
+        }
+        public static BattleEvent Intercept(int tick, string ship, string projectile, string source)
+        {
+            return new BattleEvent { Tick = tick, Kind = BattleEventKind.Intercept, ShipId = ship, TargetId = source, Detail = projectile };
+        }
+        public static BattleEvent Sunk(int tick, string ship)
+        {
+            return new BattleEvent { Tick = tick, Kind = BattleEventKind.Sunk, ShipId = ship };
+        }
+        public static BattleEvent Detection(int tick, string ship, string target)
+        {
+            return new BattleEvent { Tick = tick, Kind = BattleEventKind.Detection, ShipId = ship, TargetId = target };
+        }
     }
 
     /// <summary>
-    /// Simulation de bataille navale deterministe. Tick fixe (pas de
-    /// flottants accumules). Toutes les valeurs derivees de la matrice
-    /// de donnees (ws-matrix.csv) validee par la CI.
+    /// Moteur de bataille deterministe : pas fixe 1/30 s, RNG maison, tout
+    /// l'etat est rejouable a l'identique depuis (graine, specs, placements,
+    /// commandes joueur). Source unique du jeu, du sandbox et des replays.
     /// </summary>
     public sealed class BattleSim
     {
-        public const float TickRate = 30f;
-        public const float Dt = 1f / TickRate;
+        public const float FixedDt = 1f / 30f;
 
-        private readonly Rng _rng;
-        private readonly TacticalAI _ai = new TacticalAI();
-
+        public int TickIndex;
+        public float TimeS;
+        public readonly int SeaState;
+        public readonly float Fog;
+        public readonly float WindMs;
+        public readonly int Seed;
         public readonly OceanModel Ocean;
-        public float Time;
-        public bool BattleOver;
+        public readonly Rng Rng;
+        public readonly TacticalAI Ai = new TacticalAI();
+        public readonly List<ShipState> Ships = new List<ShipState>();
+        public readonly List<Projectile> Projectiles = new List<Projectile>();
+        public readonly List<BattleEvent> Events = new List<BattleEvent>();
 
-        public Dictionary<string, ShipState> Ships = new Dictionary<string, ShipState>();
-        public List<ShipState> ShipList = new List<ShipState>();
-        public List<Projectile> Projectiles = new List<Projectile>();
+        private readonly Dictionary<string, ShipSpec> _specs = new Dictionary<string, ShipSpec>();
+        private int _shipSerial;
+        private int _projSerial;
 
-        public List<BattleEvent> Events = new List<BattleEvent>();
-        public List<DetectionInfo> Detections = new List<DetectionInfo>();
-
-        private int _shipCounter;
-
-        public BattleSim(int seed, List<ShipSpec> specs, int seaState = 3, float fog = 0f, float windMs = 5f)
+        public BattleSim(int seed, IList<ShipSpec> specs, int seaState, float fog, float windMs)
         {
-            _rng = new Rng(seed);
+            Seed = seed;
+            SeaState = seaState;
+            Fog = fog;
+            WindMs = windMs;
             Ocean = new OceanModel(seaState, windMs, seed);
-            _specs = specs;
+            Rng = new Rng(seed);
+            foreach (ShipSpec s in specs) _specs[s.Id] = s;
         }
 
-        private readonly List<ShipSpec> _specs;
-
-        public ShipState AddShip(string specId, Vec2 pos, float headingDeg, bool playerControlled)
+        public ShipState AddShip(string specId, string team, float x, float z, float headingDeg, bool ai)
         {
-            ShipSpec spec = null;
-            foreach (var s in _specs) if (s.Id == specId) { spec = s; break; }
-            if (spec == null) throw new ArgumentException("spec inconnu : " + specId);
-            _shipCounter++;
-            var ship = new ShipState(spec, "s" + _shipCounter, playerControlled)
+            ShipSpec spec;
+            if (!_specs.TryGetValue(specId, out spec))
             {
-                Pos = pos,
-                HeadingDeg = headingDeg
-            };
-            Ships[ship.Id] = ship;
-            ShipList.Add(ship);
-            return ship;
+                throw new InvalidOperationException("spec inconnue: " + specId);
+            }
+            _shipSerial++;
+            var s = new ShipState();
+            s.Id = "s" + _shipSerial;
+            s.Team = team;
+            s.IsAi = ai;
+            s.Spec = spec;
+            s.Pos = new Vec2(x, z);
+            s.HeadingDeg = headingDeg;
+            foreach (CompartmentSpec c in spec.Compartments)
+            {
+                s.Compartments.Add(new CompartmentState { Id = c.Id, Hp = c.Hp, HpMax = c.Hp });
+            }
+            foreach (ShipSystemKind k in Enum.GetValues(typeof(ShipSystemKind)))
+            {
+                s.SystemEff[k] = 1f;
+            }
+            foreach (WeaponSpec w in spec.Weapons)
+            {
+                s.Weapons[w.Id] = new WeaponState { Id = w.Id, Ammo = w.Ammo, CooldownS = 0f };
+            }
+            Ships.Add(s);
+            return s;
+        }
+
+        public ShipState Ship(string id)
+        {
+            foreach (ShipState s in Ships)
+            {
+                if (s.Id == id) return s;
+            }
+            return null;
         }
 
         public void Tick(IDictionary<string, ShipCommand> commands)
         {
-            Time += Dt;
+            TickIndex++;
+            TimeS += FixedDt;
 
-            // 1. mouvements
-            foreach (var ship in ShipList)
+            // 1. commandes : IA pour les navires IA, commandes joueur sinon
+            var effective = new Dictionary<string, ShipCommand>();
+            foreach (ShipState s in Ships)
             {
-                ShipCommand cmd;
-                if (!Alive(ship)) continue;
-                if (ship.PlayerControlled)
+                ShipCommand cmd = null;
+                if (s.IsAlive)
                 {
-                    commands.TryGetValue(ship.Id, out cmd);
-                }
-                else
-                {
-                    cmd = _ai.Decide(ship, this);
-                }
-                if (cmd == null) continue;
-                float effectiveTurn = ship.Spec.TurnDegS * (ship.Speed / ship.Spec.MaxSpeedMs);
-                ship.Rudder = Clamp(cmd.Rudder, -1f, 1f);
-                ship.HeadingDeg += ship.Rudder * effectiveTurn * Dt;
-                if (ship.HeadingDeg >= 360f) ship.HeadingDeg -= 360f;
-                if (ship.HeadingDeg < 0f) ship.HeadingDeg += 360f;
-                NavalMovementModel.Update(ship, Clamp(cmd.Throttle, -1f, 1f), Dt);
-            }
-
-            // 2. detecteurs
-            SensorModel.Update(this);
-
-            // 3. armes : cooldowns + demandes de tir
-            foreach (var ship in ShipList)
-            {
-                if (!Alive(ship)) continue;
-                ShipCommand cmd;
-                if (ship.PlayerControlled)
-                {
-                    commands.TryGetValue(ship.Id, out cmd);
-                }
-                else cmd = _ai.LastCommand;
-
-                foreach (var w in ship.Weapons.Values)
-                {
-                    if (w.CooldownS > 0f) w.CooldownS = Math.Max(0f, w.CooldownS - Dt);
-                }
-                if (cmd == null) continue;
-                foreach (var fire in cmd.Fires)
-                {
-                    WeaponState ws;
-                    if (!ship.Weapons.TryGetValue(fire.WeaponId, out ws)) continue;
-                    WeaponSpec wspec = null;
-                    foreach (var w in ship.Spec.Weapons) if (w.Id == fire.WeaponId) { wspec = w; break; }
-                    if (wspec == null) continue;
-                    ShipState target;
-                    if (!Ships.TryGetValue(fire.TargetId, out target)) continue;
-                    if (!target.Alive) continue;
-                    if (ws.Ammo <= 0 || ws.CooldownS > 0f) continue;
-
-                    if (!ship.HasSystem(SystemKind(wspec.Kind))) continue;
-
-                    ws.Ammo--;
-                    ws.CooldownS = wspec.ReloadS;
-                    Vec2 dir = target.Pos - ship.Pos;
-                    float dist = dir.Length;
-                    if (dist > wspec.RangeM) continue; // hors de portee : pas de tir
-
-                    Vec2 launchPos = ship.Pos + Vec2.FromHeadingDeg(ship.HeadingDeg) * (ship.Spec.LengthM * 0.5f);
-                    float spread = wspec.Kind == WeaponKind.Gun ? 1.2f : 0.4f;
-                    float aimDeg = dir.HeadingDeg() + _rng.NextRange(-spread, spread);
-                    float speed = wspec.SpeedMs;
-
-                    var proj = new Projectile
+                    if (s.IsAi) cmd = Ai.Decide(s, this);
+                    else if (commands != null)
                     {
-                        Id = "p" + (_projCounter++),
-                        Kind = wspec.Kind,
-                        OwnerId = ship.Id,
-                        TargetId = target.Id,
-                        WeaponId = wspec.Id,
-                        Pos = launchPos,
-                        Dir = Vec2.FromHeadingDeg(aimDeg),
-                        Speed = speed,
-                        RemainingRange = wspec.RangeM,
-                        Damage = wspec.Damage,
-                        Guidance = wspec.Guidance,
-                        TurnDegS = 25f,
-                        Age = 0f,
-                        FuelS = wspec.Kind == WeaponKind.Sam || wspec.Kind == WeaponKind.Ssm ? 60f : 0f
-                    };
-                    Projectiles.Add(proj);
-                    Events.Add(new BattleEvent { Kind = BattleEventKind.Launch, Time = Time, Source = ship.Id, Target = target.Id, Weapon = wspec.Id, X = launchPos.X, Y = launchPos.Y, Detail = dist });
+                        ShipCommand pc;
+                        if (commands.TryGetValue(s.Id, out pc)) cmd = pc;
+                    }
                 }
+                if (cmd == null) cmd = ShipCommand.Idle();
+                effective[s.Id] = cmd;
             }
 
-            // 4. ballistique + ciws
-            BallisticsModel.Update(this, Projectiles, Dt, _rng);
-            CiwsModel.Update(this, Projectiles, Dt, _rng);
-
-            // 5. voies d'eau + flottabilite + coulage
-            FloodingModel.Update(this, Dt, _rng);
-
-            // 6. fin de bataille ?
-            if (!BattleOver)
+            // 2. mouvement + voie d'eau + naufrages
+            foreach (ShipState s in Ships)
             {
-                bool anyPlayer = false, anyAi = false;
-                foreach (var s in ShipList)
+                ShipCommand cmd;
+                effective.TryGetValue(s.Id, out cmd);
+                NavalMovementModel.Step(s, cmd ?? ShipCommand.Idle(), Ocean, FixedDt, TimeS);
+                s.AgeS += FixedDt;
+                bool wasSunk = s.Sunk;
+                FloodingModel.Step(s, FixedDt, TimeS);
+                if (s.Sunk && !wasSunk)
                 {
-                    if (!Alive(s)) continue;
-                    if (s.PlayerControlled) anyPlayer = true; else anyAi = true;
+                    Events.Add(BattleEvent.Sunk(TickIndex, s.Id));
                 }
-                if (!anyPlayer || !anyAi) BattleOver = true;
             }
-        }
 
-        private int _projCounter;
-
-        private static ShipSystemKind SystemKind(WeaponKind kind)
-        {
-            switch (kind)
+            // 3. rechargement + tirs valides
+            foreach (ShipState s in Ships)
             {
-                case WeaponKind.Gun: return ShipSystemKind.Gunnery;
-                case WeaponKind.Ssm:
-                case WeaponKind.Sam:
-                case WeaponKind.Torpedo:
-                case WeaponKind.Rocket: return ShipSystemKind.Missiles;
-                case WeaponKind.Ciws: return ShipSystemKind.Gunnery;
-                default: return ShipSystemKind.Gunnery;
+                foreach (WeaponState ws in s.Weapons.Values)
+                {
+                    if (ws.CooldownS > 0f) ws.CooldownS -= FixedDt;
+                }
+                if (s.Sunk) continue;
+                ShipCommand cmd;
+                if (!effective.TryGetValue(s.Id, out cmd)) continue;
+                if (cmd.Fires == null || cmd.Fires.Count == 0) continue;
+                foreach (FireRequest fr in cmd.Fires)
+                {
+                    TryFire(s, fr);
+                }
+            }
+
+            // 4. projectiles en vol + impacts
+            for (int i = Projectiles.Count - 1; i >= 0; i--)
+            {
+                Projectile p = Projectiles[i];
+                ShipState hit = BallisticsModel.Step(p, Ships, FixedDt);
+                if (hit != null)
+                {
+                    ApplyProjectileImpact(p, hit);
+                }
+                if (p.Dead) Projectiles.RemoveAt(i);
+            }
+
+            // 5. CIWS automatique
+            foreach (ShipState s in Ships)
+            {
+                CiwsModel.Engage(s, Projectiles, FixedDt, Rng, Events, TickIndex);
+            }
+            for (int i = Projectiles.Count - 1; i >= 0; i--)
+            {
+                if (Projectiles[i].Dead) Projectiles.RemoveAt(i);
+            }
+
+            // 6. detections
+            UpdateDetections();
+        }
+
+        private void TryFire(ShipState s, FireRequest fr)
+        {
+            WeaponState ws;
+            if (!s.Weapons.TryGetValue(fr.WeaponId, out ws)) return;
+            WeaponSpec spec = null;
+            foreach (WeaponSpec w in s.Spec.Weapons)
+            {
+                if (w.Id == fr.WeaponId) { spec = w; break; }
+            }
+            if (spec == null) return;
+            if (ws.CooldownS > 0f || ws.Ammo < 1) return;
+            if (spec.Kind == WeaponKind.Ciws) return; // automatique
+
+            ShipState target = Ship(fr.TargetShipId);
+            if (target == null || target.Sunk) return;
+            float dist = Vec2.Distance(s.Pos, target.Pos);
+            if (dist > spec.RangeM * 1.05f) return;
+
+            if (spec.Kind == WeaponKind.Gun && s.Eff(ShipSystemKind.Gunnery) < 0.3f) return;
+            if ((spec.Kind == WeaponKind.Ssm || spec.Kind == WeaponKind.Sam) && s.Eff(ShipSystemKind.Missiles) < 0.3f) return;
+
+            // un sous-marin profond ne tire ni canon ni missile
+            if (s.DepthM > 15f && spec.Kind != WeaponKind.Torpedo) return;
+
+            // les IA ne tirent que sur des contacts
+            if (s.IsAi && !s.Contacts.ContainsKey(target.Id)) return;
+
+            Vec2 aim;
+            if (spec.Guidance == GuidanceKind.Pn)
+            {
+                aim = target.Pos;
+            }
+            else
+            {
+                aim = BallisticsModel.PredictIntercept(s.Pos, target.Pos,
+                    Vec2.FromHeadingDeg(target.HeadingDeg) * target.SpeedMs, spec.SpeedMs);
+            }
+
+            int salvo = Math.Min(spec.Salvo, ws.Ammo);
+            for (int i = 0; i < salvo; i++)
+            {
+                _projSerial++;
+                Projectile p = BallisticsModel.Launch(s, spec, aim, target.Id, 1.5f, Rng, _projSerial);
+                Projectiles.Add(p);
+                Events.Add(BattleEvent.Launch(TickIndex, s.Id, spec.Id, target.Id));
+            }
+            ws.Ammo -= salvo;
+            ws.CooldownS = spec.ReloadS;
+        }
+
+        private void ApplyProjectileImpact(Projectile p, ShipState hit)
+        {
+            float damage = p.Armed ? p.Damage : 0f;
+            Events.Add(BattleEvent.Hit(TickIndex, p.Id, hit.Id, damage));
+            if (damage <= 0f) return;
+            DamageResult r = DamageModel.ApplyImpact(hit, p.Pos, p.DamageKind, damage);
+            if (r.CompartmentId != null)
+            {
+                Events.Add(BattleEvent.Damage(TickIndex, hit.Id, r.CompartmentId, r.CompartmentDestroyed));
             }
         }
 
-        private static bool Alive(ShipState s) { return s.Alive; }
-
-        private static float Clamp(float v, float lo, float hi)
+        private void UpdateDetections()
         {
-            return v < lo ? lo : (v > hi ? hi : v);
+            foreach (ShipState observer in Ships)
+            {
+                if (observer.Sunk) continue;
+                float radarEff = observer.Eff(ShipSystemKind.Radar);
+                float sonarEff = observer.Eff(ShipSystemKind.Sonar);
+                foreach (ShipState target in Ships)
+                {
+                    if (target == observer || target.Team == observer.Team || target.Sunk) continue;
+                    float dist = Vec2.Distance(observer.Pos, target.Pos);
+                    bool detected = false;
+                    float quality = 0f;
+                    foreach (SensorSpec sensor in observer.Spec.Sensors)
+                    {
+                        bool d; float q;
+                        if (sensor.Kind == SensorKind.Radar && radarEff > 0.3f)
+                        {
+                            d = SensorModel.DetectRadar(sensor, target, dist, Fog, 0f, out q);
+                        }
+                        else if (sensor.Kind == SensorKind.Sonar && sonarEff > 0.3f)
+                        {
+                            d = SensorModel.DetectSonar(sensor, target, dist, out q);
+                        }
+                        else
+                        {
+                            d = false; q = 0f;
+                        }
+                        if (d && q > quality) { quality = q; detected = true; }
+                    }
+                    if (detected)
+                    {
+                        bool isNew = !observer.Contacts.ContainsKey(target.Id);
+                        observer.Contacts[target.Id] = new Contact
+                        {
+                            ShipId = target.Id,
+                            Quality = quality,
+                            LastSeenTick = TickIndex,
+                            EstimatedPos = target.Pos
+                        };
+                        if (isNew)
+                        {
+                            Events.Add(BattleEvent.Detection(TickIndex, observer.Id, target.Id));
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -1,70 +1,39 @@
 using System;
-using System.Collections.Generic;
-using OmniWarships.Core.Common;
 using OmniWarships.Core.Spec;
 
 namespace OmniWarships.Core.Simulation
 {
-    public sealed class DetectionInfo
-    {
-        public string Detector;
-        public string Target;
-        public SensorKind Kind;
-        public float RangeM;
-    }
-
     /// <summary>
-    /// Detecteurs : portee radar selon RCS (equation du radar, forme
-    /// simplifiee), sonar selon signature acoustique.
+    /// Capteurs : radar (RCS, brouillard, brouillage) et sonar (signature
+    /// acoustique, profondeur). La qualite du contact decroit avec la portee.
     /// </summary>
     public static class SensorModel
     {
-        public static void Update(BattleSim sim)
+        public const float FogRadarPenalty = 0.3f;
+        public const float JammingPenalty = 0.4f;
+        public const float DepthSonarPenalty = 0.6f;
+
+        public static bool DetectRadar(SensorSpec s, ShipState target, float distance, float fog, float jamming, out float quality)
         {
-            sim.Detections.Clear();
-            foreach (var detector in sim.ShipList)
-            {
-                if (!detector.Alive) continue;
-                foreach (var spec in detector.Spec.Sensors)
-                {
-                    if (spec.Kind == SensorKind.Radar && !detector.HasSystem(ShipSystemKind.Radar)) continue;
-                    if (spec.Kind == SensorKind.Sonar && !detector.HasSystem(ShipSystemKind.Sonar)) continue;
-
-                    foreach (var target in sim.ShipList)
-                    {
-                        if (target.Id == detector.Id || !target.Alive) continue;
-                        float dist = Vec2.Distance(detector.Pos, target.Pos);
-                        if (dist > RangeFor(spec, target.Spec)) continue;
-
-                        sim.Detections.Add(new DetectionInfo
-                        {
-                            Detector = detector.Id,
-                            Target = target.Id,
-                            Kind = spec.Kind,
-                            RangeM = dist
-                        });
-                        sim.Events.Add(new BattleEvent
-                        {
-                            Kind = BattleEventKind.Detection,
-                            Time = sim.Time,
-                            Source = detector.Id,
-                            Target = target.Id,
-                            Detail = dist
-                        });
-                    }
-                }
-            }
+            quality = 0f;
+            if (target.DepthM > 5f) return false; // sous-marin plonge : RCS quasi nulle
+            float rcsFactor = (float)Math.Sqrt(Math.Max(0.01f, target.Spec.RcsM2 / s.Ref));
+            float rangeEff = s.RangeM * rcsFactor * (1f - FogRadarPenalty * fog) * (1f - JammingPenalty * jamming);
+            if (distance > rangeEff) return false;
+            quality = 1f - 0.2f * (distance / rangeEff);
+            return true;
         }
 
-        /// <summary>Portee de detection effective : varie comme la racine quatrieme de la RCS.</summary>
-        public static float RangeFor(SensorSpec sensor, ShipSpec target)
+        public static bool DetectSonar(SensorSpec s, ShipState target, float distance, out float quality)
         {
-            if (sensor.Kind == SensorKind.Radar)
-            {
-                float ratio = target.RcsM2 / sensor.Ref;
-                return sensor.RangeM * (float)Math.Pow(Math.Max(0.1, ratio), 0.25);
-            }
-            return sensor.RangeM * (float)Math.Pow(Math.Max(0.1, target.Acoustic / sensor.Ref), 0.5);
+            quality = 0f;
+            float depthFactor = target.DepthM / 150f;
+            if (depthFactor > 1f) depthFactor = 1f;
+            float acousticFactor = Math.Max(0.05f, target.Spec.Acoustic / s.Ref);
+            float rangeEff = s.RangeM * acousticFactor * (1f - DepthSonarPenalty * depthFactor);
+            if (distance > rangeEff) return false;
+            quality = 1f - 0.2f * (distance / rangeEff);
+            return true;
         }
     }
 }

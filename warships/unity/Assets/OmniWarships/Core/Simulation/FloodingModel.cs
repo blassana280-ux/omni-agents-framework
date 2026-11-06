@@ -1,68 +1,56 @@
 using System;
 using System.Collections.Generic;
-using OmniWarships.Core.Common;
 using OmniWarships.Core.Spec;
 
 namespace OmniWarships.Core.Simulation
 {
     /// <summary>
-    /// Voies d'eau : chaque compartiment perce prend l'eau selon sa
-    /// profondeur (surface libre), reduisant la flottabilite.
+    /// Voie d'eau : chaque compartiment breach prend l'eau ; le navire
+    /// coule quand la flottabilite perdue depasse le seuil. Un seul
+    /// compartiment breached ne coule pas un navire cloisonne ; la
+    /// gravite vient du nombre de breches.
     /// </summary>
     public static class FloodingModel
     {
-        public const float MaxFloodRatePerS = 0.06f;
+        public const float RatePerS = 0.012f;
+        public const float DestroyedRateFactor = 1.5f;
+        public const float SinkThreshold = 0.35f; // 35% du volume de compartiments envahi
 
-        public static void Update(BattleSim sim, float dt, Rng rng)
+        /// <summary>Fraction de flottabilite perdue (0..1).</summary>
+        public static float LostBuoyancy(ShipState ship)
         {
-            foreach (var ship in sim.ShipList)
+            float lost = 0f, share = 0f;
+            foreach (CompartmentState c in ship.Compartments)
             {
-                if (!ship.Alive) continue;
-
-                float buoy = 0f;
-                float totalMax = 0f;
-                foreach (var cs in ship.Compartments.Values)
+                CompartmentSpec spec = null;
+                foreach (CompartmentSpec cs in ship.Spec.Compartments)
                 {
-                    totalMax += cs.HpMax;
-                    if (cs.Destroyed && !cs.Breached)
-                    {
-                        cs.Breached = true;
-                        cs.Flooding = Math.Max(cs.Flooding, 0.3f);
-                    }
-                    if (cs.Breached)
-                    {
-                        cs.Flooding += MaxFloodRatePerS * dt * (1f + 0.5f * (1f - ship.FractionHp));
-                        if (cs.Flooding >= 1f)
-                        {
-                            cs.Flooding = 1f;
-                        }
-                    }
-                    buoy += cs.HpMax * (1f - cs.Flooding);
+                    if (cs.Id == c.Id) { spec = cs; break; }
                 }
-                ship.Buoyancy = totalMax <= 0f ? 1f : buoy / totalMax;
-                ship.LostBuoyancy = 1f - ship.Buoyancy;
-
-                // flottabilite perdue : coule
-                if (ship.Buoyancy <= 0.35f && ship.Alive)
-                {
-                    ship.Alive = false;
-                    sim.Events.Add(new BattleEvent
-                    {
-                        Kind = BattleEventKind.Sunk,
-                        Time = sim.Time,
-                        Target = ship.Id,
-                        X = ship.Pos.X,
-                        Y = ship.Pos.Y,
-                        Detail = ship.FloodingTotal
-                    });
-                }
+                float w = spec == null ? 0.1f : spec.Half;
+                share += w;
+                lost += c.Flooding * w;
             }
+            return share <= 0f ? 0f : lost / share;
         }
 
-        public static void StartFlooding(CompartmentState cs, float rate, Rng rng)
+        public static void Step(ShipState ship, float dt, float timeS)
         {
-            cs.Breached = true;
-            cs.Flooding = Math.Max(cs.Flooding, 0.15f + 0.2f * rate);
+            if (ship.Sunk) return;
+            foreach (CompartmentState c in ship.Compartments)
+            {
+                if (c.Breached)
+                {
+                    float rate = RatePerS * (c.Destroyed ? DestroyedRateFactor : 1f);
+                    c.Flooding += rate * dt;
+                    if (c.Flooding > 1f) c.Flooding = 1f;
+                }
+            }
+            if (LostBuoyancy(ship) >= SinkThreshold || DamageModel.AllCompartmentsDestroyed(ship))
+            {
+                ship.Sunk = true;
+                ship.SunkAtS = timeS;
+            }
         }
     }
 }

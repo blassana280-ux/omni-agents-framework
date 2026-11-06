@@ -5,82 +5,111 @@ using OmniWarships.Core.Spec;
 
 namespace OmniWarships.Core.Simulation
 {
+    public sealed class DamageResult
+    {
+        public string CompartmentId;
+        public float AppliedDamage;
+        public bool CompartmentDestroyed;
+        public bool Breached;
+        public List<ShipSystemKind> SystemsHit = new List<ShipSystemKind>();
+    }
+
     /// <summary>
-    /// Degats : penetration d'armure par compartiment, destruction des
-    /// systemes, voies d'eau. Baseline observable : un obus de 127 mm
-    /// perce ~25 mm d'acier (a bout portant) ; reference BRL obsolte.
+    /// Degats localises : l'impact est projete le long de la coque pour
+    /// trouver le compartiment touche ; les systemes de ce compartiment
+    /// se degradent reellement (propulsion, radar, armement...).
     /// </summary>
     public static class DamageModel
     {
-        public static void Apply(BattleSim sim, ShipState ship, Projectile p, Rng rng)
+        /// <summary>Position le long de la coque : 0 = proue, 1 = poupe.</summary>
+        public static float AlongHull(ShipState ship, Vec2 impactPos)
         {
-            float baseDamage = p.Damage;
-
-            // compartiment touche : impact le long de l'axe du navire
-            float impactHeading = p.Dir.HeadingDeg();
-            Vec2 rel = p.Pos - ship.Pos;
             Vec2 fwd = Vec2.FromHeadingDeg(ship.HeadingDeg);
-            float along = Vec2.Dot(rel, fwd) / Math.Max(1f, ship.Spec.LengthM) + 0.5f; // 0 = proue, 1 = poupe
+            float forward = Vec2.Dot(impactPos - ship.Pos, fwd);
+            float along = 0.5f - forward / Math.Max(1f, ship.Spec.LengthM);
             if (along < 0f) along = 0f;
             if (along > 1f) along = 1f;
+            return along;
+        }
 
-            CompartmentSpec hit = null;
-            foreach (var c in ship.Spec.Compartments)
-                if (c.Covers(along)) { hit = c; break; }
-            if (hit == null) hit = ship.Spec.Compartments[ship.Spec.Compartments.Count / 2];
-
-            CompartmentState cs;
-            if (!ship.Compartments.TryGetValue(hit.Id, out cs)) return;
-
-            float armorFactor = hit.Armor > 0f ? 1f / hit.Armor : 1f;
-            float dmg = baseDamage * armorFactor;
-
-            // angle d'impact : les obus frappant perpendiculairement touchent plus fort
-            float cos = Math.Abs(Vec2.Dot(p.Dir, Vec2.FromHeadingDeg(ship.HeadingDeg + 90f)));
-            dmg *= 0.7f + 0.3f * cos;
-
-            cs.Hp -= dmg;
-            ship.TotalHp -= dmg;
-
-            sim.Events.Add(new BattleEvent
+        public static CompartmentState FindCompartment(ShipState ship, float along)
+        {
+            CompartmentState best = null;
+            float bestDist = float.MaxValue;
+            foreach (CompartmentState cs in ship.Compartments)
             {
-                Kind = BattleEventKind.Damage,
-                Time = sim.Time,
-                Source = p.OwnerId,
-                Target = ship.Id,
-                Weapon = p.WeaponId,
-                X = p.Pos.X,
-                Y = p.Pos.Y,
-                Detail = dmg
-            });
-
-            // voie d'eau : chance selon degats et type
-            float floodChance = 0f;
-            if (p.Kind == ProjectileKind.Torpedo) floodChance = 0.8f;
-            else if (p.Kind == ProjectileKind.Missile) floodChance = 0.3f;
-            else floodChance = 0.08f;
-            if (cs.Hp <= 0f) floodChance = Math.Max(floodChance, 0.5f);
-
-            if (rng.NextFloat() < floodChance)
-            {
-                cs.Breached = true;
-                FloodingModel.StartFlooding(cs, floodChance * 0.5f, rng);
-            }
-
-            if (cs.Hp <= 0f) cs.Destroyed = true;
-            if (ship.TotalHp <= 0f)
-            {
-                sim.Events.Add(new BattleEvent
+                CompartmentSpec spec = null;
+                foreach (CompartmentSpec s in ship.Spec.Compartments)
                 {
-                    Kind = BattleEventKind.Sunk,
-                    Time = sim.Time,
-                    Source = p.OwnerId,
-                    Target = ship.Id,
-                    X = ship.Pos.X,
-                    Y = ship.Pos.Y
-                });
-                ship.Alive = false;
+                    if (s.Id == cs.Id) { spec = s; break; }
+                }
+                if (spec != null && spec.Covers(along)) return cs;
+                if (spec != null)
+                {
+                    float d = Math.Abs(spec.Center - along);
+                    if (d < bestDist) { bestDist = d; best = cs; }
+                }
             }
+            return best;
+        }
+
+        public static DamageResult ApplyImpact(ShipState ship, Vec2 impactPos, DamageKind kind, float damage)
+        {
+            var result = new DamageResult();
+            result.AppliedDamage = damage;
+            if (ship.Sunk || damage <= 0f) return result;
+
+            CompartmentState comp = FindCompartment(ship, AlongHull(ship, impactPos));
+            if (comp == null) return result;
+            CompartmentSpec spec = null;
+            foreach (CompartmentSpec s in ship.Spec.Compartments)
+            {
+                if (s.Id == comp.Id) { spec = s; break; }
+            }
+            if (spec == null) return result;
+            result.CompartmentId = comp.Id;
+
+            float effective = damage / Math.Max(0.2f, spec.Armor);
+            comp.Hp -= effective;
+
+            if (comp.Hp <= 0f)
+            {
+                comp.Hp = 0f;
+                comp.Destroyed = true;
+                comp.Breached = true;
+                result.CompartmentDestroyed = true;
+                result.Breached = true;
+                foreach (ShipSystemKind sys in spec.Systems)
+                {
+                    float nv = ship.Eff(sys) * 0.25f;
+                    if (nv < 0.15f) nv = 0.15f;
+                    ship.SystemEff[sys] = nv;
+                    result.SystemsHit.Add(sys);
+                }
+            }
+            else
+            {
+                float ratio = effective / Math.Max(1f, comp.HpMax);
+                if (ratio > 0.35f) comp.Breached = true;
+                result.Breached = comp.Breached;
+                foreach (ShipSystemKind sys in spec.Systems)
+                {
+                    float nv = ship.Eff(sys) * (1f - 0.4f * ratio);
+                    if (nv < 0.15f) nv = 0.15f;
+                    ship.SystemEff[sys] = nv;
+                    result.SystemsHit.Add(sys);
+                }
+            }
+            return result;
+        }
+
+        public static bool AllCompartmentsDestroyed(ShipState ship)
+        {
+            foreach (CompartmentState c in ship.Compartments)
+            {
+                if (!c.Destroyed) return false;
+            }
+            return ship.Compartments.Count > 0;
         }
     }
 }
