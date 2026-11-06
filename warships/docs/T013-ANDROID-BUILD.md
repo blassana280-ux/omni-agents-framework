@@ -59,6 +59,11 @@ FBX réellement produits (tailles vérifiées dans le dépôt, commit 9c1db33a) 
 | ws-equipment.fbx | 354 524 |
 | **Total** | **8 139 208 (≈ 8,1 Mo)** |
 
+Tailles actuelles sur la tête de branche (FBX régénérés au commit bot
+078bd4ec, horodatage binaire différent) : destroyer 2 404 716 o,
+frégate 2 279 020 o, porte-avions 2 254 604 o, sous-marin 343 836 o,
+aéronefs 502 124 o, équipements 354 892 o — total 8 139 192 o (≈ 8,1 Mo).
+
 Intégration : warships/unity/Assets/OmniWarships/Resources/Models/ — chargés
 au runtime par ShipModelLibrary (LOD 0/1/2 nommés _LOD1/_LOD2, pivots
 tourelles/radars/rotors exportés comme EMPTY).
