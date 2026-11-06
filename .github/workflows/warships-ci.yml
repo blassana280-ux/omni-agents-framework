@@ -78,8 +78,20 @@ jobs:
           set -e
           curl -sSL --retry 3 -o /tmp/download-actionlint.bash \
             https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash
-          bash /tmp/download-actionlint.bash /tmp
-          /tmp/actionlint -color \
+          # signature REELLE du script : [[VERSION] DIR] — la version est
+          # obligatoire car le script epingle v1.7.7 defaulte a 1.7.6.
+          bash /tmp/download-actionlint.bash 1.7.7 /tmp
+          /tmp/actionlint --version
+          set +e
+          out=$(/tmp/actionlint -color \
             .github/workflows/warships-ci.yml \
             .github/workflows/warships-blender-fbx.yml \
-            .github/workflows/warships-gameci.yml
+            .github/workflows/warships-gameci.yml 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          if [ "$rc" -ne 0 ]; then
+            msg=$(echo "$out" | tr '\n' '|' | cut -c1-900)
+            echo "::error::actionlint rc=$rc — $msg"
+            exit $rc
+          fi
