@@ -1,0 +1,43 @@
+# OMNI WARSHIPS — EXEMPLE GameCI (T-012). NE PAS COPIER TEL QUEL :
+# ce fichier est volontairement hors de .github/workflows/ afin qu'aucun
+# job ne se déclenche sans décision explicite de Lassana (licence Unity).
+# Activation : copier vers .github/workflows/warships-gameci.yml puis
+# renseigner les secrets UNITY_LICENSE / UNITY_EMAIL / UNITY_PASSWORD.
+name: Warships GameCI (exemple — inactif)
+on:
+  pull_request:
+    paths:
+      - "warships/unity/**"
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Compilation Android (exemple inactif)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compil + tests + build APK (Unity 2022.3.62f1)
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          targetPlatform: Android
+          projectPath: warships/unity
+          androidTargetSdkVersion: "34"
+          androidBuildAppType: executable
+          androidBuildSystem: Gradle
+          androidArchitecture: ARM64
+
+      - name: Artefact APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: omni-warships-android
+          path: |
+            warships/unity/build/*.apk
+          if-no-files-found: error

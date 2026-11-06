@@ -2,22 +2,25 @@
 # -*- coding: utf-8 -*-
 """OMNI UNITY BRIDGE — validateur de la couche Unity (job CI).
 
-Verifie, sans jamais simuler un statut :
+Vérifie, sans jamais simuler un statut :
   1. fichiers requis du projet Unity (structure minimale) ;
   2. manifest.json + asmdefs = JSON valides, URP dans le manifest,
-     reference OmniWarships.Core dans l'asmdef Unity, plateforme Editor ;
+     référence OmniWarships.Core dans l'asmdef Unity, plateforme Editor ;
   3. les 19 copies du noyau C# et les 7 specs sont IDENTIQUES OCTET
-     PAR OCTET a leurs sources (warships/core, warships/data) ;
-  4. equilibrage des accolades de tous les .cs (commentaires/chaines retires) ;
-  5. aucune reference UnityEngine dans les copies du noyau ;
-  6. scan de secrets sur la couche Unity et les outils ;
-  7. coherence des docs (PROOF_STATUS / README) avec la realite du depot.
+     PAR OCTET à leurs sources (warships/core, warships/data) ;
+  4. équilibrage des accolades de tous les .cs (commentaires/chaînes retirés) ;
+  5. aucune référence UnityEngine dans les copies du noyau ;
+  6. syntaxe Python valide des 7 générateurs Blender (py_compile) ;
+  7. scan de secrets sur la couche Unity et les outils ;
+  8. cohérence des docs (PROOF_STATUS / README) avec la réalité du dépôt.
 
 Sortie ::error:: GitHub Actions ; exit 1 si au moins une erreur.
 """
 import json
+import os
 import re
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -27,6 +30,7 @@ UNITY = ROOT / "warships" / "unity"
 OMNI = UNITY / "Assets" / "OmniWarships"
 UCORE = OMNI / "Core"
 SHIPS = OMNI / "Resources" / "Ships"
+ASSET_FACTORY = ROOT / "warships" / "tools" / "omni-asset-factory"
 DOCS = ROOT / "warships" / "docs"
 
 errors = []
@@ -72,18 +76,35 @@ SHIP_SPECS = [
 ]
 
 UNITY_SCRIPTS = [
-    "BattleBootstrap.cs", "BattleDirector.cs", "EffectsPool.cs",
-    "HudController.cs", "OceanController.cs", "ProjectileView.cs",
-    "QualityProfiles.cs", "ShipView.cs", "SpecSource.cs",
-    "TouchInputController.cs", "WarshipCamera.cs",
+    "BattleBootstrap.cs", "BattleDirector.cs", "CombatEffects.cs",
+    "EffectsPool.cs", "GameEnvironment.cs", "HudController.cs",
+    "OceanController.cs", "PauseMenu.cs", "ProjectileView.cs",
+    "QualityProfiles.cs", "ShipDamageVisuals.cs", "ShipModelLibrary.cs",
+    "ShipView.cs", "SpecSource.cs", "TouchInputController.cs",
+    "WakeFoamController.cs", "WarshipCamera.cs", "WeatherDirector.cs",
 ]
 
-UNITY_SHADERS = ["OmniFlash.shader", "OmniOcean.shader", "OmniSmoke.shader"]
+UNITY_SHADERS = [
+    "OmniFlash.shader", "OmniFoam.shader", "OmniOcean.shader",
+    "OmniSky.shader", "OmniSmoke.shader",
+]
+
+BLENDER_GENERATORS = [
+    "omni_blender_common.py",
+    "gen_destroyer_blender.py",
+    "gen_frigate_blender.py",
+    "gen_carrier_blender.py",
+    "gen_submarine_blender.py",
+    "gen_aircraft_blender.py",
+    "gen_equipment_blender.py",
+]
 
 REQUIRED_FILES = [
     UNITY / "Packages" / "manifest.json",
     UNITY / "ProjectSettings" / "ProjectVersion.txt",
     UNITY / "README-IMPORT.md",
+    UNITY / "ci" / "README-GAMECI.md",
+    UNITY / "ci" / "gameci-example.yml",
     OMNI / "OmniWarships.Core.asmdef",
     OMNI / "OmniWarships.Unity.asmdef",
     OMNI / "Editor" / "OmniWarships.Unity.Editor.asmdef",
@@ -91,7 +112,8 @@ REQUIRED_FILES = [
 ] + [OMNI / "Scripts" / s for s in UNITY_SCRIPTS] \
   + [OMNI / "Shaders" / s for s in UNITY_SHADERS] \
   + [UCORE / c for c in CORE_COPIES] \
-  + [SHIPS / s for s in SHIP_SPECS]
+  + [SHIPS / s for s in SHIP_SPECS] \
+  + [ASSET_FACTORY / g for g in BLENDER_GENERATORS]
 
 
 def check_required():
@@ -116,29 +138,29 @@ def check_json():
     if manifest is not None:
         deps = manifest.get("dependencies", {})
         if "com.unity.render-pipelines.universal" not in deps:
-            err("manifest.json : URP (com.unity.render-pipelines.universal) absent des dependances")
+            err("manifest.json : URP (com.unity.render-pipelines.universal) absent des dépendances")
 
     core_asm = load_json(OMNI / "OmniWarships.Core.asmdef")
     if core_asm is not None:
         if core_asm.get("name") != "OmniWarships.Core":
             err("asmdef Core : name != OmniWarships.Core")
         if core_asm.get("references"):
-            err("asmdef Core : le noyau ne doit referencer aucun assembly")
+            err("asmdef Core : le noyau ne doit référencer aucun assembly")
 
     unity_asm = load_json(OMNI / "OmniWarships.Unity.asmdef")
     if unity_asm is not None:
         refs = unity_asm.get("references", [])
         if "OmniWarships.Core" not in refs:
-            err("asmdef Unity : reference OmniWarships.Core absente")
+            err("asmdef Unity : référence OmniWarships.Core absente")
         if "Unity.RenderPipelines.Universal.Runtime" not in refs:
-            err("asmdef Unity : reference URP runtime absente")
+            err("asmdef Unity : référence URP runtime absente")
 
     editor_asm = load_json(OMNI / "Editor" / "OmniWarships.Unity.Editor.asmdef")
     if editor_asm is not None:
         if "Editor" not in editor_asm.get("includePlatforms", []):
             err("asmdef Editor : includePlatforms doit contenir Editor")
         if "OmniWarships.Core" not in editor_asm.get("references", []):
-            err("asmdef Editor : reference OmniWarships.Core absente")
+            err("asmdef Editor : référence OmniWarships.Core absente")
 
     version = UNITY / "ProjectSettings" / "ProjectVersion.txt"
     if version.is_file():
@@ -156,7 +178,7 @@ def check_copies():
             err("source noyau absente : " + str(src.relative_to(ROOT)))
             continue
         if not dst.is_file():
-            continue  # deja signale par check_required
+            continue  # déjà signalé par check_required
         if src.read_bytes() != dst.read_bytes():
             err("copie noyau NON identique octet par octet : " + str(dst.relative_to(ROOT)))
     for name in SHIP_SPECS:
@@ -216,7 +238,7 @@ def check_braces():
             continue
         stripped = strip_csharp(p.read_text(encoding="utf-8"))
         if stripped.count("{") != stripped.count("}"):
-            err("accolades desequilibrees : " + str(p.relative_to(ROOT))
+            err("accolades déséquilibrées : " + str(p.relative_to(ROOT))
                 + " ({=" + str(stripped.count("{")) + " }=" + str(stripped.count("}")) + ")")
 
 
@@ -226,7 +248,28 @@ def check_no_unityengine():
     for rel in CORE_COPIES:
         p = UCORE / rel
         if p.is_file() and "UnityEngine" in p.read_text(encoding="utf-8"):
-            err("reference UnityEngine interdite dans la copie noyau : " + str(rel))
+            err("référence UnityEngine interdite dans la copie noyau : " + str(rel))
+
+
+# --------------------------------------------- syntaxe des générateurs 3D
+
+def check_python_syntax():
+    """Compile (sans exécuter) chaque générateur Blender : attrape les
+    erreurs de syntaxe avant qu'un exécuteur Blender réel ne les rencontre."""
+    try:
+        import py_compile
+    except ImportError:
+        return
+    tmpdir = tempfile.gettempdir()
+    for name in BLENDER_GENERATORS:
+        p = ASSET_FACTORY / name
+        if not p.is_file():
+            continue  # déjà signalé par check_required
+        cfile = os.path.join(tmpdir, "omni_" + name + ".pyc")
+        try:
+            py_compile.compile(str(p), cfile=cfile, doraise=True)
+        except Exception as e:
+            err("syntaxe Python invalide (" + name + ") : " + str(e))
 
 
 # ------------------------------------------------------------- secrets
@@ -234,15 +277,16 @@ def check_no_unityengine():
 SECRET_PATTERNS = [
     (re.compile(r"ghp_[A-Za-z0-9]{20,}"), "token GitHub classique"),
     (re.compile(r"github_pat_[A-Za-z0-9_]{20,}"), "token GitHub fine-grained"),
-    (re.compile(r"AKIA[0-9A-Z]{16}"), "cle d'acces AWS"),
-    (re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"), "cle privee"),
-    (re.compile(r"\bsk-[A-Za-z0-9]{20,}"), "cle API sk-"),
+    (re.compile(r"AKIA[0-9A-Z]{16}"), "clé d'accès AWS"),
+    (re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"), "clé privée"),
+    (re.compile(r"\bsk-[A-Za-z0-9]{20,}"), "clé API sk-"),
     (re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}"), "token Slack"),
 ]
 
 
 def check_secrets():
-    roots = [UNITY, ROOT / "warships" / "tools" / "omni-unity-bridge"]
+    roots = [UNITY, ROOT / "warships" / "tools" / "omni-unity-bridge",
+             ASSET_FACTORY]
     for root in roots:
         if not root.is_dir():
             continue
@@ -275,7 +319,7 @@ def check_docs():
         if "omni-unity-bridge" not in text:
             err("README.md : la structure doit lister tools/omni-unity-bridge (validateur CI)")
         if "omni-replay-debug" in text:
-            err("README.md : tools/omni-replay-debug n'existe pas dans le depot (structure mensongere)")
+            err("README.md : tools/omni-replay-debug n'existe pas dans le dépôt (structure mensongère)")
 
 
 def main():
@@ -284,6 +328,7 @@ def main():
     check_copies()
     check_braces()
     check_no_unityengine()
+    check_python_syntax()
     check_secrets()
     check_docs()
     if errors:
@@ -293,7 +338,8 @@ def main():
         sys.exit(1)
     total = len(REQUIRED_FILES)
     print("validate_unity_layer : OK — " + str(total) + " fichiers requis, 19 copies noyau"
-          + " et 7 specs identiques octet par octet, aucun secret, docs coherents.")
+          + " et 7 specs identiques octet par octet, 7 générateurs Blender"
+          + " syntaxiquement valides, aucun secret, docs cohérents.")
 
 
 if __name__ == "__main__":
