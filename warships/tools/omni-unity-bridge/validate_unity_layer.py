@@ -84,6 +84,11 @@ UNITY_SCRIPTS = [
     "WakeFoamController.cs", "WarshipCamera.cs", "WeatherDirector.cs",
 ]
 
+UNITY_EDITOR_SCRIPTS = [
+    "AndroidBuildConfig.cs",
+    "OmniWarshipsMenu.cs",
+]
+
 UNITY_SHADERS = [
     "OmniFlash.shader", "OmniFoam.shader", "OmniOcean.shader",
     "OmniSky.shader", "OmniSmoke.shader",
@@ -108,8 +113,8 @@ REQUIRED_FILES = [
     OMNI / "OmniWarships.Core.asmdef",
     OMNI / "OmniWarships.Unity.asmdef",
     OMNI / "Editor" / "OmniWarships.Unity.Editor.asmdef",
-    OMNI / "Editor" / "OmniWarshipsMenu.cs",
-] + [OMNI / "Scripts" / s for s in UNITY_SCRIPTS] \
+] + [OMNI / "Editor" / s for s in UNITY_EDITOR_SCRIPTS] \
+  + [OMNI / "Scripts" / s for s in UNITY_SCRIPTS] \
   + [OMNI / "Shaders" / s for s in UNITY_SHADERS] \
   + [UCORE / c for c in CORE_COPIES] \
   + [SHIPS / s for s in SHIP_SPECS] \
@@ -232,7 +237,7 @@ def strip_csharp(text):
 def check_braces():
     targets = [UCORE / c for c in CORE_COPIES] \
         + [OMNI / "Scripts" / s for s in UNITY_SCRIPTS] \
-        + [OMNI / "Editor" / "OmniWarshipsMenu.cs"]
+        + [OMNI / "Editor" / s for s in UNITY_EDITOR_SCRIPTS]
     for p in targets:
         if not p.is_file():
             continue
