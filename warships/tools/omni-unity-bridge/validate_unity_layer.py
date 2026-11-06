@@ -18,7 +18,10 @@ Vérifie, sans jamais simuler un statut :
      BuildPlayerOptions.scenes, échec explicite si aucune scène valide ;
  10. T-013.2 — namespaces des API de compilation : BuildReport et
      BuildResult vivent dans UnityEditor.Build.Reporting — using
-     UnityEditor; ne suffit PAS (CS0246 à la compilation réelle).
+     UnityEditor; ne suffit PAS (CS0246 à la compilation réelle) ;
+ 11. T-013.3 — dépôt PUBLIC : aucune publication du .ulf (licence
+     Unity nominative) — ni artefact, ni release, ni capture ; le
+     workflow de licence n autorise AUCUN artefact et exige ACCESS_TOKEN.
 
 Sortie ::error:: GitHub Actions ; exit 1 si au moins une erreur.
 """
@@ -372,6 +375,41 @@ def check_build_reporting():
                 + "UnityEditor.Build.Reporting.*) — CS0246 sinon")
 
 
+# --------------------------- T-013.3 : aucune publication du .ulf
+
+def check_ulf_publication():
+    """T-013.3 : le dépôt est PUBLIC. Un .ulf (licence Unity nominative)
+    ne doit JAMAIS être publié : les artefacts ne sont PAS privés sur un
+    dépôt public. Interdit : artefact .ulf, .ulf en release, capture
+    d écran publiée par le workflow de licence. Le .ulf va UNIQUEMENT
+    dans le secret UNITY_LICENSE, et ACCESS_TOKEN uniquement dans
+    l étape de stockage."""
+    wf_dir = ROOT / ".github" / "workflows"
+    if not wf_dir.is_dir():
+        err(".github/workflows introuvable : garde-fou publication .ulf inapplicable")
+        return
+    for wf in sorted(wf_dir.glob("*.yml")):
+        lines = wf.read_text(encoding="utf-8").splitlines()
+        for i, line in enumerate(lines):
+            if line.strip().startswith("#"):
+                continue
+            if "upload-artifact" in line:
+                for w in lines[i:i + 10]:
+                    s = w.strip()
+                    if s.startswith("path:") and ".ulf" in s:
+                        err(wf.name + " : publication d un .ulf en ARTEFACT interdite (dépôt public)")
+            if ".ulf" in line and "release" in line.lower():
+                err(wf.name + " : .ulf associé à une release — publication interdite (dépôt public)")
+        if wf.name == "warships-license.yml":
+            t = "\n".join(lines)
+            if "upload-artifact" in t:
+                err("warships-license.yml : AUCUN artefact autorisé dans le workflow de licence (T-013.3)")
+            if "ACCESS_TOKEN" not in t:
+                err("warships-license.yml : le stockage du secret exige ACCESS_TOKEN (aucun repli)")
+            if "unity-license-activate@0.3.9" not in t:
+                err("warships-license.yml : unity-license-activate doit être épinglé en 0.3.9 (pas de @latest)")
+
+
 # -------------------------------------------------------------------- docs
 
 def check_docs():
@@ -401,6 +439,7 @@ def main():
     check_secrets()
     check_scene_build()
     check_build_reporting()
+    check_ulf_publication()
     check_docs()
     if errors:
         print("validate_unity_layer : " + str(len(errors)) + " erreur(s)")
@@ -412,7 +451,7 @@ def main():
           + " et 7 specs identiques octet par octet, 7 générateurs Blender"
           + " syntaxiquement valides, garde-fou scène de bataille OK"
           + " (chemin unique + inclusion explicite), namespaces build OK,"
-          + " aucun secret, docs cohérents.")
+          + " aucune publication .ulf, aucun secret, docs cohérents.")
 
 
 if __name__ == "__main__":

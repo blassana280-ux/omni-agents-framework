@@ -39,35 +39,42 @@ configurée). Le workflow réel vit sur la branche `warships/android-build`
 4. Télécharger l APK : artefact `omni-warships-apk` ou release brouillon
    `android-build-N`.
 
-## Licence Unity sans PC (T-013.2 — workflow warships-license.yml)
+## Licence Unity sans PC (T-013.3 — workflow warships-license.yml sécurisé)
 
 La documentation officielle actuelle de game.ci recommande Unity Hub
 sur un PC — Lassana n en a pas. Le workflow
 `.github/workflows/warships-license.yml` (déclenché par le fichier
 `warships/unity/ci/LICENSE-TRIGGER.md`) permet d obtenir le .ulf
-ENTIÈREMENT depuis le téléphone :
+ENTIÈREMENT depuis le téléphone, SANS JAMAIS publier le .ulf (dépôt
+public) :
 
 1. Compte Unity gratuit (id.unity.com, navigateur).
-2. Secrets : `UNITY_EMAIL`, `UNITY_PASSWORD`, et idéalement
-   `UNITY_TOTP_KEY` (clé authenticator TOTP — sans elle, Unity peut
-   exiger un code envoyé par email que le workflow ne sait pas lire) ;
-   `ACCESS_TOKEN` (PAT fine-grained, permission Secrets en écriture)
-   pour que le .ulf soit stocké AUTOMATIQUEMENT dans `UNITY_LICENSE`.
+2. Secrets : `UNITY_EMAIL`, `UNITY_PASSWORD`, `UNITY_TOTP_KEY` (clé
+   authenticator TOTP — sans elle, Unity peut exiger un code envoyé par
+   email que le workflow ne sait pas lire) et `ACCESS_TOKEN`
+   **obligatoire** (PAT fine-grained limité à CE dépôt, permission
+   « Secrets » en écriture seule, expiration courte ~30 jours — cf.
+   LICENSE-TRIGGER.md).
 3. Modifier `LICENSE-TRIGGER.md` (incrémenter le compteur) : le workflow
    génère le .alf (image Docker unityci/editor, drapeau documenté
    -createManualActivationFile, aucune licence requise), l échange
-   contre un .ulf via l outil game-ci `unity-license-activate`
-   (navigateur automatisé sur license.unity3d.com), et stocke ou
-   publie le .ulf.
-4. Sans ACCESS_TOKEN : télécharger l artefact `unity-ulf` et copier TOUT
-   son contenu dans le secret `UNITY_LICENSE`.
-5. Échec : artefact `screenshot-error` + logs du run.
+   contre un .ulf via l outil ÉPINGLÉ `unity-license-activate@0.3.9`
+   (organisation game-ci, audité : seul domaine contacté =
+   license.unity3d.com ; aucun script d installation ; intégrité
+   vérifiée par npm à l installation), puis stocke le .ulf DIRECTEMENT
+   dans le secret `UNITY_LICENSE` via l API GitHub — le PAT est injecté
+   UNIQUEMENT dans cette étape, jamais dans l activation.
+4. Sans `ACCESS_TOKEN` : échec explicite — AUCUN repli par artefact
+   (un .ulf en artefact n est jamais privé sur un dépôt public).
+5. Aucune capture ni artefact publié ; en cas d échec, consulter les
+   logs du run.
 
-Honnêteté : ce flux n est pas celui de la documentation officielle
-actuelle de game.ci (qui exige Unity Hub) ; il s appuie sur l outil
-maintenu de l organisation game-ci. Il ne sera PROUVÉ qu à sa première
-exécution réelle — aucun statut n est prétendu avant. Ne JAMAIS
-communiquer identifiants, secrets ou licence dans une conversation.
+Honnêteté : l activation manuelle Personal via license.unity3d.com n
+est pas officiellement prise en charge par Unity (option masquée) ;
+l outil sélectionne cette option masquée — l authentification complète
+(mot de passe + TOTP) reste TOUJOURS requise, aucune protection de
+compte n est contournée. Flux prouvé à sa première exécution réelle.
+Ne JAMAIS communiquer identifiants, PAT ou licence dans une conversation.
 
 ## Ce que ce pipeline NE fait PAS
 

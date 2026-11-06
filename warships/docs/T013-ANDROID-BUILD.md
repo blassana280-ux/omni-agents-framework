@@ -274,3 +274,81 @@ La PR #16 a été vérifiée indépendamment. Corrections apportées :
   un run GameCI vert avec APK vérifiée (taille + sha256).
 - Pipeline prêt : secrets → BUILD-TRIGGER.md → APK. Licence : compte
   Unity gratuit + secrets → LICENSE-TRIGGER.md → .ulf → build.
+## 9. T-013.3 — sécurisation du workflow de licence (dépôt PUBLIC)
+
+### 9.1 Aucune publication du .ulf (audit externe confirmé)
+- Faille réelle : le workflow T-013.2 publiait le .ulf en artefact
+  (`upload-artifact`, chemin `*.ulf`) et une capture d erreur
+  (`screenshot-error`) — inacceptable sur un dépôt public (les
+  artefacts ne sont PAS privés) : le .ulf est une licence Unity
+  nominative, la capture peut contenir des informations de compte.
+- Corrections : suppression TOTALE des étapes de publication
+  (artefact .ulf ET capture) ; si `ACCESS_TOKEN` est absent, arrêt
+  explicite (AUCUN repli par artefact) ; si présent, transmission
+  DIRECTE du .ulf au secret `UNITY_LICENSE` via l API GitHub, valeur
+  jamais affichée ; vérification de la mise à jour SANS lire la
+  valeur (`gh secret list` → horodatage `updatedAt`) ; suppression
+  locale du .ulf après stockage ; PAT injecté UNIQUEMENT dans l
+  étape de stockage.
+
+### 9.2 Outil d activation épinglé et audité (pas de @latest)
+- `npx --yes unity-license-activate@0.3.9` : version EXACTE épingle
+  (plus de `@latest` flottant). Métadonnées npm vérifiées le
+  06/11/2026 : 0.3.9 = dernière version publiée ; intégrité
+  `sha512-MBn+IFFv0rLfLNowT2zFXVYUia9Ls2QSjeEB8jv8wCoUHHTJhvAUBw3oKigl2StzFdQYSJfXmBzqno2ccnFAiA==`
+  (vérifiée par npm à l installation) ; AUCUN script d installation
+  dans le package (champ scripts = test uniquement) ; dépendances
+  directes : `crypto-js@^4.1.1`, `puppeteer@^13.7.0` (télécharge
+  Chromium — comportement connu).
+- Audit du code réellement exécuté (`lib/cli.js`, `lib/activate.js`
+  du dépôt game-ci/unity-license-activate, master = 0.3.9) : UNIQUE
+  URL contactée = `https://license.unity3d.com/manual` (formulaire de
+  connexion Unity ID) ; les identifiants et la clé TOTP ne sont
+  envoyés qu à ce formulaire ; support TOTP natif
+  (`--authenticator-key`) ; aucune télémétrie tierce dans le code.
+- Limites documentées (honnête, aucune certification excessive) :
+  dépendances transitives résolues par npm et non figées ; le
+  gestionnaire `unity-verify-code` (2FA email via IMAP) n est PAS
+  utilisé par ce workflow.
+
+### 9.3 Faisabilité licence Personal — statut honnête
+- Distinction claire : la création du `.alf` (drapeau Unity
+  documenté, aucune licence requise) ≠ l obtention du `.ulf`
+  (passe par license.unity3d.com).
+- La documentation officielle Unity n inscrit PAS la licence Personal
+  dans le flux d activation manuelle (l option est masquée sur la
+  page). L outil game-ci sélectionne cette option masquée (puppeteer)
+  — l authentification complète (mot de passe + TOTP) reste TOUJOURS
+  requise : aucune authentification ni protection de compte n est
+  contournée. Le README de l outil (org game-ci) le revendique
+  explicitement conçu pour les licences Personal avec GameCI.
+- Statut : méthode RÉELLE mais NON officiellement prise en charge ;
+  prouvée seulement à sa première exécution réelle. Blocages
+  documentés : 2FA par email (code illisible par le workflow → TOTP
+  fortement recommandé), modifications du site Unity (l outil
+  casserait), expiration périodique des licences Personal (relancer
+  LICENSE-TRIGGER.md). Repli honnête : Unity Hub sur n importe quel
+  PC emprunté (une seule fois, puis copie du .ulf dans les secrets).
+
+### 9.4 PAT ACCESS_TOKEN — permissions minimales vérifiées
+- Documentation REST GitHub officielle (actions/secrets) : les
+  endpoints de secrets de dépôt exigent pour un token fine-grained
+  la permission « Secrets » (write pour créer/mettre à jour, read
+  pour lister — utilisé pour vérifier la mise à jour sans lire la
+  valeur).
+- Spécification du PAT : fine-grained ; resource owner =
+  blassana280-ux ; accès au SEUL dépôt omni-agents-framework ;
+  permission unique « Secrets : Read and write » (+ Metadata:read
+  automatique et obligatoire) ; expiration courte (30 jours
+  recommandés).
+- Injection : le PAT est passé UNIQUEMENT à l étape « Stockage du
+  secret UNITY_LICENSE » (env de step) — jamais à l étape d
+  activation. Permissions du workflow : `contents: read` uniquement.
+
+### 9.5 Garde-fou CI
+- `check_ulf_publication()` dans validate_unity_layer.py : interdit
+  tout `upload-artifact` dont le chemin cible un `.ulf`, toute
+  association `.ulf` + release dans les 4 workflows, exige que le
+  workflow de licence ne publie AUCUN artefact, exige ACCESS_TOKEN
+  et l épingle 0.3.9 — la faille ne peut plus revenir sans faire
+  échouer la CI.

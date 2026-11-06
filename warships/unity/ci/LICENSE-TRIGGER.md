@@ -1,7 +1,12 @@
-# DECLENCHEUR D ACQUISITION DE LICENCE UNITY — OMNI WARSHIPS (T-013.2)
+# DECLENCHEUR D ACQUISITION DE LICENCE UNITY — OMNI WARSHIPS (T-013.3)
 
 Ce fichier est le BOUTON D ACQUISITION DU .ULF de Lassana : obtenir la
 licence Unity Personal SANS PC, SANS Unity Hub, depuis le telephone.
+
+SECURITE (depot public) : le .ulf n est JAMAIS publie — ni artefact,
+ni release, ni commit, ni capture. Il va UNIQUEMENT dans le secret
+UNITY_LICENSE via l API GitHub. Aucune valeur n est affichee dans les
+logs.
 
 ## Prerequis (une seule fois)
 
@@ -14,14 +19,22 @@ licence Unity Personal SANS PC, SANS Unity Hub, depuis le telephone.
      (id.unity.com > Security > Two-Factor Authentication > App
      d authentification > « Impossible de scanner le code ? » ->
      sauvegarder la cle). Sans TOTP, Unity peut exiger un code envoye
-     par email que le workflow ne peut pas lire — l activation
+     par email que le workflow ne peut pas lire — l acquisition
      echouerait ;
-   - ACCESS_TOKEN (recommande) : PAT fine-grained (Settings > Developer
-     settings > Fine-grained tokens) limite a ce depot avec la
-     permission « Secrets » en ecriture — permet au workflow de stocker
-     le .ulf DIRECTEMENT dans le secret UNITY_LICENSE. Alternative sans
-     PAT : le .ulf est publie en artefact prive « unity-ulf » et il faut
-     copier TOUT son contenu dans le secret UNITY_LICENSE a la main.
+   - ACCESS_TOKEN (OBLIGATOIRE — T-013.3) : PAT fine-grained
+     (Settings > Developer settings > Fine-grained tokens > Generate
+     new token) :
+     * Resource owner : blassana280-ux ;
+     * Repository access : Only select repositories ->
+       omni-agents-framework (RIEN d autre) ;
+     * Permissions : Secrets -> Read and write (RIEN d autre ;
+       Metadata:read est automatique et obligatoire) ;
+     * Expiration : 30 jours recommandes (renouvelable en 2 clics).
+     Le PAT n est injecte QUE dans l etape de stockage du secret —
+     absent de l etape d activation, qui ne voit que les identifiants
+     Unity. Sans ACCESS_TOKEN : arret explicite du workflow, AUCUN
+     repli par artefact (un .ulf en artefact n est jamais prive sur un
+     depot public).
 
 ## Lancer l acquisition
 
@@ -33,19 +46,26 @@ Derniere acquisition demandee : #0 (aucune)
 
 2. Le workflow « Warships licence Unity (acquisition .ulf sans PC) » :
    genere le fichier de demande .alf (image Docker unityci/editor
-   2022.3.62f1-android), l echange contre un .ulf via l outil game-ci
-   unity-license-activate (navigateur automatise sur license.unity3d.com),
-   puis stocke ou publie le .ulf.
-3. En cas d echec : artefact « screenshot-error » (capture du navigateur
-   automatise) + consulter les logs du run.
+   2022.3.62f1-android), l echange contre un .ulf via l outil EPINGLE
+   unity-license-activate@0.3.9 (organisation game-ci, code audite :
+   seul domaine contacte = license.unity3d.com), puis stocke le .ulf
+   DIRECTEMENT dans le secret UNITY_LICENSE et verifie la mise a jour
+   (horodatage, jamais la valeur).
+3. Une fois le run vert : lancer le build APK en editant
+   BUILD-TRIGGER.md.
 
 ## Honnetete (aucune simulation)
 
-- La documentation officielle actuelle de game.ci recommande Unity Hub
-  sur PC ; Lassana n a pas de PC. Ce flux utilise l outil maintenu
-  game-ci/unity-license-activate (organisation game-ci) et le drapeau
-  documente Unity -createManualActivationFile dans l image Docker
-  officielle unityci/editor. Il ne sera PROUVE qu a sa premiere execution
-  reelle — aucun statut n est pretendu avant.
-- Ne JAMAIS communiquer identifiants, secrets ou contenu de licence dans
-  une conversation : tout passe par les secrets GitHub.
+- Statut de la methode : l activation manuelle Personal via
+  license.unity3d.com n est PAS officiellement prise en charge par
+  Unity (l option y est masquee) ; l outil selectionne cette option
+  masquee — l authentification complete (mot de passe + TOTP) reste
+  TOUJOURS requise, aucune protection de compte n est contournee.
+  Preuve = premiere execution reelle. Si Unity change son site ou
+  bloque le flux, repli : Unity Hub sur n importe quel PC emprunte.
+- Outil epingle unity-license-activate@0.3.9, integrite verifiee par
+  npm a l installation, aucun script d installation dans le package ;
+  limite documentee : les dependances transitives (puppeteer,
+  crypto-js) sont resolues par npm et non figees.
+- Ne JAMAIS communiquer identifiants, secrets, PAT ou contenu de
+  licence dans une conversation : tout passe par les secrets GitHub.
