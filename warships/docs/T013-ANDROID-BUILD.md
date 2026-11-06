@@ -100,12 +100,13 @@ annoncé sans mesure.**
   paysage verrouillé, Gradle APK, minSdk 24). L'APK sort dans
   Builds/omni-warships-v0.1.0.apk. La scène de bataille est garantie par
   BattleSceneGuard (créée si absente, incluse explicitement).
-- **Chemin B (cloud, GameCI)** : .github/workflows/warships-gameci.yml —
-  activation manuelle (workflow_dispatch). Prérequis : secrets
-  UNITY_LICENSE / UNITY_EMAIL / UNITY_PASSWORD (licence Unity — l'activation
-  exigée par Unity est la seule étape impossible à faire à la place de
-  Lassana). Produit l'artefact APK + une release GitHub en brouillon, avec
-  vérification taille + sha256 de l'APK (aucune simulation).
+- **Chemin B (cloud, GameCI, sans PC personnel — navigateur uniquement)** :
+  .github/workflows/warships-gameci.yml, activation manuelle
+  (workflow_dispatch). Prérequis : secrets UNITY_LICENSE / UNITY_EMAIL /
+  UNITY_PASSWORD (licence Unity — l'activation exigée par Unity est la
+  seule étape impossible à faire à la place de Lassana). Produit
+  l'artefact APK + une release GitHub en brouillon, avec vérification
+  taille + sha256 de l'APK (aucune simulation).
 - Permissions Android du jeu : **aucune** (hors ligne complet).
 
 ## 6. Blocages documentés (honnêtes)
@@ -135,8 +136,9 @@ La PR #16 a été vérifiée indépendamment. Corrections apportées :
 - **permissions: contents: write** ajouté (requis pour gh release create).
 - **Vérification des secrets** (présence + absence de caractères parasites
   en début/fin) SANS jamais les afficher dans les logs.
-- **Vérification de l'APK produite** (taille + sha256) : le job échoue
-  explicitement si aucune APK n'est présente — jamais de simulation.
+- **Vérification de l'APK produite** (taille + sha256, via glob+stat,
+  sans ls) : le job échoue explicitement si aucune APK n'est présente —
+  jamais de simulation.
 - **buildMethod explicite** : OmniWarships.Unity.EditorTools.
   WarshipsBuildScript.BuildAndroid (scène incluse explicitement).
 
@@ -160,12 +162,23 @@ La PR #16 a été vérifiée indépendamment. Corrections apportées :
   systèmes de compilation, l'inclusion explicite (`scenes = scenes`) et
   interdit le retour du chemin faux Assets/Scenes/.
 
-### 7.3 Validation des workflows — actionlint EN CI
+### 7.3 Validation des workflows — actionlint EN CI (2 runs rouges, puis vert)
 - actionlint indisponible dans l'environnement assistant (aucun réseau,
-  aucun binaire) : intégré à la place comme job CI réel
-  (« Workflows (actionlint) » dans warships-ci.yml, version épinglée
-  v1.7.7) qui valide YAML + expressions + inputs des 3 workflows warships
-  à chaque push — ce job aurait attrapé les inputs inexistantes.
+  aucun binaire) : intégré comme job CI réel (« Workflows (actionlint) »
+  dans warships-ci.yml, v1.7.7 épinglée) qui valide YAML + expressions +
+  inputs des 3 workflows warships à chaque push.
+- Historique honnête des 3 runs :
+  1. run 1 ROUGE : le script officiel download-actionlint.bash a pour
+     signature `[[VERSION] DIR]` — l'argument `/tmp` seul était interprété
+     comme VERSION et rejeté. Corrigé : `1.7.7 /tmp` explicite ;
+  2. run 2 ROUGE : actionlint s'est exécuté et a trouvé 2 vrais problèmes
+     shellcheck dans le workflow GameCI — SC2034 (variable `name`
+     inutilisée dans verify_secret) et SC2012 (`ls` pour lister l'APK).
+     Corrigés : messages via `$1` direct, énumération par glob bash +
+     stat (aucun ls) ;
+  3. run 3 VERT (head 002c0d68) : les 5 checks de la PR sont verts,
+     y compris actionlint — le job aurait aussi attrapé les inputs
+     inexistantes de unity-builder@v4.
 
 ### 7.4 Pipeline Android vérifié (fichiers réels du dépôt)
 - Unity 2022.3.62f1 : ProjectSettings/ProjectVersion.txt ✓ ;
@@ -180,5 +193,5 @@ La PR #16 a été vérifiée indépendamment. Corrections apportées :
 ### 7.5 Statut inchangé (honnête)
 - Aucune compilation Unity exécutée, aucune APK produite, installée ou
   testée — la licence Unity reste le seul blocage (décision de Lassana).
-- Les 34 tests noyau, les validateurs et les 6 générateurs Blender restent
-  vérifiés en CI à chaque push.
+- Les 34 tests noyau, les validateurs, les 6 générateurs Blender et
+  actionlint sont vérifiés verts en CI à chaque push (5 checks sur la PR).
