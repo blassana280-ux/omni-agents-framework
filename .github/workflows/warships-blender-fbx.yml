@@ -24,7 +24,7 @@ jobs:
       - name: Checkout (tete de la PR)
         uses: actions/checkout@v4
         with:
-          ref: \${{ github.head_ref || github.ref_name }}
+          ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
 
       - name: Installation de Blender (GPL, sans licence)
@@ -33,17 +33,17 @@ jobs:
           sudo apt-get install -y --no-install-recommends blender
           blender --version
 
-      - name: Execution des 7 generateurs (FBX reels)
+      - name: Execution des 6 generateurs (FBX reels)
         run: |
           mkdir -p artifacts/fbx
           cd warships/tools/omni-asset-factory
           set -e
-          blender --background --factory-startup --python gen_destroyer_blender.py  -- --out ../../artifacts/fbx/ws-destroyer-01.fbx
-          blender --background --factory-startup --python gen_frigate_blender.py    -- --out ../../artifacts/fbx/ws-frigate-01.fbx
-          blender --background --factory-startup --python gen_carrier_blender.py   -- --out ../../artifacts/fbx/ws-carrier-01.fbx
+          blender --background --factory-startup --python gen_destroyer_blender.py -- --out ../../artifacts/fbx/ws-destroyer-01.fbx
+          blender --background --factory-startup --python gen_frigate_blender.py -- --out ../../artifacts/fbx/ws-frigate-01.fbx
+          blender --background --factory-startup --python gen_carrier_blender.py -- --out ../../artifacts/fbx/ws-carrier-01.fbx
           blender --background --factory-startup --python gen_submarine_blender.py -- --out ../../artifacts/fbx/ws-submarine-01.fbx
-          blender --background --factory-startup --python gen_aircraft_blender.py   -- --out ../../artifacts/fbx/ws-aircraft.fbx
-          blender --background --factory-startup --python gen_equipment_blender.py  -- --out ../../artifacts/fbx/ws-equipment.fbx
+          blender --background --factory-startup --python gen_aircraft_blender.py -- --out ../../artifacts/fbx/ws-aircraft.fbx
+          blender --background --factory-startup --python gen_equipment_blender.py -- --out ../../artifacts/fbx/ws-equipment.fbx
 
       - name: Verification des FBX (tailles reelles, aucune simulation)
         run: |
