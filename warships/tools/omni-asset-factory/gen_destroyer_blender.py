@@ -96,30 +96,27 @@ def main():
         shroud.parent = pivot
         assign(shroud, mats["dark"])
 
-    # VLS (2 x 8 cellules) + lanceurs SSM angulaires
-    vls_objs = []
+    # VLS (2 x 8 cellules) + lanceurs SSM en elevation
     for i in range(16):
         gx = -3.6 + (i % 4) * 2.4
         gz = 28.0 - (i // 4) * 2.8
         cell = add_box("vls-cell-" + str(i + 1), (1.9, 1.9, 0.7), (gx, gz, FREEBOARD + 0.75))
         assign(cell, mats["dark"])
-        vls_objs.append(cell)
-    for k in range(4):  # SSM en elevation vers l'avant
+    for k in range(4):
         ssm = add_box("ssm-canister-" + str(k + 1), (1.4, 6.2, 1.4),
                       (-4.5 + k * 3.0, -6.0, FREEBOARD + 1.9), rot=(math.radians(-14), 0.0, 0.0))
-        assign(ssm, mats["white"] if False else mats["super"])
-        vls_objs.append(ssm)
+        assign(ssm, mats["super"])
 
     # 2 CIWS (dome + bloc) nommes ciws_1 / ciws_2
     for k, (cx, cz) in enumerate(((0.0, -18.0), (0.0, -46.0)), start=1):
         mount = add_cylinder("ciws_" + str(k) + "-mount", 1.5, 1.8, (cx, cz, FREEBOARD + 0.9))
         assign(mount, mats["super"])
         dome = add_sphere("ciws_" + str(k) + "-dome", 1.45, (cx, cz, FREEBOARD + 3.1))
-        assign(dome, mats["white"] if False else mats["metal"])
+        assign(dome, mats["metal"])
         blk = add_box("ciws_" + str(k) + "-gun", (1.1, 2.6, 0.9), (cx, cz - 1.9, FREEBOARD + 2.6))
         assign(blk, mats["dark"])
 
-    # cheminees + entrees d'air
+    # cheminees + entree d'air
     for k, (fz, fr) in enumerate(((-2.0, 2.1), (-10.5, 1.75)), start=1):
         funnel = add_cylinder("funnel-" + str(k), fr, 8.5, (0.0, fz, FREEBOARD + 8.9))
         assign(funnel, mats["dark"])
@@ -128,15 +125,15 @@ def main():
     intake = add_box("engine-intake", (2.8, 5.0, 2.2), (0.0, -6.5, FREEBOARD + 5.4))
     assign(intake, mats["dark"])
 
-    # hangar helico + treuil + lignes de garde
+    # hangar helico
     hangar = add_box("hangar", (11.0, 20.0, 6.4), (0.0, -36.0, FREEBOARD + 3.6))
     assign(hangar, mats["super"])
 
-    all_objs = [o for o in bpy.context.scene.objects if o.type == "MESH"]
-    lods = make_lods(all_objs)
     everything = [o for o in bpy.context.scene.objects]
-    report(everything)
-    export_fbx(everything, args.out)
+    all_meshes = [o for o in everything if o.type == "MESH"]
+    make_lods(all_meshes)
+    report([o for o in bpy.context.scene.objects if o.type == "MESH"])
+    export_fbx([o for o in bpy.context.scene.objects], args.out)
     print("gen_destroyer_blender : FBX -> " + args.out)
 
 
