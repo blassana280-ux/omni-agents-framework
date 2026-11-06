@@ -342,6 +342,26 @@ class CapabilityLedger:
 # --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
+ACTION_FLAGS = {
+    "--validate": "validate",
+    "--list": "list",
+    "--status": "status",
+    "--pending": "pending",
+    "--search": "search",
+}
+
+
+def _normalize_action(argv: List[str]) -> List[str]:
+    """Accepte les deux formes : --validate (drapeau) et validate (positionnel)."""
+    out = list(argv)
+    for flag, action in ACTION_FLAGS.items():
+        if flag in out:
+            out.remove(flag)
+            if action not in out:
+                out.insert(0, action)
+    return out
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m omni.capabilities",
@@ -352,7 +372,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--terms", default="", help="termes de recherche (action search)")
     parser.add_argument("--registry", default=None,
                         help="chemin du registre (défaut : registry/ du dépôt)")
-    args = parser.parse_args(argv)
+    args = parser.parse_args(_normalize_action(list(argv) if argv is not None else sys.argv[1:]))
 
     reg_path = Path(args.registry) if args.registry else \
         Path(__file__).resolve().parent.parent / "registry"

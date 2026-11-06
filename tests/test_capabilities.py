@@ -19,6 +19,7 @@ from omni.capabilities import (
     CapabilityRegistry,
     redact,
 )
+from omni.capabilities import main as capabilities_main
 from omni.registry import Registry
 
 
@@ -260,6 +261,34 @@ class TestResultsLedger(unittest.TestCase):
         self.assertIn("[REDACTED]", redact("AKIAIOSFODNN7EXAMPLE"))
         self.assertNotIn("AKIA", redact("AKIAIOSFODNN7EXAMPLE"))
         self.assertEqual(redact("rien à signaler"), "rien à signaler")
+
+
+class TestCLI(unittest.TestCase):
+    """La CLI accepte les deux formes : --validate (drapeau) et validate (positionnel)."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+
+    def _run(self, argv, mutate=None) -> int:
+        dest = copy_registry(Path(self.tmp.name), mutate)
+        return capabilities_main(["--registry", str(dest)] + argv)
+
+    def test_validate_flag_on_clean_registry_exits_zero(self) -> None:
+        self.assertEqual(self._run(["--validate"]), 0)
+
+    def test_validate_flag_detects_problems_and_exits_one(self) -> None:
+        def break_it(dest: Path) -> None:
+            def mutate(data: dict) -> None:
+                data["capabilities"][0]["integration"]["status"] = "wishful-thinking"
+            patch_json(dest / "capabilities.json", mutate)
+
+        self.assertEqual(self._run(["--validate"], break_it), 1)
+
+    def test_unknown_action_exits_two(self) -> None:
+        with self.assertRaises(SystemExit) as ctx:
+            self._run(["--nonsense"])
+        self.assertEqual(ctx.exception.code, 2)
 
 
 if __name__ == "__main__":

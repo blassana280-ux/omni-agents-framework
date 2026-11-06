@@ -129,7 +129,7 @@ ligne JSON par exécution, secrets rédactés, consultable par capacité.
 
 ## 8. Tests
 
-tests/test_capabilities.py — 26 tests unittest, 4 classes : registre livré
+tests/test_capabilities.py — 29 tests unittest, 5 classes (dont 3 tests CLI : formes --validate/validate, détection de problèmes, action inconnue) : registre livré
 (champs mission, licences, comptes), barrières de validation (défauts
 injection-réponse), découverte et routage (recherche, domaines, points
 d'entrée, agents suggérés, dépendances), journal des résultats
