@@ -7,7 +7,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = Path(__file__).resolve().parents[2]  # warships/
 SCEN = HERE / "scenarios"
-SPECS = {p.stem for p in (ROOT / "data" / "ships").glob("*.ship.txt")}
+SPECS = {p.stem.removesuffix(".ship") for p in (ROOT / "data" / "ships").glob("*.ship.txt")}
 
 
 def main() -> int:

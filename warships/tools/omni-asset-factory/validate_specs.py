@@ -57,7 +57,7 @@ def main() -> int:
         return 1
     speeds = {}
     for path in files:
-        sid = path.stem
+        sid = path.stem.removesuffix(".ship")  # "ws-x-01.ship.txt" -> "ws-x-01"
         d = parse(path)
         if d.get("id") != sid:
             problems.append(f"{sid}: id de fichier != id de spec")
@@ -98,7 +98,7 @@ def main() -> int:
             if s["kind"] not in SENSOR_KINDS or s["range_m"] <= 0 or s["ref"] <= 0:
                 problems.append(f"{sid}: capteur {s['id']} invalide")
         speeds[sid] = float(d.get("max_speed_kn", 0))
-    ids = [p.stem for p in files]
+    ids = [p.stem.removesuffix(".ship") for p in files]
     if len(ids) != len(set(ids)):
         problems.append("ids de navires dupliqués")
     # Critère mesurable de la matrice de fidélité : écart de vitesse >= 2.2x
