@@ -9,7 +9,8 @@
    (pivot rotor_main animable), rotor de queue (pivot rotor_tail),
    patins, treuil sonar (nommé sonar_winch).
 
-Statut : IMPLÉMENTÉE, NON EXÉCUTÉE ici (Blender absent du sandbox).
+Statut : IMPLÉMENTÉE. Le traceback CI (run 5) a révélé l'argument r2=0.1
+manquant dans l'appel add_cone du cône arrière du jet — corrigé.
 
     blender --background --factory-startup --python gen_aircraft_blender.py -- --out ws-aircraft.fbx
 """
@@ -36,7 +37,9 @@ def build_jet(mats):
     mid = add_cylinder("jet-fuselage", 0.85, 8.6, (0.0, JET_LEN * 0.08, 0.0),
                        rot=(math.radians(90), 0.0, 0.0))
     assign(mid, mats["hull"])
-    aft = add_cone("jet-aft", 0.85, 4.8, (0.0, -JET_LEN * 0.30, 0.0),
+    # FIX run 5 (CI réel) : r2=0.1 manquant — l'ancien appel passait la
+    # location dans depth et laissait location indefini (TypeError).
+    aft = add_cone("jet-aft", 0.85, 0.1, 4.8, (0.0, -JET_LEN * 0.30, 0.0),
                    rot=(math.radians(90), 0.0, 0.0))
     assign(aft, mats["hull"])
     canopy = add_sphere("jet-canopy", 0.78, (0.0, JET_LEN * 0.22, 0.55))
