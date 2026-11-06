@@ -1,0 +1,88 @@
+# OMNI WARSHIPS T-013 — production REELLE des FBX par Blender en CI.
+# Blender = GPL, gratuit, aucune licence requise : contrairement a Unity,
+# la generation d'assets peut s'executer reellement ici.
+# Les FBX sont commits dans Resources/Models (charges par ShipModelLibrary)
+# ET publies en artefact telechargeable.
+name: Warships Assets (Blender FBX)
+
+on:
+  pull_request:
+    paths:
+      - "warships/tools/omni-asset-factory/**"
+      - ".github/workflows/warships-blender-fbx.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  blender-fbx:
+    name: Generateurs Blender -> FBX reels
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout (tete de la PR)
+        uses: actions/checkout@v4
+        with:
+          ref: \${{ github.head_ref || github.ref_name }}
+          fetch-depth: 0
+
+      - name: Installation de Blender (GPL, sans licence)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends blender
+          blender --version
+
+      - name: Execution des 7 generateurs (FBX reels)
+        run: |
+          mkdir -p artifacts/fbx
+          cd warships/tools/omni-asset-factory
+          set -e
+          blender --background --factory-startup --python gen_destroyer_blender.py  -- --out ../../artifacts/fbx/ws-destroyer-01.fbx
+          blender --background --factory-startup --python gen_frigate_blender.py    -- --out ../../artifacts/fbx/ws-frigate-01.fbx
+          blender --background --factory-startup --python gen_carrier_blender.py   -- --out ../../artifacts/fbx/ws-carrier-01.fbx
+          blender --background --factory-startup --python gen_submarine_blender.py -- --out ../../artifacts/fbx/ws-submarine-01.fbx
+          blender --background --factory-startup --python gen_aircraft_blender.py   -- --out ../../artifacts/fbx/ws-aircraft.fbx
+          blender --background --factory-startup --python gen_equipment_blender.py  -- --out ../../artifacts/fbx/ws-equipment.fbx
+
+      - name: Verification des FBX (tailles reelles, aucune simulation)
+        run: |
+          cd artifacts/fbx
+          ls -la
+          for f in ws-destroyer-01 ws-frigate-01 ws-carrier-01 ws-submarine-01 ws-aircraft ws-equipment; do
+            if [ ! -s "$f.fbx" ]; then
+              echo "::error::FBX manquant ou vide : $f.fbx"
+              exit 1
+            fi
+            size=$(stat -c%s "$f.fbx")
+            if [ "$size" -lt 2000 ]; then
+              echo "::error::FBX suspectement petit ($size octets) : $f.fbx"
+              exit 1
+            fi
+            echo "OK $f.fbx : $size octets"
+          done
+
+      - name: Integration des FBX dans le projet Unity (commit)
+        run: |
+          git config user.name "omni-warships-bot"
+          git config user.email "actions@github.com"
+          mkdir -p warships/unity/Assets/OmniWarships/Resources/Models
+          cp artifacts/fbx/ws-destroyer-01.fbx artifacts/fbx/ws-frigate-01.fbx \
+             artifacts/fbx/ws-carrier-01.fbx artifacts/fbx/ws-submarine-01.fbx \
+             artifacts/fbx/ws-aircraft.fbx artifacts/fbx/ws-equipment.fbx \
+             warships/unity/Assets/OmniWarships/Resources/Models/
+          git add warships/unity/Assets/OmniWarships/Resources/Models
+          if [ -n "$(git status --porcelain warships/unity/Assets/OmniWarships/Resources/Models)" ]; then
+            git commit -m "chore(assets): FBX reels generes par Blender en CI (destroyer, frigate, carrier, submarine, aircraft, equipment)"
+            git push
+            echo "FBX commites dans Resources/Models (charges au runtime par ShipModelLibrary)."
+          else
+            echo "FBX inchanges — aucun commit (idempotent)."
+          fi
+
+      - name: Artefact FBX telechargeable
+        uses: actions/upload-artifact@v4
+        with:
+          name: omni-warships-fbx
+          path: artifacts/fbx/*.fbx
+          if-no-files-found: error

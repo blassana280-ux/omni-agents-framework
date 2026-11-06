@@ -1,0 +1,50 @@
+# OMNI WARSHIPS T-013 — compilation Android (APK) via GameCI.
+# VOLONTAIREMENT workflow_dispatch UNIQUE : ce workflow ne se declenche
+# JAMAIS sur push/PR. Il s'active par un clic manuel de Lassana APRES avoir
+# renseigne les secrets UNITY_LICENSE / UNITY_EMAIL / UNITY_PASSWORD
+# (Settings > Secrets and variables > Actions). Sans licence Unity, aucune
+# compilation n'est possible — aucun statut ne sera pretendu ici.
+name: Warships GameCI (APK Android — activation manuelle)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Compilation APK (Unity 2022.3, ARM64, IL2CPP)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compilation Unity + APK
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: \${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: \${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: \${{ secrets.UNITY_PASSWORD }}
+        with:
+          targetPlatform: Android
+          projectPath: warships/unity
+          androidTargetSdkVersion: "34"
+          androidArchitecture: ARM64
+          androidBuildAppType: executable
+          androidBuildSystem: Gradle
+
+      - name: Artefact APK telechargeable
+        uses: actions/upload-artifact@v4
+        with:
+          name: omni-warships-apk
+          path: warships/unity/build/*.apk
+          if-no-files-found: error
+
+      - name: Release GitHub (brouillon, lien telechargeable)
+        env:
+          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="android-build-\${{ github.run_number }}"
+          gh release create "$tag" warships/unity/build/*.apk \
+            --draft --title "OMNI WARSHIPS build Android \${{ github.run_number }}" \
+            --notes "APK ARM64 IL2CPP compilee par GameCI (Unity 2022.3). Brouillon : verifier installation sur Tecno KN3 avant publication." \
+            || echo "release existante ou echec (voir artefact APK)"
