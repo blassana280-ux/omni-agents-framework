@@ -1,0 +1,55 @@
+name: Omni CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "omni/**"
+      - "registry/**"
+      - "tests/**"
+      - "Makefile"
+  pull_request:
+    paths:
+      - "omni/**"
+      - "registry/**"
+      - "tests/**"
+      - "Makefile"
+
+permissions:
+  contents: read
+
+jobs:
+  omni:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unit tests (unittest discover)
+        run: |
+          set -o pipefail
+          python3 -m unittest discover -s tests -t . 2>&1 | tee /tmp/omni-unittest.log
+          rc=$?
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::unittest discover a échoué (rc=$rc)"
+          fi
+          exit "$rc"
+
+      - name: Registre agents/skills/routing cohérent
+        run: |
+          set -o pipefail
+          python3 -m omni registry 2>&1 | tee /tmp/omni-registry.log
+          rc=$?
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::python -m omni registry a échoué (rc=$rc)"
+          fi
+          exit "$rc"
+
+      - name: Registre des capacités valide
+        run: |
+          set -o pipefail
+          python3 -m omni.capabilities --validate 2>&1 | tee /tmp/omni-caps.log
+          rc=$?
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::python -m omni.capabilities --validate a échoué (rc=$rc)"
+          fi
+          exit "$rc"
