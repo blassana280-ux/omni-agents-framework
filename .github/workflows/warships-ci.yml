@@ -54,3 +54,16 @@ jobs:
           rc=$?
           echo "$out"
           if [ $rc -ne 0 ]; then msg=$(echo "$out" | tr '\n' '|' | tail -c 900); echo "::error::tests rc=$rc — $msg"; exit $rc; fi
+
+  unity:
+    name: Couche Unity (structure + copies exactes)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validateur couche Unity (Omni Unity Bridge)
+        run: |
+          set +e
+          out=$(python3 warships/tools/omni-unity-bridge/validate_unity_layer.py 2>&1)
+          rc=$?
+          echo "$out"
+          if [ $rc -ne 0 ]; then msg=$(echo "$out" | tr '\n' '|' | tail -c 900); echo "::error::validate_unity_layer rc=$rc — $msg"; exit $rc; fi
