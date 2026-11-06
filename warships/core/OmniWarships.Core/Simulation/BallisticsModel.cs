@@ -31,9 +31,9 @@ namespace OmniWarships.Core.Simulation
     }
 
     /// <summary>
-    /// Balistique : trajectoire d'obus (gravite, arc bas), guidage missile
-    /// par rotation bornee vers la cible, course droite des torpilles avec
-    /// distance d'armement (frappe non armee = aucun degat).
+    /// Balistique : trajectoire d'obus (gravite, arc bas, solution exacte
+    /// de tir), guidage missile par rotation bornee vers la cible, course
+    /// droite des torpilles avec distance d'armement.
     /// </summary>
     public static class BallisticsModel
     {
@@ -78,7 +78,8 @@ namespace OmniWarships.Core.Simulation
                         p.Pos = shooter.Pos;
                         p.Altitude = 12f;
                         float dx = Vec2.Distance(shooter.Pos, aim);
-                        float y0 = 9f; // pont a 12 m, cible a ~3 m
+                        // denivele cible - tir : le point vise (~3 m) est 9 m sous le pont (12 m)
+                        float y0 = -9f;
                         double v = w.SpeedMs;
                         double disc = v * v * v * v - Gravity * (Gravity * dx * dx + 2.0 * y0 * v * v);
                         if (disc < 0.0) disc = 0.0;
@@ -141,12 +142,24 @@ namespace OmniWarships.Core.Simulation
 
             if (p.Kind == WeaponKind.Gun)
             {
+                Vec2 prevPos = p.Pos;
+                float prevAlt = p.Altitude;
                 p.Pos = p.Pos + p.Vel * dt;
                 p.Altitude += p.Vz * dt;
                 p.Vz -= Gravity * dt;
                 p.TraveledM += p.Speed * dt;
-                if (p.Altitude <= 0.5f)
+                // franchissement de la silhouette du navire (0..22 m)
+                if (p.Altitude <= 22f)
                 {
+                    ShipState hit = HitCheck(p, ships, 25f);
+                    if (hit != null) { p.Dead = true; return hit; }
+                }
+                // impact a la surface : point interpole (precision de la solution)
+                if (p.Altitude <= 0.5f && prevAlt > p.Altitude)
+                {
+                    float denom = prevAlt - p.Altitude;
+                    float frac = denom > 0.0001f ? (prevAlt - 0.5f) / denom : 1f;
+                    p.Pos = prevPos + p.Vel * (frac * dt);
                     p.Dead = true;
                     return HitCheck(p, ships, 25f);
                 }
@@ -172,7 +185,7 @@ namespace OmniWarships.Core.Simulation
                 }
                 p.Pos = p.Pos + p.Vel * dt;
                 p.TraveledM += p.Speed * dt;
-                ShipState hit = HitCheck(p, ships, 18f);
+                ShipState hit = HitCheck(p, ships, 2f);
                 if (hit != null) { p.Dead = true; return hit; }
                 if (p.AgeS > p.MaxAgeS) p.Dead = true;
                 return null;
@@ -185,11 +198,11 @@ namespace OmniWarships.Core.Simulation
                 if (!p.Armed && p.TraveledM >= p.ArmDistM) p.Armed = true;
                 if (p.Altitude <= 0f)
                 {
-                    ShipState hit = HitCheck(p, ships, 14f);
+                    ShipState hit = HitCheck(p, ships, 2f);
                     if (hit != null)
                     {
                         p.Dead = true;
-                        if (p.Armed) return hit; // non armee : aucun degat
+                        if (p.Armed) return hit; // frappe non armee : aucun degat
                         return null;
                     }
                 }
@@ -210,8 +223,11 @@ namespace OmniWarships.Core.Simulation
                 if (Vec2.Distance(p.Pos, s.Pos) > radius) continue;
                 bool depthOk = (p.Kind == WeaponKind.Torpedo) ? (s.DepthM <= 15f) : (s.DepthM < 15f);
                 if (!depthOk) continue;
-                float altCap = (p.Kind == WeaponKind.Gun) ? 22f : 20f;
-                if (p.Altitude > altCap) continue;
+                if (p.Kind == WeaponKind.Gun)
+                {
+                    if (p.Altitude < -2f || p.Altitude > 22f) continue;
+                }
+                else if (p.Altitude > 20f) continue;
                 return s;
             }
             return null;

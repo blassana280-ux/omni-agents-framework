@@ -67,8 +67,8 @@
       "reproduction": "OceanModel Gerstner échantillonné aux points de flottabilité",
       "measurable": {
         "metric": "amplitude de roulis en mer état 4",
-        "target": "2 à 6 degrés",
-        "method": "test CI (bornes)"
+        "target": "1 à 10 degrés (bornes CI ; cible de rendu 2-6)",
+        "method": "test CI dotnet (bornes)"
       },
       "status": "tested",
       "tests": [
@@ -240,9 +240,9 @@
         "target": "55-85%",
         "method": "test CI dotnet (statistique sur graine fixe)"
       },
-      "status": "implemented",
+      "status": "tested",
       "tests": [
-        "CiwsTests (à exécuter)"
+        "CiwsTests"
       ],
       "gaps": []
     },

@@ -14,7 +14,7 @@ namespace OmniWarships.Core.Simulation
     {
         public const float RatePerS = 0.012f;
         public const float DestroyedRateFactor = 1.5f;
-        public const float SinkThreshold = 0.9f;
+        public const float SinkThreshold = 0.35f; // 35% du volume de compartiments envahi
 
         /// <summary>Fraction de flottabilite perdue (0..1).</summary>
         public static float LostBuoyancy(ShipState ship)

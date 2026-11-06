@@ -22,8 +22,8 @@ compartment stern 0.92 0.08 3200 1.30 Steering
 weapon heavy-guns Gun 2200 18000 850 9.0 2 160 none
 weapon ssm-x8 Ssm 1700 13000 300 10.0 4 16 pn
 weapon sam-x16 Sam 800 9000 900 8.0 4 48 pn
-weapon ciws-1 Ciws 130 1600 1000 0.5 10 600 auto
-weapon ciws-2 Ciws 130 1600 1000 0.5 10 600 auto
-weapon ciws-3 Ciws 130 1600 1000 0.5 10 600 auto
+weapon ciws-1 Ciws 130 1600 1000 0.5 10 3000 auto
+weapon ciws-2 Ciws 130 1600 1000 0.5 10 3000 auto
+weapon ciws-3 Ciws 130 1600 1000 0.5 10 3000 auto
 sensor radar-1 Radar 26000 10000
 sensor sonar-1 Sonar 7000 0.8

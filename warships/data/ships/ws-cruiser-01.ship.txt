@@ -21,7 +21,7 @@ compartment heli-deck 0.88 0.12 1800 1.15 Hangar,Steering
 weapon main-gun Gun 1200 12000 800 6.0 1 260 none
 weapon ssm-x16 Ssm 1700 13000 300 10.0 4 32 pn
 weapon sam-x24 Sam 800 9000 900 8.0 4 72 pn
-weapon ciws-fore Ciws 130 1600 1000 0.5 10 500 auto
-weapon ciws-aft Ciws 130 1600 1000 0.5 10 500 auto
+weapon ciws-fore Ciws 130 1600 1000 0.5 10 3000 auto
+weapon ciws-aft Ciws 130 1600 1000 0.5 10 3000 auto
 sensor radar-1 Radar 24000 10000
 sensor sonar-1 Sonar 9000 0.8

@@ -22,6 +22,6 @@ weapon main-gun Gun 1000 10000 800 4.5 1 240 none
 weapon ssm-x8 Ssm 1700 12000 300 11.0 4 16 pn
 weapon sam-x12 Sam 750 8000 900 9.0 3 36 pn
 weapon torp-x6 Torpedo 2600 10000 25 35.0 3 6 straight
-weapon ciws-aft Ciws 130 1600 1000 0.5 10 400 auto
+weapon ciws-aft Ciws 130 1600 1000 0.5 10 3000 auto
 sensor radar-1 Radar 20000 10000
 sensor sonar-1 Sonar 8000 0.8

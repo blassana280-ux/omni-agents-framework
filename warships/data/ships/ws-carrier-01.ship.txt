@@ -19,9 +19,9 @@ compartment reactor 0.60 0.11 5400 1.40 Propulsion
 compartment hangar-aft 0.76 0.10 5200 1.30 Hangar,Missiles
 compartment stern 0.92 0.08 4200 1.25 Steering
 weapon sam-x12 Sam 750 8500 900 8.0 3 36 pn
-weapon ciws-1 Ciws 130 1700 1000 0.5 10 700 auto
-weapon ciws-2 Ciws 130 1700 1000 0.5 10 700 auto
-weapon ciws-3 Ciws 130 1700 1000 0.5 10 700 auto
-weapon ciws-4 Ciws 130 1700 1000 0.5 10 700 auto
+weapon ciws-1 Ciws 130 1700 1000 0.5 10 3000 auto
+weapon ciws-2 Ciws 130 1700 1000 0.5 10 3000 auto
+weapon ciws-3 Ciws 130 1700 1000 0.5 10 3000 auto
+weapon ciws-4 Ciws 130 1700 1000 0.5 10 3000 auto
 sensor radar-1 Radar 30000 10000
 sensor sonar-1 Sonar 8000 0.8
