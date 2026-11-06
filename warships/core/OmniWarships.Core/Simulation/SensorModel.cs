@@ -1,4 +1,5 @@
 using System;
+using OmniWarships.Core.Spec;
 
 namespace OmniWarships.Core.Simulation
 {

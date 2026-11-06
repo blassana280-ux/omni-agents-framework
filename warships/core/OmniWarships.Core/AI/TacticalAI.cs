@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using OmniWarships.Core.Common;
 using OmniWarships.Core.Spec;
+using OmniWarships.Core.Simulation;
 
 namespace OmniWarships.Core.AI
 {
