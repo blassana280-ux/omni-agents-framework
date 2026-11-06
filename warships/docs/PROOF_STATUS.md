@@ -6,7 +6,7 @@ prévue → en développement → implémentée (code écrit) → testée (test 
 → tests réussis (exécutés en CI, run visible) → compilée (APK/AAB)
 → installée → testée sur appareil réel → validée (critères mesurés).
 
-## État au 06/11/2026 (T-012 en cours, branche warships/unity-3d)
+## État au 06/11/2026 (T-013, branche warships/android-build, PR #16)
 
 | Fonctionnalité | Statut | Preuve |
 |---|---|---|
@@ -21,23 +21,27 @@ prévue → en développement → implémentée (code écrit) → testée (test 
 | Replay déterministe | tests réussis | idem (égalité d'états sur 200 ticks) |
 | Matrice de fidélité | validée (données) | validateur python en CI |
 | Scénarios Battle Sandbox | validée (données) | validateur python en CI |
-| Générateurs 3D Blender (7 scripts : destroyer, frégate, porte-avions, sous-marin, aéronefs, équipements + module commun) | implémentée (scripts écrits + syntaxe validée en CI ; NON exécutés — Blender absent de l'environnement, aucun FBX produit) | tools/omni-asset-factory/ + job CI « Couche Unity » (py_compile) |
+| Générateurs 3D Blender (7 scripts : destroyer, frégate, porte-avions, sous-marin, aéronefs, équipements + module commun) | **EXÉCUTÉS EN CI** (Blender 4.2.3 LTS portable, run vert 42282487303, job 38 s) — les 6 FBX sont produits avec tailles réelles vérifiées | tools/omni-asset-factory/ + .github/workflows/warships-blender-fbx.yml + commit 9c1db33a (FBX dans Resources/Models) + artefact omni-warships-fbx |
+| Modèles 3D FBX (LOD 0/1/2, pivots tourelles/radars/rotors) | **produits** : destroyer 2 404 572 o, frégate 2 278 988 o, porte-avions 2 255 020 o, sous-marin 343 676 o, aéronefs 502 428 o, équipements 354 524 o (total ≈ 8,1 Mo) | warships/unity/Assets/OmniWarships/Resources/Models/ (commit du bot CI 9c1db33a) |
 | Couche Unity (contrôleurs, HUD, océan visuel, noyau copié) | implémentée (code écrit + structure et copies octet par octet validées en CI ; compilation Unity requise) | warships/unity + job CI « Couche Unity » (validate_unity_layer.py) |
 | Environnement naval 3D (jour/nuit, météo pluie/tempête, ciel procédural étoilé, écume de sillage) | implémentée (code écrit, structure validée en CI ; compilation Unity requise) | Scripts/WeatherDirector.cs, WakeFoamController.cs + Shaders/OmniSky, OmniFoam |
 | Combat visuel (traînées missiles, bulles torpilles, tracers AA, dégâts progressifs, écume voie d'eau) | implémentée (code écrit, relié aux événements réels du noyau ; compilation Unity requise) | Scripts/CombatEffects.cs, ShipDamageVisuals.cs |
-| Chargement modèles FBX + LOD 0/1/2 + tourelles/radars animés | implémentée (code écrit ; les modèles apparaîtront quand les FBX seront générés — fallback coque procédurale) | Scripts/ShipModelLibrary.cs |
+| Chargement modèles FBX + LOD 0/1/2 + tourelles/radars animés | implémentée (code écrit ; FBX désormais présents dans Resources/Models, chargés par ShipModelLibrary) | Scripts/ShipModelLibrary.cs |
 | Pause + 5 profils graphiques (Ultra/Élevé/Moyen/Faible/Adaptatif) | implémentée (code écrit ; compilation Unity requise) | Scripts/PauseMenu.cs, QualityProfiles.cs |
-| Pipeline GameCI Android (compilation APK) | préparée (exemple inactif hors .github/workflows — activation = décision licence de Lassana) | unity/ci/README-GAMECI.md + gameci-example.yml |
-| APK Android | prévue | nécessite Unity + SDK Android (ou GameCI activé) |
+| Préparation build Android (ARM64, IL2CPP, paysage, minSdk 24, identifiant) | implémentée (script éditeur écrit ; exécution dans Unity requise) | Editor/AndroidBuildConfig.cs (menu OMNI WARSHIPS) |
+| Pipeline GameCI Android (compilation APK cloud) | préparée (workflow workflow_dispatch actif — aucune exécution tant que Lassana ne fournit pas les secrets de licence UNITY_LICENSE/UNITY_EMAIL/UNITY_PASSWORD et ne déclenche pas) | .github/workflows/warships-gameci.yml + unity/ci/README-GAMECI.md |
+| APK Android | prévue | nécessite licence Unity : chemin A (Unity local, menu AndroidBuildConfig) ou chemin B (GameCI, secrets licence) |
 | 30 FPS sur Tecno KN3 | prévue | nécessite APK + appareil réel (aucune mesure inventée) |
 
 ## Blocages matériels honnêtes
 
 - Compilation Unity / APK : aucun Unity ni SDK Android dans l'environnement
-  d'exécution de l'assistant. Options : (a) Lassana ouvre le projet dans
-  Unity sur sa machine ; (b) CI game-ci avec licence Unity (décision de
-  Lassana — coût licence) ; (c) machine CI self-hosted.
-- Modèles 3D finaux : 7 générateurs Blender écrits et syntaxiquement
-  validés en CI ; exécution Blender requise pour produire les FBX
-  (destroyer, frégate, porte-avions, sous-marin, aéronefs, équipements).
+  d'exécution de l'assistant. Chemins prêts : (a) Lassana ouvre le projet
+  dans Unity 2022.3 (licence personnelle gratuite) et utilise le menu
+  « OMNI WARSHIPS / Android » (AndroidBuildConfig.cs) ; (b) CI GameCI
+  (workflow_dispatch) avec secrets de licence Unity — décision de Lassana.
+- Modèles 3D : PLUS UN BLOCAGE — les 6 FBX sont générés réellement en CI
+  (Blender 4.2.3 LTS, run 42282487303, commit 9c1db33a) et intégrés dans
+  le projet Unity (Resources/Models) ; artefact téléchargeable
+  omni-warships-fbx (FBX + logs Blender).
 - Mesures FPS : nécessitent l'APK + appareil réel (Tecno KN3).
