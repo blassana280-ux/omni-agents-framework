@@ -1,0 +1,396 @@
+{
+  "version": 1,
+  "updated": "2026-11-06",
+  "reference_game": "Modern Warships: Naval Battles (Cube Software / Artstorm FZE) — inspiration uniquement, zéro copie d'asset/code",
+  "sources": [
+    "https://wiki.modernwarships.com/en/knowledge/gameplay/ship_classes",
+    "https://modern-warships.fandom.com/wiki/Modern_Warships_Wiki",
+    "https://apkfab.com/review/modern-warships-sea-battle-online-review",
+    "https://www.pocketgamer.com/modern-warships/modern-warships-is-a-realistic-naval-game-available-now-on-android/",
+    "https://modern-warships.en.softonic.com/android",
+    "https://warshipsgames.com/modern-warships-best-weapons-guide/",
+    "https://warshipsgames.com/modern-warships-aircraft-carrier-guide/",
+    "https://store.steampowered.com/app/3144230/Modern_Warships/",
+    "https://wiki.modernwarships.com/en/knowledge/getting_started/game_settings"
+  ],
+  "statuses": [
+    "planned",
+    "dev",
+    "implemented",
+    "tested"
+  ],
+  "entries": [
+    {
+      "id": "fleet-classes",
+      "category": "flotte",
+      "reference": "wiki ship_classes + fandom (11 classes, 3 tiers)",
+      "description": "Corvettes rapides/manoeuvrantes → frégates polyvalentes → destroyers rapides torpilleurs → croiseurs méthodiques missiles → cuirassés (feu canon + blindage) → porte-avions (projection aérienne) → sous-marins (3 sous-classes).",
+      "observable": "vitesses, rôles et durabilités distincts par classe ; le rôle tactique découle des caractéristiques",
+      "reproduction": "specs data-driven par classe (data/ships/*.ship.txt) avec vitesse/accel/virage/HP différenciés",
+      "measurable": {
+        "metric": "écart de vitesse max entre la classe la plus lente et la plus rapide",
+        "target": ">= 2.2x",
+        "method": "test CI sur specs"
+      },
+      "status": "tested",
+      "tests": [
+        "SpecsTestsValidate"
+      ],
+      "gaps": [
+        "corvette/ekranoplan/hovercraft : prévus Phase 4"
+      ]
+    },
+    {
+      "id": "naval-movement",
+      "category": "physique",
+      "reference": "gameplay observé + wiki",
+      "description": "Inertie navale : accélération lente, freinage long, virages larges à basse vitesse, rayon de virage dépendant de la vitesse.",
+      "observable": "un destroyer met plusieurs secondes à s'arrêter ; impossible de tourner sur place",
+      "reproduction": "NavalMovementModel : poussée, traînée quadratique, virage ∝ vitesse, pas à pas fixe",
+      "measurable": {
+        "metric": "distance d'arrêt depuis vitesse max à pleine arrière",
+        "target": ">= 8x longueur du navire",
+        "method": "test CI dotnet"
+      },
+      "status": "tested",
+      "tests": [
+        "MovementTests"
+      ],
+      "gaps": []
+    },
+    {
+      "id": "wave-response",
+      "category": "physique",
+      "reference": "gameplay + captures",
+      "description": "Les navires tanguent et roulent sur les vagues ; mouvements différents selon la mer.",
+      "observable": "houle visible, pont qui bouge, tir dégradé en mer forte",
+      "reproduction": "OceanModel Gerstner échantillonné aux points de flottabilité",
+      "measurable": {
+        "metric": "amplitude de roulis en mer état 4",
+        "target": "2 à 6 degrés",
+        "method": "test CI (bornes)"
+      },
+      "status": "tested",
+      "tests": [
+        "OceanTests"
+      ],
+      "gaps": [
+        "rendu visuel URP : Phase 3 Unity"
+      ]
+    },
+    {
+      "id": "ocean-visual",
+      "category": "environnement",
+      "reference": "captures gameplay",
+      "description": "Océan dynamique : vagues, écume de sillage, reflets spéculaires, transparence près des côtes.",
+      "observable": "sillage derrière le navire, reflets du soleil, écume sur les crêtes",
+      "reproduction": "shader URP Gerstner + sillage en particules",
+      "measurable": {
+        "metric": "FPS profil Moyen sur appareil 4 Go RAM",
+        "target": ">= 30",
+        "method": "mesure sur appareil réel (à venir)"
+      },
+      "status": "planned",
+      "tests": [],
+      "gaps": [
+        "shader à écrire dans Unity"
+      ]
+    },
+    {
+      "id": "weather",
+      "category": "environnement",
+      "reference": "descriptions du jeu (météo réaliste, orages)",
+      "description": "Pluie, brouillard, orage, vent affectant la mer et la visibilité de détection.",
+      "observable": "visibilité réduite par brouillard, mer creusée en orage",
+      "reproduction": "paramètres d'environnement dans scénarios + facteur visibilité dans SensorModel",
+      "measurable": {
+        "metric": "portée radar par brouillard dense",
+        "target": "réduite de >= 30%",
+        "method": "test CI dotnet"
+      },
+      "status": "tested",
+      "tests": [
+        "SensorTests"
+      ],
+      "gaps": [
+        "particules pluie : Unity Phase 7"
+      ]
+    },
+    {
+      "id": "damage-localized",
+      "category": "combat",
+      "reference": "gameplay observé",
+      "description": "Dégâts par compartiments : une touche en salle des machines réduit la propulsion, une touche du radar l'aveugle.",
+      "observable": "module endommagé affiché, navire ralenti ou armement hors service avant de couler",
+      "reproduction": "DamageModel : impact → compartiment par position → dégradation des systèmes",
+      "measurable": {
+        "metric": "vitesse max après 2 impacts salle des machines",
+        "target": "<= 60% de la vitesse initiale",
+        "method": "test CI dotnet"
+      },
+      "status": "tested",
+      "tests": [
+        "DamageTests"
+      ],
+      "gaps": []
+    },
+    {
+      "id": "flooding-sinking",
+      "category": "combat",
+      "reference": "gameplay observé",
+      "description": "Coque percée → voie d'eau progressive → gîte/naufrage ; pompage/lestage comme contre-mesure.",
+      "observable": "navire s'enfonce lentement après impacts sous la ligne de flottaison",
+      "reproduction": "FloodingModel par compartiment avec seuil de perte",
+      "measurable": {
+        "metric": "temps de naufrage après brèche non maîtrisée",
+        "target": "20 à 120 s selon gravité",
+        "method": "test CI dotnet"
+      },
+      "status": "tested",
+      "tests": [
+        "FloodingTests"
+      ],
+      "gaps": [
+        "pompes : Phase 6"
+      ]
+    },
+    {
+      "id": "weapons-guns",
+      "category": "armement",
+      "reference": "pocketgamer + gameplay",
+      "description": "Canons principaux avec traversée d'au moins 2 tourelles, cadence, portées par classe.",
+      "observable": "rotation des tourelles, obus en cloche, impacts sur cible",
+      "reproduction": "WeaponKind.Gun + BallisticsModel balistique (gravité+traînée) + traversée tourelle",
+      "measurable": {
+        "metric": "prédiction d'interception sur cible à vitesse constante",
+        "target": "impact à <= 10 m",
+        "method": "test CI dotnet"
+      },
+      "status": "tested",
+      "tests": [
+        "BallisticsTests"
+      ],
+      "gaps": [
+        "animation tourelle : Unity"
+      ]
+    },
+    {
+      "id": "weapons-ssm",
+      "category": "armement",
+      "reference": "warshipsgames (SSM Harpoon/Granit/Moskit)",
+      "description": "Missiles antinavires subsoniques et supersoniques, largables en salves, interceptables.",
+      "observable": "traînées de fumée, mer visuals, salves, interceptions CIWS",
+      "reproduction": "WeaponKind.Ssm + guidage navigation proportionnelle + vitesse différenciée par spec",
+      "measurable": {
+        "metric": "convergence du guidage sur cible manœuvrant",
+        "target": "distance min <= 15 m",
+        "method": "test CI dotnet"
+      },
+      "status": "tested",
+      "tests": [
+        "BallisticsTests"
+      ],
+      "gaps": []
+    },
+    {
+      "id": "weapons-sam",
+      "category": "armement",
+      "reference": "warshipsgames (VLS)",
+      "description": "Missiles antiaériens VLS contre avions/hélicoptères/missiles entrants.",
+      "observable": "lancement vertical, engagement aérien",
+      "reproduction": "WeaponKind.Sam + unités aériennes dans BattleSim",
+      "measurable": {
+        "metric": "portée d'engagement vs altitude cible",
+        "target": "conforme spec +/- 5%",
+        "method": "test CI dotnet (Phase 5)"
+      },
+      "status": "dev",
+      "tests": [],
+      "gaps": [
+        "aviation complète : Phase 5"
+      ]
+    },
+    {
+      "id": "weapons-torpedoes",
+      "category": "armement",
+      "reference": "wiki (destroyers torpilleurs, sous-marins)",
+      "description": "Torpilles avec distance d'armement, sillages visibles, dégâts massifs sous la flottaison.",
+      "observable": "sillage, alerte torpille, dégâts de coque",
+      "reproduction": "WeaponKind.Torpedo + course droite + armement à distance",
+      "measurable": {
+        "metric": "dégâts avant distance d'armement",
+        "target": "0",
+        "method": "test CI dotnet"
+      },
+      "status": "tested",
+      "tests": [
+        "BallisticsTests"
+      ],
+      "gaps": []
+    },
+    {
+      "id": "ciws",
+      "category": "armement",
+      "reference": "warshipsgames (Phalanx, tracers)",
+      "description": "CIWS automatique qui arrache les missiles entrants à courte portée.",
+      "observable": "rafales traçantes, taux d'interception imparfait",
+      "reproduction": "WeaponKind.Ciws : probabilité d'interception par tir, cadence élevée, portée courte",
+      "measurable": {
+        "metric": "taux d'interception missile subsonique à 1.5 km",
+        "target": "55-85%",
+        "method": "test CI dotnet (statistique sur graine fixe)"
+      },
+      "status": "implemented",
+      "tests": [
+        "CiwsTests (à exécuter)"
+      ],
+      "gaps": []
+    },
+    {
+      "id": "countermeasures",
+      "category": "combat",
+      "reference": "softonic (contre-mesures)",
+      "description": "Brouillage/chaff : réduit la portée radar de détection et casse le verrouillage.",
+      "observable": "missiles qui ratent une cible brouillée",
+      "reproduction": "facteur jamming dans SensorModel + bruit dans le guidage",
+      "measurable": {
+        "metric": "portée de détection sous brouillage actif",
+        "target": "réduite de >= 40%",
+        "method": "test CI dotnet"
+      },
+      "status": "tested",
+      "tests": [
+        "SensorTests"
+      ],
+      "gaps": []
+    },
+    {
+      "id": "radar-sonar",
+      "category": "capteurs",
+      "reference": "descriptions du jeu (modules radar)",
+      "description": "Détection selon RCS/bruit acoustique, distance, météo ; sous-marins détectés surtout au sonar selon profondeur.",
+      "observable": "contacts apparaissant/disparaissant, sonar distinct du radar",
+      "reproduction": "SensorModel : marge de détection = f(portée, RCS/altitude/réflexion sonar, brouillage)",
+      "measurable": {
+        "metric": "probabilité de détection à 50% de portée",
+        "target": ">= 0.9 sans brouillage",
+        "method": "test CI dotnet"
+      },
+      "status": "tested",
+      "tests": [
+        "SensorTests"
+      ],
+      "gaps": []
+    },
+    {
+      "id": "enemy-ai",
+      "category": "ia",
+      "reference": "gameplay PvE/PvP observé",
+      "description": "IA qui choisit ses cibles, gère ses munitions, garde ses distances selon sa classe, esquive les torpilles.",
+      "observable": "destroyers IA qui harcèlent, croiseurs qui gardent la distance",
+      "reproduction": "ThreatBoard (score d'utilité) + machine à états Tactique + niveaux de difficulté",
+      "measurable": {
+        "metric": "temps de réaction à une nouvelle menace",
+        "target": "<= 2 s (difficulté normale)",
+        "method": "test CI dotnet"
+      },
+      "status": "tested",
+      "tests": [
+        "AiTests"
+      ],
+      "gaps": [
+        "coopération inter-unités : Phase 5"
+      ]
+    },
+    {
+      "id": "aviation",
+      "category": "aviation",
+      "reference": "warshipsgames (chain attack, 3 appareils) + pocketgamer",
+      "description": "Hélicos et jets pilotables depuis le porte-avions : décollage, vol, combat, atterrissage, réarmement.",
+      "observable": "cycling entre appareils, altitude auto (arcade) ou manuelle (pro)",
+      "reproduction": "unités aériennes dans le cœur (altitude, consommation, armement) + contrôles assistés/pro",
+      "measurable": {
+        "metric": "cycle décollage-attaque-retour-réarmement",
+        "target": "fonctionnel de bout en bout",
+        "method": "test CI Phase 5"
+      },
+      "status": "planned",
+      "tests": [],
+      "gaps": [
+        "Phase 5"
+      ]
+    },
+    {
+      "id": "submarines",
+      "category": "sous-marins",
+      "reference": "wiki (3 sous-classes)",
+      "description": "Profondeur, navigation submergée, discrétion (RCS≈0 en plongée, sonar seulement), tubes torpilles.",
+      "observable": "plongée, périscopie, détection par sonar seulement",
+      "reproduction": "profondeur dans ShipState + facteur de détection selon profondeur + armement torpille",
+      "measurable": {
+        "metric": "distance de détection sonar d'un sous-marin en plongée profonde",
+        "target": "<= 40% de la détection en surface",
+        "method": "test CI dotnet (Phase 5)"
+      },
+      "status": "dev",
+      "tests": [],
+      "gaps": [
+        "gameplay complet : Phase 5"
+      ]
+    },
+    {
+      "id": "hud-ui",
+      "category": "interface",
+      "reference": "captures HUD",
+      "description": "HUD naval : radar circulaire, carte, indicateurs d'armement rechargeables, dégâts par module, contrôles tactiles.",
+      "observable": "joystick + boutons d'armes, cercle radar, icônes contacts",
+      "reproduction": "HUD Unity (couche présentation) lisant l'état du cœur",
+      "measurable": {
+        "metric": "lisibilité sur écran 6.1 pouces",
+        "target": "textes >= 12 sp, cibles tactiles >= 48 dp",
+        "method": "revue UI + test appareil (à venir)"
+      },
+      "status": "planned",
+      "tests": [],
+      "gaps": [
+        "Unity requis"
+      ]
+    },
+    {
+      "id": "modes-progression",
+      "category": "contenu",
+      "reference": "apkfab (PvP + hors ligne + parties perso) + softonic (200+ armes, améliorations)",
+      "description": "PvP en ligne, mode hors ligne, parties personnalisées ; personnalisation profonde (modules, armes, améliorations).",
+      "observable": "hangar avec slots d'armement, progression, économie",
+      "reproduction": "modes hors ligne complets d'abord (solo sans réseau), données de progression locales chiffrées",
+      "measurable": {
+        "metric": "modes jouables hors ligne",
+        "target": ">= 5 (campagne, bataille libre, survie, entraînement, sandbox)",
+        "method": "tests PlayMode (à venir)"
+      },
+      "status": "planned",
+      "tests": [],
+      "gaps": [
+        "Phase 6"
+      ]
+    },
+    {
+      "id": "graphics-mobile",
+      "category": "technique",
+      "reference": "pocketgamer (graphismes haut de gamme sur Android sans compromis)",
+      "description": "Qualité maximale sur appareils puissants, adaptative sur appareils modestes.",
+      "observable": "rendu détaillé des navires, effets riches, fluidité",
+      "reproduction": "5 profils qualité + adaptatif (mesure FPS lissée, palier auto)",
+      "measurable": {
+        "metric": "FPS profil Adaptatif sur Tecno KN3 (Android 15, 4 Go)",
+        "target": ">= 30 FPS stables",
+        "method": "mesure sur appareil réel (jamais déclarée sans mesure)"
+      },
+      "status": "planned",
+      "tests": [],
+      "gaps": [
+        "APK + appareil requis"
+      ]
+    }
+  ]
+}
