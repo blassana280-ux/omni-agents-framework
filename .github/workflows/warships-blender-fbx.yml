@@ -3,6 +3,14 @@
 # la generation d'assets peut s'executer reellement ici.
 # Les FBX sont commits dans Resources/Models (charges par ShipModelLibrary)
 # ET publies en artefact telechargeable.
+#
+# PIEGES couverts (valides sur les echecs precedents) :
+#   - blender en background renvoie exit 0 meme si le script Python echoue
+#     -> --python-exit-code 1 + verification systematique du FBX produit ;
+#   - Blender n'ajoute PAS le dossier du script a sys.path
+#     -> PYTHONPATH exporte vers le dossier omni-asset-factory ;
+#   - toute erreur Python est recopiee dans une annotation ::error::
+#     (extrait de log) pour diagnostic sans acces aux logs du runner.
 name: Warships Assets (Blender FBX)
 
 on:
@@ -33,17 +41,32 @@ jobs:
           sudo apt-get install -y --no-install-recommends blender
           blender --version
 
-      - name: Execution des 6 generateurs (FBX reels)
+      - name: Execution des 6 generateurs (FBX reels, echec explicite)
         run: |
-          mkdir -p artifacts/fbx
+          mkdir -p artifacts/fbx artifacts/log
           cd warships/tools/omni-asset-factory
           set -e
-          blender --background --factory-startup --python gen_destroyer_blender.py -- --out ../../artifacts/fbx/ws-destroyer-01.fbx
-          blender --background --factory-startup --python gen_frigate_blender.py -- --out ../../artifacts/fbx/ws-frigate-01.fbx
-          blender --background --factory-startup --python gen_carrier_blender.py -- --out ../../artifacts/fbx/ws-carrier-01.fbx
-          blender --background --factory-startup --python gen_submarine_blender.py -- --out ../../artifacts/fbx/ws-submarine-01.fbx
-          blender --background --factory-startup --python gen_aircraft_blender.py -- --out ../../artifacts/fbx/ws-aircraft.fbx
-          blender --background --factory-startup --python gen_equipment_blender.py -- --out ../../artifacts/fbx/ws-equipment.fbx
+          set -o pipefail
+          export PYTHONPATH="$PWD"
+          run_gen () {
+            name="$1";
+            script="$2";
+            echo "=== Generation $name (via $script) ==="
+            blender --background --factory-startup --python "$script" \
+              --python-exit-code 1 -- --out "../../artifacts/fbx/$name.fbx" \
+              2>&1 | tee "../../artifacts/log/$name.log"
+            if [ ! -s "../../artifacts/fbx/$name.fbx" ]; then
+              echo "::error::Echec $name : $(tail -n 14 "../../artifacts/log/$name.log" | tr "\n" " " | cut -c1-600)"
+              exit 1
+            fi
+            echo "OK $name.fbx : $(stat -c%s "../../artifacts/fbx/$name.fbx") octets"
+          }
+          run_gen ws-destroyer-01 gen_destroyer_blender.py
+          run_gen ws-frigate-01   gen_frigate_blender.py
+          run_gen ws-carrier-01   gen_carrier_blender.py
+          run_gen ws-submarine-01 gen_submarine_blender.py
+          run_gen ws-aircraft     gen_aircraft_blender.py
+          run_gen ws-equipment    gen_equipment_blender.py
 
       - name: Verification des FBX (tailles reelles, aucune simulation)
         run: |
@@ -80,9 +103,12 @@ jobs:
             echo "FBX inchanges — aucun commit (idempotent)."
           fi
 
-      - name: Artefact FBX telechargeable
+      - name: Artefact FBX + logs telechargeables
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: omni-warships-fbx
-          path: artifacts/fbx/*.fbx
+          path: |
+            artifacts/fbx/*.fbx
+            artifacts/log/*.log
           if-no-files-found: error
