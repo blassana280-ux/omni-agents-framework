@@ -182,7 +182,10 @@ namespace OmniWarships.Core.Simulation
                     float maxTurn = (p.Kind == WeaponKind.Sam ? SamMaxTurnDegS : SsmMaxTurnDegS) * dt;
                     float diff = HeadingDiff(cur.HeadingDeg(), desired.HeadingDeg());
                     float turn = Math.Max(-maxTurn, Math.Min(maxTurn, diff));
-                    p.Vel = cur.RotatedDeg(turn) * p.Speed;
+                    // RotatedDeg tourne CCW dans le plan (X, Y) alors que HeadingDeg
+                    // (convention cap, atan2(X, Y)) croit dans le sens horaire :
+                    // le signe du virage doit etre inverse pour tourner vers le cap voulu.
+                    p.Vel = cur.RotatedDeg(-turn) * p.Speed;
                 }
                 p.Pos = p.Pos + p.Vel * dt;
                 p.TraveledM += p.Speed * dt;
