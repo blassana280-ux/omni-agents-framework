@@ -6,7 +6,7 @@ prévue → en développement → implémentée (code écrit) → testée (test 
 → tests réussis (exécutés en CI, run visible) → compilée (APK/AAB)
 → installée → testée sur appareil réel → validée (critères mesurés).
 
-## État au 06/11/2026 (T-013, branche warships/android-build, PR #16)
+## État au 06/11/2026 (T-013 + T-013.1, branche warships/android-build, PR #16)
 
 | Fonctionnalité | Statut | Preuve |
 |---|---|---|
@@ -28,8 +28,9 @@ prévue → en développement → implémentée (code écrit) → testée (test 
 | Combat visuel (traînées missiles, bulles torpilles, tracers AA, dégâts progressifs, écume voie d'eau) | implémentée (code écrit, relié aux événements réels du noyau ; compilation Unity requise) | Scripts/CombatEffects.cs, ShipDamageVisuals.cs |
 | Chargement modèles FBX + LOD 0/1/2 + tourelles/radars animés | implémentée (code écrit ; FBX désormais présents dans Resources/Models, chargés par ShipModelLibrary) | Scripts/ShipModelLibrary.cs |
 | Pause + 5 profils graphiques (Ultra/Élevé/Moyen/Faible/Adaptatif) | implémentée (code écrit ; compilation Unity requise) | Scripts/PauseMenu.cs, QualityProfiles.cs |
-| Préparation build Android (ARM64, IL2CPP, paysage, minSdk 24, identifiant) | implémentée (script éditeur écrit ; exécution dans Unity requise) | Editor/AndroidBuildConfig.cs (menu OMNI WARSHIPS) |
-| Pipeline GameCI Android (compilation APK cloud) | préparée (workflow workflow_dispatch actif — aucune exécution tant que Lassana ne fournit pas les secrets de licence UNITY_LICENSE/UNITY_EMAIL/UNITY_PASSWORD et ne déclenche pas) | .github/workflows/warships-gameci.yml + unity/ci/README-GAMECI.md |
+| Garde-fou scène de bataille (chemin unique Assets/OmniWarships/Battle.unity, création auto, inclusion EXPLICITE dans BuildPlayerOptions.scenes, échec clair sinon) | implémentée (code écrit + vérifiée en CI par validate_unity_layer.py/check_scene_build) | Editor/BattleSceneGuard.cs + Editor/WarshipsBuildScript.cs |
+| Préparation build Android (ARM64, IL2CPP, paysage, minSdk 24, identifiant, APK pas AAB) | implémentée (script éditeur écrit ; exécution dans Unity requise) | Editor/AndroidBuildConfig.cs (menu OMNI WARSHIPS, scene garantie par BattleSceneGuard) |
+| Pipeline GameCI Android (compilation APK cloud) | préparée et VÉRIFIÉE (T-013.1 : inputs v4 réelles vérifiées contre action.yml de game-ci/unity-builder, expressions corrigées, permissions contents: write, secrets vérifiés sans affichage, APK vérifiée taille+sha256, job actionlint en CI) — aucune exécution tant que Lassana ne fournit pas les secrets de licence et ne déclenche pas | .github/workflows/warships-gameci.yml + job CI « Workflows (actionlint) » + unity/ci/README-GAMECI.md |
 | APK Android | prévue | nécessite licence Unity : chemin A (Unity local, menu AndroidBuildConfig) ou chemin B (GameCI, secrets licence) |
 | 30 FPS sur Tecno KN3 | prévue | nécessite APK + appareil réel (aucune mesure inventée) |
 
@@ -45,3 +46,4 @@ prévue → en développement → implémentée (code écrit) → testée (test 
   le projet Unity (Resources/Models) ; artefact téléchargeable
   omni-warships-fbx (FBX + logs Blender).
 - Mesures FPS : nécessitent l'APK + appareil réel (Tecno KN3).
+

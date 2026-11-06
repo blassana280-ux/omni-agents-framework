@@ -98,12 +98,14 @@ annoncé sans mesure.**
   Android → 1. Preparer le build KN3 » puis « 2. Compiler l'APK »
   (AndroidBuildConfig.cs : identifiant ml.bah.omniwarships, ARM64, IL2CPP,
   paysage verrouillé, Gradle APK, minSdk 24). L'APK sort dans
-  Builds/omni-warships-v0.1.0.apk.
+  Builds/omni-warships-v0.1.0.apk. La scène de bataille est garantie par
+  BattleSceneGuard (créée si absente, incluse explicitement).
 - **Chemin B (cloud, GameCI)** : .github/workflows/warships-gameci.yml —
   activation manuelle (workflow_dispatch). Prérequis : secrets
   UNITY_LICENSE / UNITY_EMAIL / UNITY_PASSWORD (licence Unity — l'activation
   exigée par Unity est la seule étape impossible à faire à la place de
-  Lassana). Produit l'artefact APK + une release GitHub en brouillon.
+  Lassana). Produit l'artefact APK + une release GitHub en brouillon, avec
+  vérification taille + sha256 de l'APK (aucune simulation).
 - Permissions Android du jeu : **aucune** (hors ligne complet).
 
 ## 6. Blocages documentés (honnêtes)
@@ -114,3 +116,69 @@ annoncé sans mesure.**
 - Licence Unity : indispensable pour tout build (locale ou cloud).
   Décision et activation = Lassana (un clic en local + 3 secrets pour GameCI).
 - FPS Tecno KN3 : à mesurer après installation de l'APK réelle.
+
+## 7. T-013.1 — corrections finales avant build (06/11/2026, audit externe)
+
+La PR #16 a été vérifiée indépendamment. Corrections apportées :
+
+### 7.1 Workflow GameCI corrigé (.github/workflows/warships-gameci.yml)
+- **Expressions `${{ }}` propres** : les backslashs parasites (`\${{ ... }}`)
+  devant secrets.UNITY_LICENSE / secrets.UNITY_EMAIL / secrets.UNITY_PASSWORD,
+  secrets.GITHUB_TOKEN et github.run_number auraient transmis une chaîne
+  littérale au lieu des valeurs — build condamné. Tous supprimés.
+- **Inputs remplacées par les inputs RÉELLES de game-ci/unity-builder@v4**
+  (vérifiées contre son action.yml) : androidBuildAppType,
+  androidBuildSystem et androidArchitecture N'EXISTENT PAS en v4 ;
+  l'input correcte pour une APK est `androidExportType: androidPackage`.
+  ARM64 et IL2CPP sont réglés par le projet (AndroidBuildConfig.Configure,
+  appelé par buildMethod) — pas par le workflow.
+- **permissions: contents: write** ajouté (requis pour gh release create).
+- **Vérification des secrets** (présence + absence de caractères parasites
+  en début/fin) SANS jamais les afficher dans les logs.
+- **Vérification de l'APK produite** (taille + sha256) : le job échoue
+  explicitement si aucune APK n'est présente — jamais de simulation.
+- **buildMethod explicite** : OmniWarships.Unity.EditorTools.
+  WarshipsBuildScript.BuildAndroid (scène incluse explicitement).
+
+### 7.2 Scène de bataille — chemin unique et inclusion explicite
+- **Bug réel corrigé** : le menu éditeur créait la scène dans
+  Assets/OmniWarships/Battle.unity, mais AndroidBuildConfig cherchait
+  Assets/Scenes/Battle.unity — la scène n'aurait donc JAMAIS été incluse
+  dans le build. Un seul chemin désormais : BattleSceneGuard.cs.
+- **BattleSceneGuard.cs** (nouveau, Editor) :
+  - la scène est créée automatiquement si elle manque (création additive,
+    la scène ouverte n'est jamais écrasée) ;
+  - elle est enregistrée dans le dossier correct
+    (Assets/OmniWarships/Battle.unity) et dans les Build Settings ;
+  - elle est incluse EXPLICITEMENT dans BuildPlayerOptions.scenes ;
+  - le build échoue clairement si aucune scène valide n'est disponible
+    (jamais de supposition que le bootstrap runtime suffit).
+- **WarshipsBuildScript.cs** (nouveau, Editor) : méthode de build GameCI —
+  Configure + scène garantie + échec → EditorApplication.Exit(1).
+- **Validateur CI étendu (check_scene_build)** : vérifie en CI le chemin
+  unique, l'usage de BattleSceneGuard.BuildScenesOrAbort() par les deux
+  systèmes de compilation, l'inclusion explicite (`scenes = scenes`) et
+  interdit le retour du chemin faux Assets/Scenes/.
+
+### 7.3 Validation des workflows — actionlint EN CI
+- actionlint indisponible dans l'environnement assistant (aucun réseau,
+  aucun binaire) : intégré à la place comme job CI réel
+  (« Workflows (actionlint) » dans warships-ci.yml, version épinglée
+  v1.7.7) qui valide YAML + expressions + inputs des 3 workflows warships
+  à chaque push — ce job aurait attrapé les inputs inexistantes.
+
+### 7.4 Pipeline Android vérifié (fichiers réels du dépôt)
+- Unity 2022.3.62f1 : ProjectSettings/ProjectVersion.txt ✓ ;
+- URP 14.0.11 : Packages/manifest.json ✓ ;
+- ARM64 + IL2CPP + minSdk 24 + paysage verrouillé : AndroidBuildConfig.cs ✓ ;
+- APK et non AAB : buildAppBundle = false + androidExportType: androidPackage ✓ ;
+- 6 FBX intégrés : Assets/OmniWarships/Resources/Models/ (chargés par
+  ShipModelLibrary) ✓ ;
+- aucune dépendance réseau pour la bataille solo : specs embarquées dans
+  Resources/Ships, aucune permission Android ✓.
+
+### 7.5 Statut inchangé (honnête)
+- Aucune compilation Unity exécutée, aucune APK produite, installée ou
+  testée — la licence Unity reste le seul blocage (décision de Lassana).
+- Les 34 tests noyau, les validateurs et les 6 générateurs Blender restent
+  vérifiés en CI à chaque push.
