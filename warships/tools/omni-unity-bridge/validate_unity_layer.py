@@ -5,14 +5,17 @@
 Vérifie, sans jamais simuler un statut :
   1. fichiers requis du projet Unity (structure minimale) ;
   2. manifest.json + asmdefs = JSON valides, URP dans le manifest,
-     référence OmniWarships.Core dans l'asmdef Unity, plateforme Editor ;
+     référence OmniWarships.Core dans l asmdef Unity, plateforme Editor ;
   3. les 19 copies du noyau C# et les 7 specs sont IDENTIQUES OCTET
      PAR OCTET à leurs sources (warships/core, warships/data) ;
   4. équilibrage des accolades de tous les .cs (commentaires/chaînes retirés) ;
   5. aucune référence UnityEngine dans les copies du noyau ;
   6. syntaxe Python valide des 7 générateurs Blender (py_compile) ;
   7. scan de secrets sur la couche Unity et les outils ;
-  8. cohérence des docs (PROOF_STATUS / README) avec la réalité du dépôt.
+  8. cohérence des docs (PROOF_STATUS / README) avec la réalité du dépôt ;
+  9. T-013.1 — garde-fou de la scène de bataille : chemin UNIQUE partagé
+     (Assets/OmniWarships/Battle.unity), inclusion EXPLICITE dans
+     BuildPlayerOptions.scenes, échec explicite si aucune scène valide.
 
 Sortie ::error:: GitHub Actions ; exit 1 si au moins une erreur.
 """
@@ -86,7 +89,9 @@ UNITY_SCRIPTS = [
 
 UNITY_EDITOR_SCRIPTS = [
     "AndroidBuildConfig.cs",
+    "BattleSceneGuard.cs",
     "OmniWarshipsMenu.cs",
+    "WarshipsBuildScript.cs",
 ]
 
 UNITY_SHADERS = [
@@ -308,6 +313,40 @@ def check_secrets():
                     err("secret possible (" + label + ") dans " + str(p.relative_to(ROOT)))
 
 
+# --------------------------------------------- T-013.1 : scène de bataille
+
+def check_scene_build():
+    """Garde-fou scène : chemin UNIQUE partagé, inclusion EXPLICITE de la
+    scène dans BuildPlayerOptions.scenes, échec explicite sinon. Interdit
+    le retour du chemin faux Assets/Scenes/ (bug T-013.1 corrigé)."""
+    guard = OMNI / "Editor" / "BattleSceneGuard.cs"
+    if guard.is_file():
+        t = guard.read_text(encoding="utf-8")
+        if "Assets/OmniWarships/Battle.unity" not in t:
+            err("BattleSceneGuard.cs : chemin de scène attendu (Assets/OmniWarships/Battle.unity)")
+        if "NewSceneMode.Additive" not in t:
+            err("BattleSceneGuard.cs : la création automatique doit être additive (ne pas écraser la scène ouverte)")
+    menu = OMNI / "Editor" / "OmniWarshipsMenu.cs"
+    if menu.is_file() and "BattleSceneGuard" not in menu.read_text(encoding="utf-8"):
+        err("OmniWarshipsMenu.cs : la création de scène doit passer par BattleSceneGuard (chemin partagé avec le build)")
+    for name in ("AndroidBuildConfig.cs", "WarshipsBuildScript.cs"):
+        p = OMNI / "Editor" / name
+        if not p.is_file():
+            continue  # déjà signalé par check_required
+        t = p.read_text(encoding="utf-8")
+        if "BattleSceneGuard.BuildScenesOrAbort()" not in t:
+            err(name + " : doit passer par BattleSceneGuard.BuildScenesOrAbort() (scène garantie)")
+        if "Assets/Scenes/" in t:
+            err(name + " : chemin de scène faux Assets/Scenes/ — la scène vit dans Assets/OmniWarships/")
+        if "scenes = scenes" not in t:
+            err(name + " : la scène doit être incluse EXPLICITEMENT dans BuildPlayerOptions.scenes")
+    build = OMNI / "Editor" / "WarshipsBuildScript.cs"
+    if build.is_file():
+        t = build.read_text(encoding="utf-8")
+        if "EditorApplication.Exit(1)" not in t:
+            err("WarshipsBuildScript.cs : tout échec de build doit sortir avec EditorApplication.Exit(1)")
+
+
 # -------------------------------------------------------------------- docs
 
 def check_docs():
@@ -335,6 +374,7 @@ def main():
     check_no_unityengine()
     check_python_syntax()
     check_secrets()
+    check_scene_build()
     check_docs()
     if errors:
         print("validate_unity_layer : " + str(len(errors)) + " erreur(s)")
@@ -344,8 +384,10 @@ def main():
     total = len(REQUIRED_FILES)
     print("validate_unity_layer : OK — " + str(total) + " fichiers requis, 19 copies noyau"
           + " et 7 specs identiques octet par octet, 7 générateurs Blender"
-          + " syntaxiquement valides, aucun secret, docs cohérents.")
+          + " syntaxiquement valides, garde-fou scène de bataille OK"
+          + " (chemin unique + inclusion explicite), aucun secret, docs cohérents.")
 
 
 if __name__ == "__main__":
     main()
+
