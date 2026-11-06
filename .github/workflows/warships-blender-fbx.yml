@@ -4,12 +4,12 @@
 #
 # HISTORIQUE des echecs (documente honnetement) :
 #   run 1 : ref checkout invalide (backslash parasite devant ${{ }}) — corrige ;
-#   run 2 : blender exit 0 malgre erreur Python → --python-exit-code 1 + PYTHONPATH ;
-#   run 3 : apt-get install blender > 20 min sur l'image Ubuntu 26 → timeout 25 min.
-#           CORRECTION : Blender PORTABLE 4.2.3 LTS telecharge directement
-#           (tarball officiel, version determinee, ~40 s) au lieu de l'apt massif.
-# Les FBX sont commits dans Resources/Models (charges par ShipModelLibrary)
-# ET publies en artefact telechargeable (avec les logs Blender).
+#   run 2 : chemins relatifs FAUX (../../ depuis omni-asset-factory = warships/,
+#           pas la racine) + blender exit 0 malgre erreur Python ;
+#   run 3 : apt-get install blender > 20 min sur Ubuntu 26 → timeout ;
+#   run 4 : Blender portable OK, chemins ../../ toujours faux → aucun FBX/log.
+# CORRECTIONS : chemins ../../../ (3 niveaux), --python-exit-code 1, PYTHONPATH,
+# annotation ::error:: avec extrait de traceback (set -e desactive autour du pipeline).
 name: Warships Assets (Blender FBX)
 
 on:
@@ -48,25 +48,28 @@ jobs:
       - name: Execution des 6 generateurs (FBX reels, echec explicite)
         run: |
           BLENDER="$GITHUB_WORKSPACE/blender-4.2.3-linux-x64/blender"
-          "$BLENDER" --version
-          mkdir -p artifacts/fbx artifacts/log
+          mkdir -p "$GITHUB_WORKSPACE/artifacts/fbx" "$GITHUB_WORKSPACE/artifacts/log"
           cd warships/tools/omni-asset-factory
-          set -e
-          set -o pipefail
           export PYTHONPATH="$PWD"
           run_gen () {
-            name="$1";
-            script="$2";
+            name="$1"
+            script="$2"
+            outdir="$GITHUB_WORKSPACE/artifacts/fbx"
+            logdir="$GITHUB_WORKSPACE/artifacts/log"
             echo "=== Generation $name (via $script) ==="
+            set +e
             "$BLENDER" --background --factory-startup --python "$script" \
-              --python-exit-code 1 -- --out "../../artifacts/fbx/$name.fbx" \
-              2>&1 | tee "../../artifacts/log/$name.log"
-            if [ ! -s "../../artifacts/fbx/$name.fbx" ]; then
-              echo "::error::Echec $name : $(tail -n 14 "../../artifacts/log/$name.log" | tr "\n" " " | cut -c1-600)"
+              --python-exit-code 1 -- --out "$outdir/$name.fbx" \
+              2>&1 | tee "$logdir/$name.log"
+            rc="${PIPESTATUS[0]}"
+            set -e
+            if [ "$rc" -ne 0 ] || [ ! -s "$outdir/$name.fbx" ]; then
+              echo "::error::Echec $name (blender rc=$rc) : $(tail -n 14 "$logdir/$name.log" | tr "\n" " " | cut -c1-600)"
               exit 1
             fi
-            echo "OK $name.fbx : $(stat -c%s "../../artifacts/fbx/$name.fbx") octets"
+            echo "OK $name.fbx : $(stat -c%s "$outdir/$name.fbx") octets"
           }
+          set -e
           run_gen ws-destroyer-01 gen_destroyer_blender.py
           run_gen ws-frigate-01   gen_frigate_blender.py
           run_gen ws-carrier-01   gen_carrier_blender.py
@@ -76,7 +79,7 @@ jobs:
 
       - name: Verification des FBX (tailles reelles, aucune simulation)
         run: |
-          cd artifacts/fbx
+          cd "$GITHUB_WORKSPACE/artifacts/fbx"
           ls -la
           for f in ws-destroyer-01 ws-frigate-01 ws-carrier-01 ws-submarine-01 ws-aircraft ws-equipment; do
             if [ ! -s "$f.fbx" ]; then
@@ -96,9 +99,7 @@ jobs:
           git config user.name "omni-warships-bot"
           git config user.email "actions@github.com"
           mkdir -p warships/unity/Assets/OmniWarships/Resources/Models
-          cp artifacts/fbx/ws-destroyer-01.fbx artifacts/fbx/ws-frigate-01.fbx \
-             artifacts/fbx/ws-carrier-01.fbx artifacts/fbx/ws-submarine-01.fbx \
-             artifacts/fbx/ws-aircraft.fbx artifacts/fbx/ws-equipment.fbx \
+          cp "$GITHUB_WORKSPACE"/artifacts/fbx/*.fbx \
              warships/unity/Assets/OmniWarships/Resources/Models/
           git add warships/unity/Assets/OmniWarships/Resources/Models
           if [ -n "$(git status --porcelain warships/unity/Assets/OmniWarships/Resources/Models)" ]; then
