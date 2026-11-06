@@ -1,0 +1,440 @@
+{
+  "version": 1,
+  "description": "Registre des capacités OmniBrain SUPREME. Chaque capacité porte un identifiant, une description, un domaine, des spécialités de routage, des prérequis, des permissions, des dépendances, des points d'entrée (lecture paresseuse), des preuves de vérification, des tests et un statut d'intégration. Règles : jamais de fork sans licence permissive vérifiée ; le code des dépôts externes n'est JAMAIS exécuté automatiquement (execution_policy external-manual-only).",
+  "statuses": ["indexed", "forked", "verified", "rejected"],
+  "licenses_allowed": ["MIT", "Apache-2.0"],
+  "fork_permission_blocker": "POST /repos/{owner}/{repo}/forks -> 403 'Resource not accessible by integration' (testé le 2026-11-06 avec le token de l'app GitHub) : le scope création de dépôts/forks manque. Les capacités externes restent 'indexed' tant que Lassana ne forke pas manuellement ou n'accorde pas la permission.",
+  "domains": {
+    "research-deep": "Recherche approfondie et investigation",
+    "browser-automation": "Automatisation navigateur et interaction avec les interfaces",
+    "reasoning-planning": "Raisonnement, planification et auto-évaluation",
+    "data-analysis": "Analyse de données et intelligence décisionnelle",
+    "multimedia": "Création multimédia : images, audio, vidéo et 3D",
+    "testing-qa": "Tests, benchmarks et assurance qualité",
+    "observability": "Observabilité, monitoring et gestion des erreurs",
+    "llm-routing": "Optimisation des modèles et routage multi-LLM",
+    "security-defensive": "Cybersécurité défensive",
+    "orchestration": "Orchestration interne OmniBrain"
+  },
+  "capabilities": [
+    {
+      "id": "browser-use-agentic",
+      "title": "Browser Use — automatisation navigateur agentique",
+      "domain": "browser-automation",
+      "specialties": ["automation", "ai-llm"],
+      "description": "Agent qui pilote un navigateur réel (Chromium) pour accomplir des tâches web : navigation, formulaires, extraction. Donne à OmniBrain l'interaction avec des interfaces web non exposées par API.",
+      "source": { "upstream": "browser-use/browser-use", "fork": null, "default_branch": "main", "stars": 120133, "last_push": "2026-11-05" },
+      "license": { "spdx": "MIT", "verified": "api-license-field", "notes": "" },
+      "risk": "medium",
+      "execution_policy": "external-manual-only",
+      "prerequisites": ["Python 3.10+", "pip install browser-use", "Navigateur Chromium installé (playwright install)"],
+      "permissions_needed": ["network:browser", "shell:manual-approval"],
+      "dependencies": ["playwright"],
+      "entry_points": [
+        { "path": "README.md", "purpose": "usage et démarrage rapide" },
+        { "path": "browser_use/", "purpose": "bibliothèque cœur : agent, contrôleur, DOM" },
+        { "path": "examples/", "purpose": "exemples prêts à l'emploi" }
+      ],
+      "integration": {
+        "status": "indexed",
+        "reason": "amont indexé et vérifié ; fork bloqué par 403 (scope GitHub Administration manquant, voir fork_permission_blocker)",
+        "evidence": [
+          "repo-exists:browser-use/browser-use stars=120133 pushed=2026-11-05",
+          "license:MIT via champ API GitHub (2026-11-06)",
+          "root-listing:README.md, browser_use/, examples/, skills/ vérifiés le 2026-11-06"
+        ],
+        "verified_at": "2026-11-06"
+      },
+      "tests": [
+        { "name": "upstream-pytest", "status": "not-run", "reason": "politique : aucun code externe n'est exécuté aveuglément" },
+        { "name": "registry-entry-valid", "status": "pass", "reason": "tests/test_capabilities.py + CI omni-ci.yml" }
+      ]
+    },
+    {
+      "id": "playwright-automation",
+      "title": "Playwright — automatisation navigateur déterministe et tests web",
+      "domain": "browser-automation",
+      "specialties": ["automation", "web-dev", "testing-qa"],
+      "description": "Référence industrielle du pilotage de navigateur multi-langages : scénarios déterministes, scraping fiable, tests E2E. Complément déterministe de browser-use (agentique) pour OmniBrain.",
+      "source": { "upstream": "microsoft/playwright", "fork": null, "default_branch": "master", "stars": 99399, "last_push": "2026-11-06" },
+      "license": { "spdx": "Apache-2.0", "verified": "api-license-field", "notes": "" },
+      "risk": "low",
+      "execution_policy": "external-manual-only",
+      "prerequisites": ["Node.js 18+ (npm i @playwright/test)", "ou Python (pip install pytest-playwright)"],
+      "permissions_needed": ["network:browser", "shell:manual-approval"],
+      "dependencies": [],
+      "entry_points": [
+        { "path": "README.md", "purpose": "vue d'ensemble" },
+        { "path": "packages/", "purpose": "code cœur par package" },
+        { "path": "examples/", "purpose": "exemples de scénarios" }
+      ],
+      "integration": {
+        "status": "indexed",
+        "reason": "amont indexé et vérifié ; fork bloqué par 403 (voir fork_permission_blocker)",
+        "evidence": [
+          "repo-exists:microsoft/playwright stars=99399 pushed=2026-11-06",
+          "license:Apache-2.0 via champ API GitHub (2026-11-06)",
+          "root-listing:README.md, packages/, examples/ vérifiés le 2026-11-06"
+        ],
+        "verified_at": "2026-11-06"
+      },
+      "tests": [
+        { "name": "upstream-tests", "status": "not-run", "reason": "politique : aucun code externe n'est exécuté aveuglément" },
+        { "name": "registry-entry-valid", "status": "pass", "reason": "tests/test_capabilities.py + CI omni-ci.yml" }
+      ]
+    },
+    {
+      "id": "gpt-researcher-deepsearch",
+      "title": "GPT Researcher — agent de recherche approfondie",
+      "domain": "research-deep",
+      "specialties": ["research-docs", "data-analysis"],
+      "description": "Agent de recherche autonome : planifie une requête, collecte des sources web, produit des rapports avec citations. Comble la lacune de recherche approfondie d'OmniBrain (omni-research-100 est un dépôt vide).",
+      "source": { "upstream": "assafelovic/gpt-researcher", "fork": null, "default_branch": "main", "stars": 30509, "last_push": "2026-10-10" },
+      "license": { "spdx": "Apache-2.0", "verified": "api-license-field", "notes": "" },
+      "risk": "medium",
+      "execution_policy": "external-manual-only",
+      "prerequisites": ["Python 3.10+", "clé API LLM (fournisseur au choix)"],
+      "permissions_needed": ["network:web", "secret:llm-api-key-env-only"],
+      "dependencies": ["tavily-python", "langchain-community"],
+      "entry_points": [
+        { "path": "README.md", "purpose": "usage et configuration" },
+        { "path": "backend/", "purpose": "code cœur de l'agent" }
+      ],
+      "integration": {
+        "status": "indexed",
+        "reason": "amont indexé et vérifié ; fork bloqué par 403 (voir fork_permission_blocker)",
+        "evidence": [
+          "repo-exists:assafelovic/gpt-researcher stars=30509 pushed=2026-10-10",
+          "license:Apache-2.0 via champ API GitHub (2026-11-06)",
+          "root-listing:README.md, backend/ vérifiés le 2026-11-06"
+        ],
+        "verified_at": "2026-11-06"
+      },
+      "tests": [
+        { "name": "upstream-pytest", "status": "not-run", "reason": "politique : aucun code externe n'est exécuté aveuglément" },
+        { "name": "registry-entry-valid", "status": "pass", "reason": "tests/test_capabilities.py + CI omni-ci.yml" }
+      ]
+    },
+    {
+      "id": "langgraph-planning",
+      "title": "LangGraph — raisonnement, planification et auto-évaluation par graphes",
+      "domain": "reasoning-planning",
+      "specialties": ["ai-llm", "orchestration", "software-architecture"],
+      "description": "Framework de construction d'agents comme graphes d'états : cycles planifier -> agir -> évaluer -> corriger, points de contrôle rejouables (checkpointing), interruption humaine dans la boucle. Apporte à OmniBrain des motifs éprouvés de planification et d'auto-évaluation.",
+      "source": { "upstream": "langchain-ai/langgraph", "fork": null, "default_branch": "main", "stars": 44530, "last_push": "2026-11-05" },
+      "license": { "spdx": "MIT", "verified": "api-license-field", "notes": "" },
+      "risk": "low",
+      "execution_policy": "external-manual-only",
+      "prerequisites": ["Python 3.9+", "pip install langgraph"],
+      "permissions_needed": [],
+      "dependencies": ["langchain-core"],
+      "entry_points": [
+        { "path": "README.md", "purpose": "vue d'ensemble" },
+        { "path": "libs/", "purpose": "code cœur par bibliothèque" },
+        { "path": "examples/", "purpose": "recettes d'agents et de graphes" },
+        { "path": "docs/", "purpose": "documentation officielle" }
+      ],
+      "integration": {
+        "status": "indexed",
+        "reason": "amont indexé et vérifié ; fork bloqué par 403 (voir fork_permission_blocker)",
+        "evidence": [
+          "repo-exists:langchain-ai/langgraph stars=44530 pushed=2026-11-05",
+          "license:MIT via champ API GitHub (2026-11-06)",
+          "root-listing:README.md, libs/, examples/, docs/ vérifiés le 2026-11-06"
+        ],
+        "verified_at": "2026-11-06"
+      },
+      "tests": [
+        { "name": "upstream-tests", "status": "not-run", "reason": "politique : aucun code externe n'est exécuté aveuglément" },
+        { "name": "registry-entry-valid", "status": "pass", "reason": "tests/test_capabilities.py + CI omni-ci.yml" }
+      ]
+    },
+    {
+      "id": "promptfoo-evals",
+      "title": "Promptfoo — tests, évaluations et benchmarks LLM",
+      "domain": "testing-qa",
+      "specialties": ["testing-qa", "ai-llm"],
+      "description": "Framework de tests et d'évaluation de prompts/agents LLM : assertions, comparaisons de modèles, détection de régressions, matrice d'évaluation. Donne à OmniBrain une QA systématique de ses propres sorties.",
+      "source": { "upstream": "promptfoo/promptfoo", "fork": null, "default_branch": "main", "stars": 26885, "last_push": "2026-11-06" },
+      "license": { "spdx": "MIT", "verified": "api-license-field", "notes": "" },
+      "risk": "low",
+      "execution_policy": "external-manual-only",
+      "prerequisites": ["Node.js 18+ (npx promptfoo)", "ou API distante"],
+      "permissions_needed": ["network:llm-provider", "secret:api-key-env-only"],
+      "dependencies": [],
+      "entry_points": [
+        { "path": "README.md", "purpose": "usage et configuration des évaluations" }
+      ],
+      "integration": {
+        "status": "indexed",
+        "reason": "amont indexé et vérifié ; fork bloqué par 403 (voir fork_permission_blocker)",
+        "evidence": [
+          "repo-exists:promptfoo/promptfoo stars=26885 pushed=2026-11-06",
+          "license:MIT via champ API GitHub (2026-11-06)",
+          "root-listing:README.md, AGENTS.md vérifiés le 2026-11-06"
+        ],
+        "verified_at": "2026-11-06"
+      },
+      "tests": [
+        { "name": "upstream-tests", "status": "not-run", "reason": "politique : aucun code externe n'est exécuté aveuglément" },
+        { "name": "registry-entry-valid", "status": "pass", "reason": "tests/test_capabilities.py + CI omni-ci.yml" }
+      ]
+    },
+    {
+      "id": "langfuse-observability",
+      "title": "Langfuse — observabilité, tracing et gestion des erreurs LLM",
+      "domain": "observability",
+      "specialties": ["devops-ci", "ai-llm", "debugging"],
+      "description": "Tracing des exécutions LLM, coûts, latences, scores d'évaluation et gestion des erreurs, auto-hébergeable. Comble la lacune observabilité/monitoring de l'écosystème OmniBrain.",
+      "source": { "upstream": "langfuse/langfuse", "fork": null, "default_branch": "main", "stars": 37067, "last_push": "2026-11-05" },
+      "license": { "spdx": "MIT", "verified": "license-file-read", "notes": "MIT Expat pour le cœur ; les répertoires ee/, web/src/ee/, worker/src/ee/, packages/shared/src/server/ee/ sont sous licence commerciale — ne jamais copier ni réutiliser ce code" },
+      "risk": "medium",
+      "execution_policy": "external-manual-only",
+      "prerequisites": ["Docker (auto-hébergement)", "ou langfuse.com cloud"],
+      "permissions_needed": ["network:ingestion-traces"],
+      "dependencies": ["postgres"],
+      "entry_points": [
+        { "path": "README.md", "purpose": "vue d'ensemble et déploiement" }
+      ],
+      "integration": {
+        "status": "indexed",
+        "reason": "amont indexé et vérifié ; fork bloqué par 403 (voir fork_permission_blocker)",
+        "evidence": [
+          "repo-exists:langfuse/langfuse stars=37067 pushed=2026-11-05",
+          "license:LICENSE lu (blob eaa2e5e444c8634f353a2b1137f7ea06e8353f475) : MIT Expat cœur + ee/ commercial (2026-11-06)",
+          "root-listing:README.md, LICENSE vérifiés le 2026-11-06"
+        ],
+        "verified_at": "2026-11-06"
+      },
+      "tests": [
+        { "name": "upstream-tests", "status": "not-run", "reason": "politique : aucun code externe n'est exécuté aveuglément" },
+        { "name": "registry-entry-valid", "status": "pass", "reason": "tests/test_capabilities.py + CI omni-ci.yml" }
+      ]
+    },
+    {
+      "id": "litellm-routing",
+      "title": "LiteLLM — routage multi-LLM unifié",
+      "domain": "llm-routing",
+      "specialties": ["ai-llm", "backend-api", "performance"],
+      "description": "Passerelle OpenAI-compatible vers 100+ fournisseurs : fallback, retry, budgets, caching, clés par projet. Complète OmniRoute (déjà forké) comme standard de routage du secteur.",
+      "source": { "upstream": "BerriAI/litellm", "fork": null, "default_branch": "main", "stars": 62788, "last_push": "2026-11-06" },
+      "license": { "spdx": "MIT", "verified": "license-file-read", "notes": "MIT pour le cœur ; répertoire enterprise/ sous licence commerciale — ne jamais copier ni réutiliser ce code" },
+      "risk": "low",
+      "execution_policy": "external-manual-only",
+      "prerequisites": ["Python 3.9+", "pip install litellm", "clés API fournisseurs (variables d'environnement uniquement)"],
+      "permissions_needed": ["network:llm-provider", "secret:api-key-env-only"],
+      "dependencies": ["fastapi", "redis"],
+      "entry_points": [
+        { "path": "README.md", "purpose": "usage et proxy" },
+        { "path": "ARCHITECTURE.md", "purpose": "architecture du proxy" },
+        { "path": "backend/", "purpose": "code cœur du proxy" }
+      ],
+      "integration": {
+        "status": "indexed",
+        "reason": "amont indexé et vérifié ; fork bloqué par 403 (voir fork_permission_blocker)",
+        "evidence": [
+          "repo-exists:BerriAI/litellm stars=62788 pushed=2026-11-06",
+          "license:LICENSE lu (blob 3bfef5bae9b48c334acf426d5b7f21bc1913aab9) : MIT cœur + enterprise/ commercial (2026-11-06)",
+          "root-listing:README.md, ARCHITECTURE.md, backend/ vérifiés le 2026-11-06"
+        ],
+        "verified_at": "2026-11-06"
+      },
+      "tests": [
+        { "name": "upstream-tests", "status": "not-run", "reason": "politique : aucun code externe n'est exécuté aveuglément" },
+        { "name": "registry-entry-valid", "status": "pass", "reason": "tests/test_capabilities.py + CI omni-ci.yml" }
+      ]
+    },
+    {
+      "id": "duckdb-analytics",
+      "title": "DuckDB — analyse de données SQL embarquée",
+      "domain": "data-analysis",
+      "specialties": ["data-analysis", "backend-api"],
+      "description": "Base de données analytique embarquée (OLAP) : requêtes SQL rapides sur CSV/Parquet sans serveur. Socle d'analyse de données et d'intelligence décisionnelle pour OmniBrain.",
+      "source": { "upstream": "duckdb/duckdb", "fork": null, "default_branch": "main", "stars": 42854, "last_push": "2026-11-06" },
+      "license": { "spdx": "MIT", "verified": "license-file-read", "notes": "LICENSE lu (blob 2719c9a23d2a37c1dfb7402e79f03bd615701e53) : MIT intégral, sans clause commerciale" },
+      "risk": "low",
+      "execution_policy": "external-manual-only",
+      "prerequisites": ["pip install duckdb (wheel officiel)"],
+      "permissions_needed": ["fs:read-workspace"],
+      "dependencies": [],
+      "entry_points": [
+        { "path": "README.md", "purpose": "vue d'ensemble" },
+        { "path": "docs/", "purpose": "documentation SQL" }
+      ],
+      "integration": {
+        "status": "indexed",
+        "reason": "amont indexé et vérifié ; fork bloqué par 403 (voir fork_permission_blocker)",
+        "evidence": [
+          "repo-exists:duckdb/duckdb stars=42854 pushed=2026-11-06",
+          "license:MIT vérifiée par lecture du fichier LICENSE (2026-11-06)",
+          "root-listing:README.md, CMakeLists.txt vérifiés le 2026-11-06"
+        ],
+        "verified_at": "2026-11-06"
+      },
+      "tests": [
+        { "name": "upstream-tests", "status": "not-run", "reason": "politique : aucun code externe n'est exécuté aveuglément" },
+        { "name": "registry-entry-valid", "status": "pass", "reason": "tests/test_capabilities.py + CI omni-ci.yml" }
+      ]
+    },
+    {
+      "id": "whisper-transcription",
+      "title": "Whisper — transcription audio/vidéo multilingue",
+      "domain": "multimedia",
+      "specialties": ["ai-llm", "automation", "data-analysis"],
+      "description": "Reconnaissance vocale de référence (OpenAI), multilingue, exécution locale. Donne à OmniBrain l'entrée audio (transcription de réunions, notes vocales) pour la documentation et l'analyse.",
+      "source": { "upstream": "openai/whisper", "fork": null, "default_branch": "main", "stars": 112034, "last_push": "2026-08-31" },
+      "license": { "spdx": "MIT", "verified": "api-license-field", "notes": "" },
+      "risk": "low",
+      "execution_policy": "external-manual-only",
+      "prerequisites": ["Python 3.9+", "pip install -U openai-whisper", "ffmpeg"],
+      "permissions_needed": ["fs:read-media", "compute:local-gpu-optional"],
+      "dependencies": ["ffmpeg", "torch"],
+      "entry_points": [
+        { "path": "README.md", "purpose": "modèles et usage" },
+        { "path": "whisper/", "purpose": "code cœur du modèle" },
+        { "path": "tests/", "purpose": "tests de référence" }
+      ],
+      "integration": {
+        "status": "indexed",
+        "reason": "amont indexé et vérifié ; fork bloqué par 403 (voir fork_permission_blocker)",
+        "evidence": [
+          "repo-exists:openai/whisper stars=112034 pushed=2026-08-31",
+          "license:MIT via champ API GitHub (2026-11-06)",
+          "root-listing:README.md, whisper/, tests/ vérifiés le 2026-11-06"
+        ],
+        "verified_at": "2026-11-06"
+      },
+      "tests": [
+        { "name": "upstream-tests", "status": "not-run", "reason": "politique : aucun code externe n'est exécuté aveuglément" },
+        { "name": "registry-entry-valid", "status": "pass", "reason": "tests/test_capabilities.py + CI omni-ci.yml" }
+      ]
+    },
+    {
+      "id": "threejs-3d",
+      "title": "three.js — création 3D web temps réel",
+      "domain": "multimedia",
+      "specialties": ["frontend-ui", "web-dev", "design-ux"],
+      "description": "Bibliothèque 3D web de référence : scènes, rendu WebGL/WebGPU, éditeur inclus. Complète la création multimédia 3D d'OmniBrain, déjà amorcée par les 74 skills gamedev (Godot/Unity/Unreal/Phaser/Bevy).",
+      "source": { "upstream": "mrdoob/three.js", "fork": null, "default_branch": "dev", "stars": 117645, "last_push": "2026-11-05" },
+      "license": { "spdx": "MIT", "verified": "api-license-field", "notes": "" },
+      "risk": "low",
+      "execution_policy": "external-manual-only",
+      "prerequisites": ["Node.js (npm i three)"],
+      "permissions_needed": [],
+      "dependencies": [],
+      "entry_points": [
+        { "path": "README.md", "purpose": "vue d'ensemble" },
+        { "path": "src/", "purpose": "code cœur de la bibliothèque" },
+        { "path": "examples/", "purpose": "centaines d'exemples vivants" },
+        { "path": "manual/", "purpose": "manuel officiel" },
+        { "path": "llms.txt", "purpose": "guide de lecture pour agents LLM" }
+      ],
+      "integration": {
+        "status": "indexed",
+        "reason": "amont indexé et vérifié ; fork bloqué par 403 (voir fork_permission_blocker)",
+        "evidence": [
+          "repo-exists:mrdoob/three.js stars=117645 pushed=2026-11-05",
+          "license:MIT via champ API GitHub (2026-11-06)",
+          "root-listing:README.md, src/, examples/, manual/, llms.txt vérifiés le 2026-11-06"
+        ],
+        "verified_at": "2026-11-06"
+      },
+      "tests": [
+        { "name": "upstream-tests", "status": "not-run", "reason": "politique : aucun code externe n'est exécuté aveuglément" },
+        { "name": "registry-entry-valid", "status": "pass", "reason": "tests/test_capabilities.py + CI omni-ci.yml" }
+      ]
+    },
+    {
+      "id": "omnibrain-gitops",
+      "title": "OmniBrain gitops — automatisation GitHub sécurisée",
+      "domain": "orchestration",
+      "specialties": ["github-repo", "devops-ci"],
+      "description": "Outil interne (omni/gitops.py) : branches, commits, PR avec garde-fous — jamais de commit sur main, jamais de force-push, jamais de merge sans confirmation humaine.",
+      "source": { "upstream": null, "fork": null, "path": "omni/gitops.py" },
+      "license": { "spdx": "internal", "verified": "internal-path", "notes": "composant interne du dépôt omni-agents-framework" },
+      "risk": "low",
+      "execution_policy": "internal",
+      "prerequisites": ["Python 3.10+ (stdlib uniquement)"],
+      "permissions_needed": ["github:branch-write", "github:pr-write"],
+      "dependencies": [],
+      "entry_points": [
+        { "path": "omni/gitops.py", "purpose": "API branches/commits/PR et garde-fous" },
+        { "path": "tests/test_gitops.py", "purpose": "tests de non-régression" }
+      ],
+      "integration": {
+        "status": "verified",
+        "reason": "composant interne testé dans la suite du dépôt",
+        "evidence": [
+          "path-verified:omni/gitops.py sur main (2026-11-06)",
+          "tests:tests/test_gitops.py exécutés par make test / omni-ci.yml"
+        ],
+        "verified_at": "2026-11-06"
+      },
+      "tests": [
+        { "name": "unittest suite (tests/test_gitops.py)", "status": "pass", "reason": "suite du dépôt, exécutée en CI omni-ci.yml" }
+      ]
+    },
+    {
+      "id": "cf100-defensive-platform",
+      "title": "Cyber Force 100 — plateforme de cybersécurité défensive",
+      "domain": "security-defensive",
+      "specialties": ["security-defensive"],
+      "description": "Plateforme interne de 100 agents défensifs (10 divisions), preuves chaînées SHA-256, approbations humaines obligatoires pour les actions à risque. Couvre la cybersécurité défensive de l'écosystème — aucun outil externe n'est forké pour ce domaine afin d'éviter les doublons.",
+      "source": { "upstream": null, "fork": null, "path": "cyber-force-100/" },
+      "license": { "spdx": "internal", "verified": "internal-path", "notes": "composant interne du dépôt omni-agents-framework" },
+      "risk": "medium",
+      "execution_policy": "internal",
+      "prerequisites": ["Python 3.11", "pip install -e \".[api,dev]\""],
+      "permissions_needed": ["github:read-only", "fs:workspace"],
+      "dependencies": ["fastapi", "uvicorn", "pytest"],
+      "entry_points": [
+        { "path": "cyber-force-100/docs/PHASES.md", "purpose": "architecture et décisions" },
+        { "path": "cyber-force-100/registry/agents.json", "purpose": "100 agents déclarés" }
+      ],
+      "integration": {
+        "status": "verified",
+        "reason": "103 tests pytest verts en CI (runs 41619655449 du 03/11/2026, cf100-ci.yml quotidienne)",
+        "evidence": [
+          "path-verified:cyber-force-100/ sur main (fusion PR #6, commit 131ccf4)",
+          "ci:run 41619655449 success — 103 tests passés (03/11/2026)",
+          "ci:cf100-ci.yml quotidienne 08:00 UTC active sur main"
+        ],
+        "verified_at": "2026-11-06"
+      },
+      "tests": [
+        { "name": "pytest 103 tests", "status": "pass", "reason": "CI verte constatée sur main" }
+      ]
+    },
+    {
+      "id": "omnibrain-orchestrator",
+      "title": "OmniBrain SUPREME — orchestrateur central",
+      "domain": "orchestration",
+      "specialties": ["orchestration", "code-review", "testing-qa"],
+      "description": "Orchestrateur central (omni/orchestrator.py) : classe, sélectionne, planifie par vagues, arbitre, valide par 6 gates et trace. Point d'ancrage de ce registre de capacités : c'est lui qui route les demandes vers les capacités indexées.",
+      "source": { "upstream": null, "fork": null, "path": "omni/" },
+      "license": { "spdx": "internal", "verified": "internal-path", "notes": "composant interne du dépôt omni-agents-framework" },
+      "risk": "low",
+      "execution_policy": "internal",
+      "prerequisites": ["Python 3.10+ (stdlib uniquement)"],
+      "permissions_needed": [],
+      "dependencies": [],
+      "entry_points": [
+        { "path": "OMNIBRAIN.md", "purpose": "spécification de l'orchestrateur (source de vérité)" },
+        { "path": "omni/orchestrator.py", "purpose": "moteur d'orchestration" },
+        { "path": "registry/", "purpose": "registres agents/skills/routing/permissions/capabilities" }
+      ],
+      "integration": {
+        "status": "verified",
+        "reason": "suite unittest du dépôt verte (make test)",
+        "evidence": [
+          "path-verified:omni/orchestrator.py sur main (2026-11-06)",
+          "tests:tests/test_orchestration.py, test_routing.py exécutés par make test / omni-ci.yml"
+        ],
+        "verified_at": "2026-11-06"
+      },
+      "tests": [
+        { "name": "unittest suite (tests/test_orchestration.py, test_routing.py)", "status": "pass", "reason": "suite du dépôt, exécutée en CI omni-ci.yml" }
+      ]
+    }
+  ]
+}
