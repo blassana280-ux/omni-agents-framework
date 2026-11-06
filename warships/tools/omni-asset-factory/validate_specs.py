@@ -18,7 +18,7 @@ SYSTEMS = {"Propulsion", "Steering", "Radar", "Sonar", "Gunnery", "Missiles", "H
 SCALARS = [
     ("length_m", 20, 350, float), ("beam_m", 5, 60, float), ("draft_m", 1, 15, float),
     ("displacement_t", 200, 80000, float), ("max_speed_kn", 5, 45, float),
-    ("accel_kn_s", 0.01, 0.5, float), ("turn_deg_s", 0.5, 5.0, float),
+    ("accel_m_s2", 0.05, 1.0, float), ("turn_deg_s", 0.5, 5.0, float),
     ("rcs_m2", 50, 100000, float), ("acoustic", 0.05, 1.0, float),
 ]
 

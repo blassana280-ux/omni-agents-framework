@@ -8,7 +8,7 @@ beam_m 32
 draft_m 10.5
 displacement_t 45000
 max_speed_kn 24
-accel_kn_s 0.045
+accel_m_s2 0.20
 turn_deg_s 0.9
 rcs_m2 60000
 acoustic 0.85
