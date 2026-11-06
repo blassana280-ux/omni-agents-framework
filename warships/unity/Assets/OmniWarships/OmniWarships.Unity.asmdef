@@ -1,0 +1,17 @@
+{
+    "name": "OmniWarships.Unity",
+    "rootNamespace": "OmniWarships.Unity",
+    "references": [
+        "OmniWarships.Core",
+        "Unity.RenderPipelines.Universal.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
