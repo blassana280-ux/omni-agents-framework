@@ -1,50 +1,104 @@
-# OMNI WARSHIPS T-013 — compilation Android (APK) via GameCI.
-# VOLONTAIREMENT workflow_dispatch UNIQUE : ce workflow ne se declenche
-# JAMAIS sur push/PR. Il s'active par un clic manuel de Lassana APRES avoir
-# renseigne les secrets UNITY_LICENSE / UNITY_EMAIL / UNITY_PASSWORD
-# (Settings > Secrets and variables > Actions). Sans licence Unity, aucune
-# compilation n'est possible — aucun statut ne sera pretendu ici.
+# OMNI WARSHIPS T-013.1 — compilation Android (APK) via GameCI, CORRIGE.
+# Corrections auditees contre le action.yml REEL de game-ci/unity-builder@v4 :
+#   - expressions ${{ }} propres : les backslashs parasites \${{ }}
+#     auraient transmis une chaine litterrale au lieu des secrets ;
+#   - inputs valides v4 : androidExportType: androidPackage (APK) ;
+#     androidBuildAppType / androidBuildSystem / androidArchitecture
+#     N EXISTENT PAS en v4 (ARM64 et IL2CPP sont regles par le projet
+#     via AndroidBuildConfig.Configure, appele par buildMethod) ;
+#   - buildMethod explicite : scene de bataille incluse EXPLICITEMENT
+#     dans BuildPlayerOptions.scenes (BattleSceneGuard) ;
+#   - permissions: contents: write (requis pour la release brouillon) ;
+#   - verification des secrets SANS jamais les afficher ;
+#   - verification de l APK produite (taille + sha256) : aucune simulation.
+# VOLONTAIREMENT workflow_dispatch UNIQUE : activation manuelle de Lassana
+# APRES les secrets UNITY_LICENSE / UNITY_EMAIL / UNITY_PASSWORD.
 name: Warships GameCI (APK Android — activation manuelle)
 
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-android:
     name: Compilation APK (Unity 2022.3, ARM64, IL2CPP)
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Compilation Unity + APK
+      - name: Verification des secrets (jamais affiches dans les logs)
+        env:
+          LIC: ${{ secrets.UNITY_LICENSE }}
+          MAIL: ${{ secrets.UNITY_EMAIL }}
+          PASS: ${{ secrets.UNITY_PASSWORD }}
+        run: |
+          set -e
+          verify_secret() {
+            name="$1"; value="$2"
+            trimmed=$(printf '%s' "$value" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+            if [ -z "$trimmed" ]; then
+              echo "::error::secret $1 absent ou vide — Settings > Secrets and variables > Actions"
+              exit 1
+            fi
+            if [ "$trimmed" != "$value" ]; then
+              echo "::error::secret $1 contient un caractere parasite (espace/retour a la ligne en debut ou fin) — le coller a nouveau sans espaces autour"
+              exit 1
+            fi
+          }
+          verify_secret UNITY_LICENSE "$LIC"
+          verify_secret UNITY_EMAIL "$MAIL"
+          verify_secret UNITY_PASSWORD "$PASS"
+          echo "Secrets UNITY_LICENSE / UNITY_EMAIL / UNITY_PASSWORD presents et propres (aucune valeur affichee)."
+
+      - name: Liberation d espace disque (image Unity Android lourde)
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup 2>/dev/null || true
+          df -h /
+
+      - name: Compilation Unity + APK (scene explicite via buildMethod)
         uses: game-ci/unity-builder@v4
         env:
-          UNITY_LICENSE: \${{ secrets.UNITY_LICENSE }}
-          UNITY_EMAIL: \${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: \${{ secrets.UNITY_PASSWORD }}
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           targetPlatform: Android
           projectPath: warships/unity
-          androidTargetSdkVersion: "34"
-          androidArchitecture: ARM64
-          androidBuildAppType: executable
-          androidBuildSystem: Gradle
+          buildMethod: OmniWarships.Unity.EditorTools.WarshipsBuildScript.BuildAndroid
+          androidExportType: androidPackage
+          versioning: None
+
+      - name: Verification APK produite (taille + empreinte, aucune simulation)
+        run: |
+          set -e
+          apk=$(ls -1 warships/unity/Builds/*.apk 2>/dev/null | head -n 1)
+          if [ -z "$apk" ]; then
+            echo "::error::AUCUNE APK produite dans warships/unity/Builds/ — le build n a pas reussi"
+            exit 1
+          fi
+          ls -la "$apk"
+          sha256sum "$apk"
 
       - name: Artefact APK telechargeable
         uses: actions/upload-artifact@v4
         with:
           name: omni-warships-apk
-          path: warships/unity/build/*.apk
+          path: warships/unity/Builds/*.apk
           if-no-files-found: error
 
       - name: Release GitHub (brouillon, lien telechargeable)
         env:
-          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tag="android-build-\${{ github.run_number }}"
-          gh release create "$tag" warships/unity/build/*.apk \
-            --draft --title "OMNI WARSHIPS build Android \${{ github.run_number }}" \
-            --notes "APK ARM64 IL2CPP compilee par GameCI (Unity 2022.3). Brouillon : verifier installation sur Tecno KN3 avant publication." \
-            || echo "release existante ou echec (voir artefact APK)"
+          tag="android-build-${{ github.run_number }}"
+          gh release create "$tag" warships/unity/Builds/*.apk \
+            --draft --repo "$GITHUB_REPOSITORY" \
+            --title "OMNI WARSHIPS build Android ${{ github.run_number }}" \
+            --notes "APK ARM64 IL2CPP compilee par GameCI (Unity 2022.3, scene de bataille incluse explicitement). Brouillon : verifier l installation sur Tecno KN3 avant toute publication." \
+            || echo "::warning::release non creee (voir l artefact APK)"

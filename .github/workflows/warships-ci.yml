@@ -67,3 +67,19 @@ jobs:
           rc=$?
           echo "$out"
           if [ $rc -ne 0 ]; then msg=$(echo "$out" | tr '\n' '|' | tail -c 900); echo "::error::validate_unity_layer rc=$rc — $msg"; exit $rc; fi
+
+  workflows:
+    name: Workflows (actionlint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: actionlint — validation réelle des 3 workflows warships (YAML, expressions, inputs des actions)
+        run: |
+          set -e
+          curl -sSL --retry 3 -o /tmp/download-actionlint.bash \
+            https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash
+          bash /tmp/download-actionlint.bash /tmp
+          /tmp/actionlint -color \
+            .github/workflows/warships-ci.yml \
+            .github/workflows/warships-blender-fbx.yml \
+            .github/workflows/warships-gameci.yml
