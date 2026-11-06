@@ -1,8 +1,9 @@
-# OMNI WARSHIPS — EXEMPLE GameCI (T-013.1, aligné sur le workflow réel).
+# OMNI WARSHIPS — EXEMPLE GameCI (T-013.2, aligné sur le workflow réel).
 # Ce fichier reste volontairement hors de .github/workflows/ : il est la
 # référence documentaire. Le workflow ACTIF est
-# .github/workflows/warships-gameci.yml (workflow_dispatch uniquement,
-# secrets UNITY_LICENSE / UNITY_EMAIL / UNITY_PASSWORD requis).
+# .github/workflows/warships-gameci.yml : push sur warships/android-build
+# limité à warships/unity/ci/BUILD-TRIGGER.md + workflow_dispatch (futur),
+# secrets UNITY_LICENSE / UNITY_EMAIL / UNITY_PASSWORD requis.
 # Inputs vérifiées contre le action.yml RÉEL de game-ci/unity-builder@v4 :
 # androidExportType (androidPackage = APK) ; androidBuildAppType /
 # androidBuildSystem / androidArchitecture N EXISTENT PAS en v4 (ARM64 et
@@ -10,6 +11,10 @@
 # appelé par buildMethod).
 name: Warships GameCI (exemple — inactif)
 on:
+  push:
+    branches: ['warships/android-build']
+    paths:
+      - 'warships/unity/ci/BUILD-TRIGGER.md'
   workflow_dispatch:
 
 jobs:

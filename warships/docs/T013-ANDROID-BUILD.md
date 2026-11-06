@@ -195,3 +195,82 @@ La PR #16 a été vérifiée indépendamment. Corrections apportées :
   testée — la licence Unity reste le seul blocage (décision de Lassana).
 - Les 34 tests noyau, les validateurs, les 6 générateurs Blender et
   actionlint sont vérifiés verts en CI à chaque push (5 checks sur la PR).
+## 8. T-013.2 — audit final du compilateur et déclenchement Android sans main
+
+### 8.1 Namespaces des API Build corrigés (audit externe confirmé)
+- Bug réel : `WarshipsBuildScript.cs` et `AndroidBuildConfig.cs`
+  utilisaient `BuildReport` et `BuildResult` avec seulement
+  `using UnityEditor;` — ces types vivent dans
+  `UnityEditor.Build.Reporting` (CS0246 à la compilation réelle).
+  Corrigé : `using UnityEditor.Build.Reporting;` ajouté aux deux
+  fichiers.
+- Autres API Build de Unity 2022.3.62f1 vérifiées : BuildPipeline.
+  BuildPlayer(BuildPlayerOptions), BuildOptions, BuildTarget,
+  EditorUserBuildSettings (androidBuildSystem, buildAppBundle),
+  PlayerSettings (SetApplicationIdentifier, SetScriptingBackend),
+  AndroidArchitecture / AndroidSdkVersions / UIOrientation,
+  EditorSceneManager, AssetDatabase, EditorApplication.Exit — toutes
+  dans les namespaces déjà importés (UnityEditor,
+  UnityEditor.SceneManagement, UnityEngine). Aucune autre référence
+  Build cassée.
+- Garde-fou validateur : `check_build_reporting()` — tout script
+  éditeur utilisant BuildReport/BuildResult DOIT importer
+  `using UnityEditor.Build.Reporting;` (ou noms complets) ; l erreur
+  CS0246 ne peut plus revenir sans faire échouer la CI.
+
+### 8.2 Déclenchement GameCI sans fusion et sans toucher main
+- Problème confirmé : `workflow_dispatch` n est PAS utilisable depuis
+  l interface tant que le workflow n existe pas sur la branche par
+  défaut (main) — jamais touché, PRs #13/#14/#15/#16 ouvertes.
+- Solution : `on: push` limité à `warships/android-build` + filtre de
+  chemins sur `warships/unity/ci/BUILD-TRIGGER.md` (le « bouton de
+  compilation », éditable au téléphone). Aucun build inutile : les
+  modifications sans rapport avec le jeu ne touchent pas ce fichier.
+  `workflow_dispatch` conservé pour usage futur. Les secrets du dépôt
+  sont disponibles pour les événements push de la branche.
+- Le commit d intégration de T-013.2 déclenche un run qui s arrête à
+  la vérification des secrets (run rouge ATTENDU, AUCUNE compilation
+  Unity lancée) — preuve réelle que le déclenchement fonctionne sans
+  main.
+
+### 8.3 Licence Unity sans PC — workflow warships-license.yml
+- Constat (docs game.ci v4, 06/11/2026) : la méthode officielle pour
+  une licence Personal est Unity Hub sur machine locale, puis copie
+  du .ulf (C:\ProgramData\Unity\Unity_lic.ulf, /Library/Application
+  Support/Unity/Unity_lic.ulf ou ~/.local/share/unity3d/Unity/
+  Unity_lic.ulf) dans les secrets. Lassana n a pas de PC : cette
+  méthode officielle est impossible pour lui. L action game-ci/
+  unity-request-activation-file est DÉPRÉCIÉE (déc. 2023) ; le site
+  license.unity3d.com masque l option Personal (CSS display:none —
+  contournement manuel au téléphone non praticable).
+- Méthode implémentée (outillage game-ci maintenu) : workflow
+  `.github/workflows/warships-license.yml`, déclenché par
+  `warships/unity/ci/LICENSE-TRIGGER.md` :
+  1. l image Docker officielle unityci/editor 2022.3.62f1-android
+     génère le fichier de DEMANDE .alf (drapeau documenté
+     -createManualActivationFile — aucune licence requise) ;
+  2. l outil npm game-ci unity-license-activate (organisation
+     game-ci, maintenu, support TOTP) automatise l activation sur
+     license.unity3d.com (il sélectionne l option Personal masquée
+     via puppeteer) et produit le .ulf ;
+  3. le .ulf est stocké AUTOMATIQUEMENT dans le secret UNITY_LICENSE
+     si le secret ACCESS_TOKEN (PAT fine-grained, permission Secrets
+     en écriture) est présent, sinon publié en artefact privé
+     unity-ulf ;
+  4. en cas d échec : artefact screenshot-error.
+- Distinctions (jamais confondues) : .alf = demande générée par
+  Unity ; .ulf = licence obtenue ; secrets GitHub = conteneurs des
+  valeurs (licence, email, mot de passe, PAT).
+- Honnêteté : ce flux n est pas celui de la documentation officielle
+  actuelle (Unity Hub) ; il ne sera PROUVÉ qu à sa première exécution
+  réelle (aucune simulation). Sans TOTP, Unity peut exiger un code
+  envoyé par email que le workflow ne sait pas lire — TOTP
+  fortement recommandé.
+
+### 8.4 Statut (honnête)
+- Validation STATIQUE (CI verte : 34 tests, validateurs, actionlint,
+  Blender) ≠ COMPILATION RÉELLE Unity : aucune compilation n a été
+  exécutée, aucune APK produite. Le projet ne sera « compilé » qu après
+  un run GameCI vert avec APK vérifiée (taille + sha256).
+- Pipeline prêt : secrets → BUILD-TRIGGER.md → APK. Licence : compte
+  Unity gratuit + secrets → LICENSE-TRIGGER.md → .ulf → build.

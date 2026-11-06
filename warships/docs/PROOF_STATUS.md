@@ -6,7 +6,7 @@ prévue → en développement → implémentée (code écrit) → testée (test 
 → tests réussis (exécutés en CI, run visible) → compilée (APK/AAB)
 → installée → testée sur appareil réel → validée (critères mesurés).
 
-## État au 06/11/2026 (T-013 + T-013.1, branche warships/android-build, PR #16)
+## État au 06/11/2026 (T-013 + T-013.1 + T-013.2, branche warships/android-build, PR #16)
 
 | Fonctionnalité | Statut | Preuve |
 |---|---|---|
@@ -30,8 +30,10 @@ prévue → en développement → implémentée (code écrit) → testée (test 
 | Pause + 5 profils graphiques (Ultra/Élevé/Moyen/Faible/Adaptatif) | implémentée (code écrit ; compilation Unity requise) | Scripts/PauseMenu.cs, QualityProfiles.cs |
 | Garde-fou scène de bataille (chemin unique Assets/OmniWarships/Battle.unity, création auto, inclusion EXPLICITE dans BuildPlayerOptions.scenes, échec clair sinon) | implémentée (code écrit + vérifiée en CI par validate_unity_layer.py/check_scene_build) | Editor/BattleSceneGuard.cs + Editor/WarshipsBuildScript.cs |
 | Préparation build Android (ARM64, IL2CPP, paysage, minSdk 24, identifiant, APK pas AAB) | implémentée (script éditeur écrit ; exécution dans Unity requise) | Editor/AndroidBuildConfig.cs (menu OMNI WARSHIPS, scene garantie par BattleSceneGuard) |
-| Pipeline GameCI Android (compilation APK cloud) | préparée et VÉRIFIÉE (T-013.1 : inputs v4 réelles vérifiées contre action.yml de game-ci/unity-builder, expressions corrigées, permissions contents: write, secrets vérifiés sans affichage, APK vérifiée taille+sha256, job actionlint en CI) — aucune exécution tant que Lassana ne fournit pas les secrets de licence et ne déclenche pas | .github/workflows/warships-gameci.yml + job CI « Workflows (actionlint) » + unity/ci/README-GAMECI.md |
-| APK Android | prévue | nécessite licence Unity : chemin A (Unity local, menu AndroidBuildConfig) ou chemin B (GameCI, secrets licence) |
+| Pipeline GameCI Android (compilation APK cloud) | préparée et VÉRIFIÉE (T-013.1 + T-013.2 : inputs v4 réelles, expressions propres, permissions contents: write, secrets vérifiés sans affichage, APK vérifiée taille+sha256, job actionlint en CI ; déclenchement par push limité à warships/android-build + BUILD-TRIGGER.md — utilisable SANS fusion et SANS main) — aucune exécution tant que Lassana ne fournit pas les secrets de licence et ne déclenche pas | .github/workflows/warships-gameci.yml + warships/unity/ci/BUILD-TRIGGER.md + job CI « Workflows (actionlint) » + unity/ci/README-GAMECI.md |
+| Namespaces des API Build (BuildReport/BuildResult dans UnityEditor.Build.Reporting) | corrigée (T-013.2 : using ajouté aux deux scripts éditeur de compilation) + garde-fou CI check_build_reporting (l erreur CS0246 ne peut plus revenir) | Editor/WarshipsBuildScript.cs, Editor/AndroidBuildConfig.cs + validate_unity_layer.py |
+| Acquisition de la licence Unity sans PC (workflow dédié, sans Unity Hub) | préparée, NON exécutée (T-013.2 : .alf via image unityci/editor + .ulf via game-ci/unity-license-activate + stockage auto du secret UNITY_LICENSE si ACCESS_TOKEN) — sera prouvée à sa première exécution réelle | .github/workflows/warships-license.yml + warships/unity/ci/LICENSE-TRIGGER.md |
+| APK Android | prévue | nécessite licence Unity : chemin A (Unity local, menu AndroidBuildConfig) ou chemin B (GameCI, secrets licence puis BUILD-TRIGGER.md) |
 | 30 FPS sur Tecno KN3 | prévue | nécessite APK + appareil réel (aucune mesure inventée) |
 
 ## Blocages matériels honnêtes
@@ -39,8 +41,9 @@ prévue → en développement → implémentée (code écrit) → testée (test 
 - Compilation Unity / APK : aucun Unity ni SDK Android dans l'environnement
   d'exécution de l'assistant. Chemins prêts : (a) Lassana ouvre le projet
   dans Unity 2022.3 (licence personnelle gratuite) et utilise le menu
-  « OMNI WARSHIPS / Android » (AndroidBuildConfig.cs) ; (b) CI GameCI
-  (workflow_dispatch) avec secrets de licence Unity — décision de Lassana.
+  « OMNI WARSHIPS / Android » (AndroidBuildConfig.cs) ; (b) CI GameCI :
+  secrets de licence puis édition de warships/unity/ci/BUILD-TRIGGER.md
+  (push limité à la branche, sans fusion, sans main) — décision de Lassana.
 - Modèles 3D : PLUS UN BLOCAGE — les 6 FBX sont générés réellement en CI
   (Blender 4.2.3 LTS, run 42282487303, commit 9c1db33a) et intégrés dans
   le projet Unity (Resources/Models) ; artefact téléchargeable

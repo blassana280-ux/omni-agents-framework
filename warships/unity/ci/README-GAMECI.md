@@ -1,49 +1,77 @@
-# Pipeline de compilation Unity (GameCI) — PRÉPARÉ, INACTIF, VÉRIFIÉ
+# Pipeline de compilation Unity (GameCI) — PRÉPARÉ, VÉRIFIÉ, DÉCLENCHABLE SANS MAIN
 
-Statut honnête : **préparé, vérifié, non activé**. Le workflow réel existe
-déjà (`.github/workflows/warships-gameci.yml`) mais ne s'exécute QUE sur
-déclenchement manuel (workflow_dispatch) par Lassana. Le fichier
-`gameci-example.yml` de ce dossier est la référence documentaire, alignée
-en T-013.1 sur le workflow réel.
+Statut honnête : **préparé et vérifié statiquement, jamais exécuté**
+(aucune compilation Unity, aucune APK — la licence n est pas encore
+configurée). Le workflow réel vit sur la branche `warships/android-build`
+(`.github/workflows/warships-gameci.yml`), PR #16 ouverte, **main INTACT**.
 
-## Corrections T-013.1 (audit externe)
+## T-013.2 — déclenchement SANS fusion et SANS main
 
-- Inputs vérifiées contre le action.yml RÉEL de game-ci/unity-builder@v4 :
-  `androidExportType: androidPackage` (APK) ; `androidBuildAppType`,
-  `androidBuildSystem` et `androidArchitecture` N'EXISTENT PAS en v4.
-  ARM64 et IL2CPP sont réglés par le projet (AndroidBuildConfig.Configure).
-- Expressions `${{ }}` propres (backslashs parasites supprimés sur les
-  secrets et github.run_number) ; `permissions: contents: write` pour la
-  release brouillon ; secrets vérifiés sans jamais être affichés ;
-  APK vérifiée (taille + sha256) avant artefact et release.
-- Build via `buildMethod` explicite :
-  `OmniWarships.Unity.EditorTools.WarshipsBuildScript.BuildAndroid` —
-  la scène de bataille (Assets/OmniWarships/Battle.unity) est incluse
-  EXPLICITEMENT dans BuildPlayerOptions.scenes via BattleSceneGuard ;
-  tout échec sort avec EditorApplication.Exit(1).
+- `workflow_dispatch` n est PAS utilisable depuis l interface GitHub
+  tant que le workflow n existe pas sur la branche par défaut (main) —
+  jamais touché.
+- Solution : déclenchement par **push limité à la branche
+  `warships/android-build`** avec **filtre de chemins** : la compilation
+  ne part QUE si le fichier `warships/unity/ci/BUILD-TRIGGER.md` est
+  modifié (commit explicite, éditable depuis le navigateur du téléphone).
+- Aucune compilation automatique inutile : les modifications sans
+  rapport avec le jeu (docs, noyau, validateurs) ne touchent pas le
+  fichier déclencheur et ne lancent RIEN.
+- Les secrets du dépôt sont disponibles pour les événements push de la
+  branche (vérifiés SANS jamais être affichés dans les logs).
+- `workflow_dispatch` est conservé pour usage futur (après une
+  éventuelle fusion — décision de Lassana).
+- Run rouge « secret absent » sur le commit d intégration : ATTENDU —
+  la vérification des secrets échoue AVANT toute compilation Unity.
 
-## Activation (décision de Lassana)
+## Compilation (étapes exactes, téléphone uniquement)
 
-1. Renseigner les secrets du dépôt : UNITY_LICENSE (contenu du fichier
-   .ulf), UNITY_EMAIL, UNITY_PASSWORD — sans espaces parasites autour.
-2. Onglet Actions → « Warships GameCI (APK Android — activation
-   manuelle) » → Run workflow.
-3. Le job build-android : vérifie les secrets, compile (image Docker
-   unityci/editor 2022.3.62f1-android), produit
-   warships/unity/Builds/omni-warships-v0.1.0.apk, vérifie l'APK
-   (taille + sha256), l'uploade en artefact et crée une release
-   brouillon.
+1. Secrets du dépôt (Settings > Secrets and variables > Actions) :
+   `UNITY_LICENSE` (contenu du .ulf), `UNITY_EMAIL`, `UNITY_PASSWORD` —
+   sans espaces parasites autour.
+2. Ouvrir `warships/unity/ci/BUILD-TRIGGER.md` sur GitHub (navigateur
+   mobile), crayon, incrémenter le compteur, commiter sur la branche.
+3. Le job build-android : vérifie les secrets, libère l espace disque,
+   compile (image unityci/editor 2022.3.62f1-android, buildMethod
+   WarshipsBuildScript.BuildAndroid — scène incluse EXPLICITEMENT),
+   vérifie l APK (taille + sha256), l uploade en artefact et crée une
+   release brouillon.
+4. Télécharger l APK : artefact `omni-warships-apk` ou release brouillon
+   `android-build-N`.
+
+## Licence Unity sans PC (T-013.2 — workflow warships-license.yml)
+
+La documentation officielle actuelle de game.ci recommande Unity Hub
+sur un PC — Lassana n en a pas. Le workflow
+`.github/workflows/warships-license.yml` (déclenché par le fichier
+`warships/unity/ci/LICENSE-TRIGGER.md`) permet d obtenir le .ulf
+ENTIÈREMENT depuis le téléphone :
+
+1. Compte Unity gratuit (id.unity.com, navigateur).
+2. Secrets : `UNITY_EMAIL`, `UNITY_PASSWORD`, et idéalement
+   `UNITY_TOTP_KEY` (clé authenticator TOTP — sans elle, Unity peut
+   exiger un code envoyé par email que le workflow ne sait pas lire) ;
+   `ACCESS_TOKEN` (PAT fine-grained, permission Secrets en écriture)
+   pour que le .ulf soit stocké AUTOMATIQUEMENT dans `UNITY_LICENSE`.
+3. Modifier `LICENSE-TRIGGER.md` (incrémenter le compteur) : le workflow
+   génère le .alf (image Docker unityci/editor, drapeau documenté
+   -createManualActivationFile, aucune licence requise), l échange
+   contre un .ulf via l outil game-ci `unity-license-activate`
+   (navigateur automatisé sur license.unity3d.com), et stocke ou
+   publie le .ulf.
+4. Sans ACCESS_TOKEN : télécharger l artefact `unity-ulf` et copier TOUT
+   son contenu dans le secret `UNITY_LICENSE`.
+5. Échec : artefact `screenshot-error` + logs du run.
+
+Honnêteté : ce flux n est pas celui de la documentation officielle
+actuelle de game.ci (qui exige Unity Hub) ; il s appuie sur l outil
+maintenu de l organisation game-ci. Il ne sera PROUVÉ qu à sa première
+exécution réelle — aucun statut n est prétendu avant. Ne JAMAIS
+communiquer identifiants, secrets ou licence dans une conversation.
 
 ## Ce que ce pipeline NE fait PAS
 
 - Il ne mesure pas les FPS sur Tecno KN3 (aucun appareil réel branché) ;
 - il ne remplace pas la validation manuelle sur appareil ;
-- il n'est pas compté comme « compilée » tant que le run n'est pas vert
-  AVEC une APK vérifiée en sortie.
-
-## Pourquoi l'inactivité
-
-La licence Unity personnelle gratuite couvre ce dépôt, mais son activation
-dans une CI exige des secrets et une acceptation explicite de Lassana.
-Rien n'est activé sans son accord — règle du projet.
-
+- il n est pas compté comme « compilée » tant que le run n est pas vert
+  AVEC une APK vérifiée en sortie (taille + sha256).
