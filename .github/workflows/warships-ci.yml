@@ -14,11 +14,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Matrice de fidélité (Omni Fidelity Lab)
-        run: python3 warships/tools/omni-fidelity-lab/validate_matrix.py
+        run: |
+          set +e
+          out=$(python3 warships/tools/omni-fidelity-lab/validate_matrix.py 2>&1)
+          rc=$?
+          if [ $rc -ne 0 ]; then msg=$(echo "$out" | tr '\n' '|' | tail -c 600); echo "::error::validate_matrix rc=$rc — $msg"; exit $rc; fi
       - name: Specs de navires (Omni Asset Factory)
-        run: python3 warships/tools/omni-asset-factory/validate_specs.py
+        run: |
+          set +e
+          out=$(python3 warships/tools/omni-asset-factory/validate_specs.py 2>&1)
+          rc=$?
+          if [ $rc -ne 0 ]; then msg=$(echo "$out" | tr '\n' '|' | tail -c 600); echo "::error::validate_specs rc=$rc — $msg"; exit $rc; fi
       - name: Scénarios (Omni Battle Sandbox)
-        run: python3 warships/tools/omni-battle-sandbox/validate_scenarios.py
+        run: |
+          set +e
+          out=$(python3 warships/tools/omni-battle-sandbox/validate_scenarios.py 2>&1)
+          rc=$?
+          if [ $rc -ne 0 ]; then msg=$(echo "$out" | tr '\n' '|' | tail -c 600); echo "::error::validate_scenarios rc=$rc — $msg"; exit $rc; fi
 
   core:
     name: Noyau C# (build + tests xUnit)
@@ -29,6 +41,16 @@ jobs:
         with:
           dotnet-version: 8.0.x
       - name: Compilation
-        run: dotnet build warships/core/tests/OmniWarships.Core.Tests.csproj --configuration Release
+        run: |
+          set +e
+          out=$(dotnet build warships/core/tests/OmniWarships.Core.Tests.csproj --configuration Release 2>&1)
+          rc=$?
+          echo "$out"
+          if [ $rc -ne 0 ]; then msg=$(echo "$out" | tr '\n' '|' | tail -c 900); echo "::error::build rc=$rc — $msg"; exit $rc; fi
       - name: Tests
-        run: dotnet test warships/core/tests/OmniWarships.Core.Tests.csproj --configuration Release --no-build --logger "console;verbosity=normal"
+        run: |
+          set +e
+          out=$(dotnet test warships/core/tests/OmniWarships.Core.Tests.csproj --configuration Release --no-build --logger "console;verbosity=normal" 2>&1)
+          rc=$?
+          echo "$out"
+          if [ $rc -ne 0 ]; then msg=$(echo "$out" | tr '\n' '|' | tail -c 900); echo "::error::tests rc=$rc — $msg"; exit $rc; fi

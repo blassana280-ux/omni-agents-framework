@@ -136,9 +136,26 @@ namespace OmniWarships.Core.Replay
                 if (p[0] == "cmd" && current != null)
                 {
                     var rc = new ReplayCommand { ShipId = p[1], Throttle = PF(p[2]), Rudder = PF(p[3]) };
-                    for (int i = 4; i + 1 < p.Length; i += 2)
+                    int i = 4;
+                    while (i + 1 < p.Length)
                     {
-                        if (p[i] == "fire") rc.Fires.Add(new FireRequest { WeaponId = p[i + 1], TargetShipId = p[i + 2 <= p.Length - 1 ? p[i + 2] : p[i + 1] });
+                        if (p[i] == "fire")
+                        {
+                            if (i + 2 < p.Length)
+                            {
+                                rc.Fires.Add(new FireRequest { WeaponId = p[i + 1], TargetShipId = p[i + 2] });
+                                i += 3;
+                            }
+                            else
+                            {
+                                rc.Fires.Add(new FireRequest { WeaponId = p[i + 1], TargetShipId = p[i + 1] });
+                                i += 2;
+                            }
+                        }
+                        else
+                        {
+                            i += 2;
+                        }
                     }
                     current.Commands.Add(rc);
                     continue;
