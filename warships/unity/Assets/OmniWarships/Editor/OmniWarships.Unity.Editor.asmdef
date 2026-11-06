@@ -3,7 +3,8 @@
     "rootNamespace": "OmniWarships.Unity.EditorTools",
     "references": [
         "OmniWarships.Core",
-        "OmniWarships.Unity"
+        "OmniWarships.Unity",
+        "Unity.RenderPipelines.Universal.Runtime"
     ],
     "includePlatforms": [
         "Editor"
