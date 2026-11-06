@@ -32,8 +32,8 @@ namespace OmniWarships.Core.Simulation
 
     /// <summary>
     /// Balistique : trajectoire d'obus (gravite, arc bas, solution exacte
-    /// de tir), guidage missile par rotation bornee vers la cible, course
-    /// droite des torpilles avec distance d'armement.
+    /// de tir + integration parabolique exacte par pas), guidage missile
+    /// par rotation bornee, course droite des torpilles avec armement.
     /// </summary>
     public static class BallisticsModel
     {
@@ -145,7 +145,8 @@ namespace OmniWarships.Core.Simulation
                 Vec2 prevPos = p.Pos;
                 float prevAlt = p.Altitude;
                 p.Pos = p.Pos + p.Vel * dt;
-                p.Altitude += p.Vz * dt;
+                // integration exacte de la gravite sur le pas (parabole)
+                p.Altitude = p.Altitude + p.Vz * dt - 0.5f * Gravity * dt * dt;
                 p.Vz -= Gravity * dt;
                 p.TraveledM += p.Speed * dt;
                 // franchissement de la silhouette du navire (0..22 m)
@@ -154,7 +155,7 @@ namespace OmniWarships.Core.Simulation
                     ShipState hit = HitCheck(p, ships, 25f);
                     if (hit != null) { p.Dead = true; return hit; }
                 }
-                // impact a la surface : point interpole (precision de la solution)
+                // impact a la surface : point interpole (precision de la solution de tir)
                 if (p.Altitude <= 0.5f && prevAlt > p.Altitude)
                 {
                     float denom = prevAlt - p.Altitude;
