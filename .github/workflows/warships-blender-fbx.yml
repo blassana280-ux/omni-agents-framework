@@ -1,16 +1,15 @@
 # OMNI WARSHIPS T-013 — production REELLE des FBX par Blender en CI.
 # Blender = GPL, gratuit, aucune licence requise : contrairement a Unity,
 # la generation d'assets peut s'executer reellement ici.
-# Les FBX sont commits dans Resources/Models (charges par ShipModelLibrary)
-# ET publies en artefact telechargeable.
 #
-# PIEGES couverts (valides sur les echecs precedents) :
-#   - blender en background renvoie exit 0 meme si le script Python echoue
-#     -> --python-exit-code 1 + verification systematique du FBX produit ;
-#   - Blender n'ajoute PAS le dossier du script a sys.path
-#     -> PYTHONPATH exporte vers le dossier omni-asset-factory ;
-#   - toute erreur Python est recopiee dans une annotation ::error::
-#     (extrait de log) pour diagnostic sans acces aux logs du runner.
+# HISTORIQUE des echecs (documente honnetement) :
+#   run 1 : ref checkout invalide (backslash parasite devant ${{ }}) — corrige ;
+#   run 2 : blender exit 0 malgre erreur Python → --python-exit-code 1 + PYTHONPATH ;
+#   run 3 : apt-get install blender > 20 min sur l'image Ubuntu 26 → timeout 25 min.
+#           CORRECTION : Blender PORTABLE 4.2.3 LTS telecharge directement
+#           (tarball officiel, version determinee, ~40 s) au lieu de l'apt massif.
+# Les FBX sont commits dans Resources/Models (charges par ShipModelLibrary)
+# ET publies en artefact telechargeable (avec les logs Blender).
 name: Warships Assets (Blender FBX)
 
 on:
@@ -27,7 +26,7 @@ jobs:
   blender-fbx:
     name: Generateurs Blender -> FBX reels
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
       - name: Checkout (tete de la PR)
         uses: actions/checkout@v4
@@ -35,14 +34,21 @@ jobs:
           ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
 
-      - name: Installation de Blender (GPL, sans licence)
+      - name: Blender portable 4.2.3 LTS (telechargement direct, pas d'apt massif)
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends blender
-          blender --version
+          sudo apt-get install -y --no-install-recommends \
+            libx11-6 libxi6 libxxf86vm1 libxfixes3 libxrender1 \
+            libgl1 libegl1 libsm6 libice6
+          curl -sSL --retry 3 -o blender.tar.xz \
+            https://download.blender.org/release/Blender4.2/blender-4.2.3-linux-x64.tar.xz
+          tar -xJf blender.tar.xz
+          ./blender-4.2.3-linux-x64/blender --version
 
       - name: Execution des 6 generateurs (FBX reels, echec explicite)
         run: |
+          BLENDER="$GITHUB_WORKSPACE/blender-4.2.3-linux-x64/blender"
+          "$BLENDER" --version
           mkdir -p artifacts/fbx artifacts/log
           cd warships/tools/omni-asset-factory
           set -e
@@ -52,7 +58,7 @@ jobs:
             name="$1";
             script="$2";
             echo "=== Generation $name (via $script) ==="
-            blender --background --factory-startup --python "$script" \
+            "$BLENDER" --background --factory-startup --python "$script" \
               --python-exit-code 1 -- --out "../../artifacts/fbx/$name.fbx" \
               2>&1 | tee "../../artifacts/log/$name.log"
             if [ ! -s "../../artifacts/fbx/$name.fbx" ]; then
@@ -96,7 +102,7 @@ jobs:
              warships/unity/Assets/OmniWarships/Resources/Models/
           git add warships/unity/Assets/OmniWarships/Resources/Models
           if [ -n "$(git status --porcelain warships/unity/Assets/OmniWarships/Resources/Models)" ]; then
-            git commit -m "chore(assets): FBX reels generes par Blender en CI (destroyer, frigate, carrier, submarine, aircraft, equipment)"
+            git commit -m "chore(assets): FBX reels generes par Blender 4.2.3 LTS en CI (destroyer, frigate, carrier, submarine, aircraft, equipment)"
             git push
             echo "FBX commites dans Resources/Models (charges au runtime par ShipModelLibrary)."
           else
@@ -111,4 +117,4 @@ jobs:
           path: |
             artifacts/fbx/*.fbx
             artifacts/log/*.log
-          if-no-files-found: error
+          if-no-files-found: warn
