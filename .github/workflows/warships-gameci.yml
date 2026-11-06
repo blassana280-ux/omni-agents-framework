@@ -1,4 +1,4 @@
-# OMNI WARSHIPS T-013.1 — compilation Android (APK) via GameCI, CORRIGE.
+# OMNI WARSHIPS T-013.1/T-013.2 — compilation Android (APK) via GameCI, CORRIGE.
 # Corrections auditees contre le action.yml REEL de game-ci/unity-builder@v4 :
 #   - expressions ${{ }} propres : les backslashs parasites \${{ }}
 #     auraient transmis une chaine litterale au lieu des secrets ;
@@ -12,11 +12,25 @@
 #   - verification des secrets SANS jamais les afficher ;
 #   - verification de l APK produite (taille + sha256) : aucune simulation ;
 #   - scripts shell propres pour shellcheck (SC2034, SC2012 corriges).
-# VOLONTAIREMENT workflow_dispatch UNIQUE : activation manuelle de Lassana
-# APRES les secrets UNITY_LICENSE / UNITY_EMAIL / UNITY_PASSWORD.
-name: Warships GameCI (APK Android — activation manuelle)
+# T-013.2 — DECLENCHEMENT SANS MAIN : ce workflow vit uniquement sur la
+# branche warships/android-build (PR #16 ouverte, main INTACT). Un
+# workflow_dispatch n est PAS utilisable depuis l interface tant que le
+# fichier n existe pas sur la branche par defaut -> declenchement par
+# PUSH limite a cette branche avec filtre de chemins : la compilation ne
+# part QUE si le fichier warships/unity/ci/BUILD-TRIGGER.md est modifie
+# (commit explicite, editable depuis le navigateur du telephone). Les
+# secrets du depot sont disponibles pour les evenements push de la
+# branche. workflow_dispatch conserve pour usage futur. Tant que les
+# secrets ne sont pas configures, le run s arrete a l etape de
+# verification (AUCUNE compilation Unity lancee) — run rouge ATTENDU
+# sur le commit d integration de ce workflow.
+name: Warships GameCI (APK Android)
 
 on:
+  push:
+    branches: ['warships/android-build']
+    paths:
+      - 'warships/unity/ci/BUILD-TRIGGER.md'
   workflow_dispatch:
 
 permissions:

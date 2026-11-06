@@ -3,9 +3,9 @@ name: Omni Warships CI
 on:
   push:
     branches: ['warships/**']
-    paths: ['warships/**', '.github/workflows/warships-ci.yml']
+    paths: ['warships/**', '.github/workflows/warships-ci.yml', '.github/workflows/warships-blender-fbx.yml', '.github/workflows/warships-gameci.yml', '.github/workflows/warships-license.yml']
   pull_request:
-    paths: ['warships/**', '.github/workflows/warships-ci.yml']
+    paths: ['warships/**', '.github/workflows/warships-ci.yml', '.github/workflows/warships-blender-fbx.yml', '.github/workflows/warships-gameci.yml', '.github/workflows/warships-license.yml']
 
 jobs:
   data:
@@ -73,7 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: actionlint — validation réelle des 3 workflows warships (YAML, expressions, inputs des actions)
+      - name: actionlint — validation réelle des 4 workflows warships (YAML, expressions, inputs des actions)
         run: |
           set -e
           curl -sSL --retry 3 -o /tmp/download-actionlint.bash \
@@ -86,7 +86,8 @@ jobs:
           out=$(/tmp/actionlint -color \
             .github/workflows/warships-ci.yml \
             .github/workflows/warships-blender-fbx.yml \
-            .github/workflows/warships-gameci.yml 2>&1)
+            .github/workflows/warships-gameci.yml \
+            .github/workflows/warships-license.yml 2>&1)
           rc=$?
           set -e
           echo "$out"

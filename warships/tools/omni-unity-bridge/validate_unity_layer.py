@@ -15,7 +15,10 @@ Vérifie, sans jamais simuler un statut :
   8. cohérence des docs (PROOF_STATUS / README) avec la réalité du dépôt ;
   9. T-013.1 — garde-fou de la scène de bataille : chemin UNIQUE partagé
      (Assets/OmniWarships/Battle.unity), inclusion EXPLICITE dans
-     BuildPlayerOptions.scenes, échec explicite si aucune scène valide.
+     BuildPlayerOptions.scenes, échec explicite si aucune scène valide ;
+ 10. T-013.2 — namespaces des API de compilation : BuildReport et
+     BuildResult vivent dans UnityEditor.Build.Reporting — using
+     UnityEditor; ne suffit PAS (CS0246 à la compilation réelle).
 
 Sortie ::error:: GitHub Actions ; exit 1 si au moins une erreur.
 """
@@ -347,6 +350,28 @@ def check_scene_build():
             err("WarshipsBuildScript.cs : tout échec de build doit sortir avec EditorApplication.Exit(1)")
 
 
+# ------------------------------ T-013.2 : namespaces des API de build
+
+def check_build_reporting():
+    """BuildReport et BuildResult vivent dans le namespace
+    UnityEditor.Build.Reporting : 'using UnityEditor;' ne suffit PAS.
+    Empêche le retour de l'erreur CS0246 dans les scripts éditeur qui
+    pilotent la compilation Android (audit externe T-013.2)."""
+    for name in UNITY_EDITOR_SCRIPTS:
+        p = OMNI / "Editor" / name
+        if not p.is_file():
+            continue  # déjà signalé par check_required
+        t = p.read_text(encoding="utf-8")
+        uses_api = ("BuildReport" in t) or ("BuildResult" in t)
+        has_ns = ("using UnityEditor.Build.Reporting;" in t) \
+            or ("UnityEditor.Build.Reporting.BuildReport" in t) \
+            or ("UnityEditor.Build.Reporting.BuildResult" in t)
+        if uses_api and not has_ns:
+            err(name + " : BuildReport/BuildResult exigent "
+                + "'using UnityEditor.Build.Reporting;' (ou noms complets "
+                + "UnityEditor.Build.Reporting.*) — CS0246 sinon")
+
+
 # -------------------------------------------------------------------- docs
 
 def check_docs():
@@ -375,6 +400,7 @@ def main():
     check_python_syntax()
     check_secrets()
     check_scene_build()
+    check_build_reporting()
     check_docs()
     if errors:
         print("validate_unity_layer : " + str(len(errors)) + " erreur(s)")
@@ -385,7 +411,8 @@ def main():
     print("validate_unity_layer : OK — " + str(total) + " fichiers requis, 19 copies noyau"
           + " et 7 specs identiques octet par octet, 7 générateurs Blender"
           + " syntaxiquement valides, garde-fou scène de bataille OK"
-          + " (chemin unique + inclusion explicite), aucun secret, docs cohérents.")
+          + " (chemin unique + inclusion explicite), namespaces build OK,"
+          + " aucun secret, docs cohérents.")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,143 @@
+# OMNI WARSHIPS T-013.2 — acquisition de la licence Unity Personal SANS PC.
+# Objectif : permettre a Lassana d obtenir le fichier .ulf (licence) depuis
+# son telephone, SANS Unity Hub ni PC personnel. Tout s execute dans GitHub
+# Actions ; Lassana ne fournit que des secrets (jamais dans le chat).
+#   A. l image Docker unityci/editor 2022.3.62f1-android genere le fichier
+#      de DEMANDE .alf (Unity -createManualActivationFile, aucune licence
+#      requise) ;
+#   B. l outil game-ci/unity-license-activate (organisation game-ci, npm,
+#      maintenu) automatise l activation sur license.unity3d.com (l option
+#      Personal y est masquee par CSS ; l outil la selectionne via puppeteer)
+#      et produit le .ulf ;
+#   C. si le secret ACCESS_TOKEN (PAT fine-grained, permission Secrets en
+#      ecriture) est defini, le .ulf est stocke AUTOMATIQUEMENT dans le
+#      secret UNITY_LICENSE ; sinon il est publie en artefact prive et
+#      Lassana copie son contenu dans UNITY_LICENSE depuis le navigateur.
+# DECLENCHEMENT : push sur warships/android-build limite au fichier
+#   warships/unity/ci/LICENSE-TRIGGER.md (commit explicite editable au
+#   telephone). workflow_dispatch conserve pour usage futur (branche main).
+# ATTENDU : sans les secrets UNITY_EMAIL / UNITY_PASSWORD, le run s arrete
+#   a la verification (echec rapide, AUCUNE action sur le compte Unity).
+name: Warships licence Unity (acquisition .ulf sans PC)
+
+on:
+  push:
+    branches: ['warships/android-build']
+    paths:
+      - 'warships/unity/ci/LICENSE-TRIGGER.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  acquire-license:
+    name: Demande .alf + activation .ulf
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verification des secrets (jamais affiches dans les logs)
+        env:
+          MAIL: ${{ secrets.UNITY_EMAIL }}
+          PASS: ${{ secrets.UNITY_PASSWORD }}
+        run: |
+          set -e
+          verify_secret() {
+            trimmed=$(printf '%s' "$2" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+            if [ -z "$trimmed" ]; then
+              echo "::error::secret $1 absent ou vide — Settings > Secrets and variables > Actions"
+              exit 1
+            fi
+            if [ "$trimmed" != "$2" ]; then
+              echo "::error::secret $1 contient un caractere parasite (espace/retour a la ligne en debut ou fin)"
+              exit 1
+            fi
+          }
+          verify_secret UNITY_EMAIL "$MAIL"
+          verify_secret UNITY_PASSWORD "$PASS"
+          echo "Secrets UNITY_EMAIL / UNITY_PASSWORD presents et propres (aucune valeur affichee)."
+
+      - name: Generation du fichier de demande .alf (image Unity CI, aucune licence requise)
+        run: |
+          set -e
+          tag=""
+          for rev in 3 2 1; do
+            if docker manifest inspect "unityci/editor:ubuntu-2022.3.62f1-android-$rev" >/dev/null 2>&1; then
+              tag="ubuntu-2022.3.62f1-android-$rev"
+              break
+            fi
+          done
+          if [ -z "$tag" ]; then
+            echo "::error::aucune image unityci/editor ubuntu-2022.3.62f1-android (revisions 1-3) trouvee sur Docker Hub"
+            exit 1
+          fi
+          echo "Image Unity CI : unityci/editor:$tag"
+          mkdir -p /tmp/alfdir
+          docker run --rm -v /tmp/alfdir:/project -w /project \
+            "unityci/editor:$tag" \
+            unity-editor -batchmode -nographics -createManualActivationFile -quit
+          shopt -s nullglob
+          alfs=(/tmp/alfdir/*.alf)
+          shopt -u nullglob
+          if [ "${#alfs[@]}" -eq 0 ]; then
+            echo "::error::AUCUN fichier .alf genere par unity-editor — consulter la sortie de ce step"
+            exit 1
+          fi
+          cp "${alfs[0]}" activation.alf
+          stat -c 'alf genere : %n : %s octets' activation.alf
+
+      - name: Activation .alf vers .ulf (game-ci/unity-license-activate)
+        env:
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_TOTP_KEY: ${{ secrets.UNITY_TOTP_KEY }}
+        run: |
+          set -e
+          args=("$UNITY_EMAIL" "$UNITY_PASSWORD" "activation.alf")
+          if [ -n "$UNITY_TOTP_KEY" ]; then
+            args+=(--authenticator-key "$UNITY_TOTP_KEY")
+          fi
+          npx --yes unity-license-activate@latest "${args[@]}"
+          shopt -s nullglob
+          ulfs=(*.ulf)
+          shopt -u nullglob
+          if [ "${#ulfs[@]}" -eq 0 ]; then
+            echo "::error::AUCUN fichier .ulf produit — consulter l artefact screenshot-error du run"
+            exit 1
+          fi
+          stat -c 'ulf produit : %n : %s octets' "${ulfs[0]}"
+
+      - name: Stockage automatique du secret UNITY_LICENSE (si ACCESS_TOKEN present)
+        env:
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -e
+          shopt -s nullglob
+          ulfs=(*.ulf)
+          shopt -u nullglob
+          if [ -z "$ACCESS_TOKEN" ]; then
+            echo "::warning::ACCESS_TOKEN absent — .ulf fourni en artefact unity-ulf : copier TOUT son contenu dans le secret UNITY_LICENSE (Settings > Secrets and variables > Actions)."
+            exit 0
+          fi
+          ulf_value=$(<"${ulfs[0]}")
+          printf '%s' "$ulf_value" | GH_TOKEN="$ACCESS_TOKEN" gh secret set UNITY_LICENSE --repo "$GH_REPO"
+          echo "Secret UNITY_LICENSE mis a jour automatiquement (valeur jamais affichee)."
+
+      - name: Artefact .ulf (prive, acces limite au depot)
+        uses: actions/upload-artifact@v4
+        with:
+          name: unity-ulf
+          path: '*.ulf'
+          if-no-files-found: warn
+
+      - name: Capture d erreur (screenshot puppeteer) en cas d echec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshot-error
+          path: error.png
+          if-no-files-found: ignore
