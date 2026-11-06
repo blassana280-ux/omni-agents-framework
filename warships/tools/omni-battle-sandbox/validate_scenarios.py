@@ -4,9 +4,10 @@ import json
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
-SCEN = ROOT / "scenarios"
-SPECS = {p.stem for p in (ROOT / ".." / "data" / "ships").resolve().glob("*.ship.txt")}
+HERE = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[2]  # warships/
+SCEN = HERE / "scenarios"
+SPECS = {p.stem for p in (ROOT / "data" / "ships").glob("*.ship.txt")}
 
 
 def main() -> int:

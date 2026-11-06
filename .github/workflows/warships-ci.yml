@@ -1,0 +1,34 @@
+name: Omni Warships CI
+
+on:
+  push:
+    branches: ['warships/**']
+    paths: ['warships/**', '.github/workflows/warships-ci.yml']
+  pull_request:
+    paths: ['warships/**', '.github/workflows/warships-ci.yml']
+
+jobs:
+  data:
+    name: Données (matrice, specs, scénarios)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Matrice de fidélité (Omni Fidelity Lab)
+        run: python3 warships/tools/omni-fidelity-lab/validate_matrix.py
+      - name: Specs de navires (Omni Asset Factory)
+        run: python3 warships/tools/omni-asset-factory/validate_specs.py
+      - name: Scénarios (Omni Battle Sandbox)
+        run: python3 warships/tools/omni-battle-sandbox/validate_scenarios.py
+
+  core:
+    name: Noyau C# (build + tests xUnit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Compilation
+        run: dotnet build warships/core/tests/OmniWarships.Core.Tests.csproj --configuration Release
+      - name: Tests
+        run: dotnet test warships/core/tests/OmniWarships.Core.Tests.csproj --configuration Release --no-build --logger "console;verbosity=normal"

@@ -8,7 +8,7 @@ Vérifie les invariants de la matrice de fidélité. Exit 1 si problème.
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[2]  # warships/
 SHIPS = ROOT / "data" / "ships"
 CLASSES = {"Corvette", "Frigate", "Destroyer", "Cruiser", "Battleship", "Carrier", "Submarine"}
 WEAPON_KINDS = {"Gun", "Ssm", "Sam", "Torpedo", "Ciws", "Rocket", "DepthCharge"}
