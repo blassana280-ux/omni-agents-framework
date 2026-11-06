@@ -40,7 +40,7 @@ mission :
 | source | upstream (dépôt d'origine), fork (dépôt miroir), docs |
 | license | spdx, source de vérification, notes |
 | risk | niveau, points surveillés, exécution par défaut refusée |
-| execution_policy | never / sandbox / isolated selon la confiance |
+| execution_policy | external-manual-only (capacité externe) / internal (composant du dépôt) |
 | prerequisites | dépendances système minimales |
 | permissions_needed | permissions GitHub réellement requises |
 | dependencies | briques internes et externes attendues |
@@ -50,15 +50,15 @@ mission :
 
 ## 4. Barrières de sécurité et de validation
 
-- **Licences** : allow-list explicite (MIT, Apache-2.0, MIT-0, BSD-3-Clause,
-  BSD-2-Clause). Les composants commerciaux sont exclus de fait : langfuse
+- **Licences** : allow-list explicite, identique au champ licenses_allowed du
+  registre (MIT, Apache-2.0). Les composants commerciaux sont exclus de fait : langfuse
   ee/ et litellm enterprise/ sont interdits de copie et jamais référencés
   comme points d'entrée.
 - **Secrets** : le module de validation rejette les jetons GitHub, clés
   sk-…, AWS AKIA… détectés dans le registre ; le journal rédacte
   systématiquement toute valeur secrète avant écriture disque.
-- **Exécution** : toute capacité externe a execution_policy never par
-  défaut ; le code amont n'est jamais exécuté aveuglément, seulement lu,
+- **Exécution** : toute capacité externe a execution_policy
+  external-manual-only ; le code amont n'est jamais exécuté aveuglément, seulement lu,
   indexé et routé.
 - **Statuts** : forked exige une référence de fork ; verified exige des
   preuves ET au moins un test au statut pass. La validation est exécutée
