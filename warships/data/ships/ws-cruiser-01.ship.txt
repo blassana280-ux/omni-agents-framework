@@ -1,0 +1,27 @@
+# Croiseur classe Mistral (originale) — lourd en missiles, méthodique
+version 1
+id ws-cruiser-01
+name Croiseur classe Mistral
+class Cruiser
+length_m 180
+beam_m 22
+draft_m 7.0
+displacement_t 13000
+max_speed_kn 27
+accel_kn_s 0.07
+turn_deg_s 1.6
+rcs_m2 25000
+acoustic 0.70
+compartment bow 0.08 0.10 1900 1.15 Sonar
+compartment gun-fwd 0.26 0.09 2100 1.20 Gunnery
+compartment vls-fwd 0.40 0.10 2200 1.20 Missiles,Radar,Comms
+compartment engine 0.56 0.12 2400 1.30 Propulsion
+compartment vls-aft 0.72 0.10 2200 1.20 Missiles
+compartment heli-deck 0.88 0.12 1800 1.15 Hangar,Steering
+weapon main-gun Gun 1200 12000 800 6.0 1 260 none
+weapon ssm-x16 Ssm 1700 13000 300 10.0 4 32 pn
+weapon sam-x24 Sam 800 9000 900 8.0 4 72 pn
+weapon ciws-fore Ciws 130 1600 1000 0.5 10 500 auto
+weapon ciws-aft Ciws 130 1600 1000 0.5 10 500 auto
+sensor radar-1 Radar 24000 10000
+sensor sonar-1 Sonar 9000 0.8

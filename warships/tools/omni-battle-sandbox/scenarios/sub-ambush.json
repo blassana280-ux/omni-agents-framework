@@ -1,0 +1,39 @@
+{
+  "id": "sub-ambush",
+  "description": "Embuscade sous-marine : le sous-marin classe Ombre approche en plongée ; la frégate ne doit le détecter qu'au sonar et à courte distance.",
+  "environment": {
+    "sea_state": 2,
+    "wind_ms": 4,
+    "fog": 0.4,
+    "time_of_day": "dawn"
+  },
+  "ships": [
+    {
+      "spec": "ws-submarine-01",
+      "team": "red",
+      "x": -800,
+      "z": -2000,
+      "heading_deg": 45,
+      "ai": true
+    },
+    {
+      "spec": "ws-frigate-01",
+      "team": "blue",
+      "x": 600,
+      "z": 3500,
+      "heading_deg": 170,
+      "ai": false
+    }
+  ],
+  "duration_s": 240,
+  "expectations": [
+    {
+      "kind": "automated",
+      "description": "test CI Phase 5 : détection sonar seulement, portée réduite en plongée profonde"
+    },
+    {
+      "kind": "manual",
+      "description": "alerte torpille + contre-mesures dans Unity"
+    }
+  ]
+}

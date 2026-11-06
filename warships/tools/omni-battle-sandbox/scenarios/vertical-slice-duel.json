@@ -1,0 +1,43 @@
+{
+  "id": "vertical-slice-duel",
+  "description": "Duel vertical slice : frégate (joueur) contre destroyer (IA). Mitraille d'artillerie, salves SSM, esquives. Doit devenir jouable de bout en bout dans Unity.",
+  "environment": {
+    "sea_state": 3,
+    "wind_ms": 8,
+    "fog": 0.2,
+    "time_of_day": "afternoon"
+  },
+  "ships": [
+    {
+      "spec": "ws-frigate-01",
+      "team": "blue",
+      "x": 0,
+      "z": -3000,
+      "heading_deg": 0,
+      "ai": false
+    },
+    {
+      "spec": "ws-destroyer-01",
+      "team": "red",
+      "x": 500,
+      "z": 4000,
+      "heading_deg": 180,
+      "ai": true
+    }
+  ],
+  "duration_s": 180,
+  "expectations": [
+    {
+      "kind": "automated",
+      "description": "test CI : l'IA engage dès détection radar et ouvre le feu dans sa portée d'arme"
+    },
+    {
+      "kind": "automated",
+      "description": "test CI : dégâts localisés, voie d'eau, naufrage reproductibles (graine fixe)"
+    },
+    {
+      "kind": "manual",
+      "description": "dans Unity : pilotage tactile + HUD complet"
+    }
+  ]
+}

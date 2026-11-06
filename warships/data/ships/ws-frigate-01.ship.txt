@@ -1,0 +1,25 @@
+# Frégate classe Sirocco (originale) — polyvalente, chasseur de sous-marins
+version 1
+id ws-frigate-01
+name Fregate classe Sirocco
+class Frigate
+length_m 135
+beam_m 16
+draft_m 4.6
+displacement_t 4900
+max_speed_kn 29
+accel_kn_s 0.09
+turn_deg_s 2.4
+rcs_m2 9000
+acoustic 0.55
+compartment bow 0.10 0.12 1100 1.10 Sonar
+compartment fwd-super 0.32 0.13 1500 1.15 Radar,Comms,Gunnery
+compartment engine 0.50 0.12 1300 1.25 Propulsion
+compartment hangar 0.68 0.12 900 1.20 Hangar,Missiles
+compartment stern 0.88 0.12 1000 1.10 Steering
+weapon main-gun Gun 900 9000 800 5.0 1 220 none
+weapon ssm-x8 Ssm 1600 11000 300 12.0 4 16 pn
+weapon sam-x8 Sam 700 7000 900 10.0 2 24 pn
+weapon torp-x2 Torpedo 2400 9000 25 40.0 2 4 straight
+sensor radar-1 Radar 16000 10000
+sensor sonar-1 Sonar 9000 0.8

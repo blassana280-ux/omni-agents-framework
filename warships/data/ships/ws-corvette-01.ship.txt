@@ -1,0 +1,23 @@
+# Corvette classe Alizé (originale) — rapide, éclaireur, peu endurante
+version 1
+id ws-corvette-01
+name Corvette classe Alize
+class Corvette
+length_m 85
+beam_m 11
+draft_m 3.4
+displacement_t 1300
+max_speed_kn 36
+accel_kn_s 0.14
+turn_deg_s 3.5
+rcs_m2 2500
+acoustic 0.40
+compartment bow 0.10 0.10 700 1.10 Sonar
+compartment fwd-super 0.34 0.12 950 1.15 Radar,Comms,Gunnery
+compartment engine 0.58 0.11 800 1.25 Propulsion,Missiles
+compartment stern 0.88 0.12 650 1.10 Steering
+weapon main-gun Gun 650 8000 800 4.0 1 180 none
+weapon ssm-x4 Ssm 1500 10000 300 12.0 2 8 pn
+weapon sam-x4 Sam 600 6500 900 10.0 2 12 pn
+sensor radar-1 Radar 12000 10000
+sensor sonar-1 Sonar 6000 0.8

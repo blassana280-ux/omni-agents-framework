@@ -1,0 +1,27 @@
+# Destroyer classe Tornado (originale) — rapide, missiles et torpilles, fragile
+version 1
+id ws-destroyer-01
+name Destroyer classe Tornado
+class Destroyer
+length_m 155
+beam_m 20
+draft_m 6.1
+displacement_t 9000
+max_speed_kn 31
+accel_kn_s 0.10
+turn_deg_s 2.2
+rcs_m2 15000
+acoustic 0.65
+compartment bow 0.08 0.10 1250 1.10 Sonar
+compartment gun-fwd 0.27 0.09 1400 1.15 Gunnery
+compartment radar-mast 0.42 0.08 1200 1.10 Radar,Comms
+compartment engine 0.57 0.11 1500 1.25 Propulsion
+compartment heli-deck 0.75 0.10 1100 1.15 Hangar,Missiles
+compartment stern 0.90 0.10 1100 1.10 Steering
+weapon main-gun Gun 1000 10000 800 4.5 1 240 none
+weapon ssm-x8 Ssm 1700 12000 300 11.0 4 16 pn
+weapon sam-x12 Sam 750 8000 900 9.0 3 36 pn
+weapon torp-x6 Torpedo 2600 10000 25 35.0 3 6 straight
+weapon ciws-aft Ciws 130 1600 1000 0.5 10 400 auto
+sensor radar-1 Radar 20000 10000
+sensor sonar-1 Sonar 8000 0.8
