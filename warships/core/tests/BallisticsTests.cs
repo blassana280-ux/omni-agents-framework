@@ -52,6 +52,7 @@ namespace OmniWarships.Core.Tests
             ShipState shooter = TestHelpers.MakeShip(frigateSpec);
             ShipSpec destroyerSpec = TestHelpers.Find(TestHelpers.Specs(), "ws-destroyer-01");
             ShipState target = TestHelpers.MakeShip(destroyerSpec);
+            target.Id = "s2"; // le missile cherche sa cible par identifiant
             target.Team = "red";
             target.Pos = new Vec2(0f, 4000f);
             var ships = new List<ShipState> { target };
