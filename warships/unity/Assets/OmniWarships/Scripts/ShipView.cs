@@ -26,6 +26,7 @@ namespace OmniWarships.Unity
         private float _extraRoll;
         private GameObject _wake;
         private Material _wakeMat;
+        private BattleDirector _director;
 
         // interpolation rendu (30 Hz sim -> rendu fluide)
         private Vector3 _prevPos, _currPos;
@@ -38,16 +39,11 @@ namespace OmniWarships.Unity
         {
             State = state;
             Spec = state.Spec;
+            _director = director;
             BuildMesh();
-            BuildWake(director);
+            BuildWake();
             director.OnSimTicked += OnSimTicked;
             OnSimTicked(); // pose initiale
-        }
-
-        private void OnDestroy()
-        {
-            // le directeur est detruit en meme temps : pas de desabonnement requis,
-            // mais on nettoie proprement si la vue est detruite seule.
         }
 
         /// <summary>Position monde de la proue (flash de bouche).</summary>
@@ -63,8 +59,11 @@ namespace OmniWarships.Unity
             _prevYaw = _currYaw; _prevPitch = _currPitch; _prevRoll = _currRoll;
 
             float waveY = 0f;
-            if (State.Sunk) waveY = 0f; // coule : plus de flottabilite
-            else waveY = OceanWaveY(State.Pos.X, State.Pos.Y);
+            if (!State.Sunk && _director != null && _director.Sim != null)
+            {
+                // MEME noyau, MEME temps : flottabilite = OceanModel.HeightAt (CPU)
+                waveY = _director.Sim.Ocean.HeightAt(State.Pos.X, State.Pos.Y, _director.Sim.TimeS);
+            }
 
             _currPos = new Vector3(State.Pos.X, waveY, State.Pos.Y);
             _currYaw = State.HeadingDeg;
@@ -77,15 +76,6 @@ namespace OmniWarships.Unity
             _currRoll = State.RollDeg - Mathf.Min(18f, floodRoll * 9f);
             if (_firstTick) { _prevPos = _currPos; _prevYaw = _currYaw; _prevPitch = _currPitch; _prevRoll = _currRoll; _firstTick = false; }
         }
-
-        private float OceanWaveY(float x, float z)
-        {
-            // reproduit OceanModel.HeightAt via le directeur (meme noyau, meme temps)
-            return BattleDirectorWave(x, z);
-        }
-
-        private static OceanModel _sharedOcean; // non utilise ; la hauteur vient du directeur
-        private static float BattleDirectorWave(float x, float z) { return 0f; }
 
         private void Update()
         {
@@ -212,38 +202,36 @@ namespace OmniWarships.Unity
                 new Vector2(-B * 0.92f, -L * 0.40f), new Vector2(B * 0.92f, L * 0.55f),
                 -draft * 0.55f, fb * 0.6f);
             mb.TaperBox(MatHull,
-                new Vector2(-B * 0.55f, L * 0.55f), new Vector2(B * 0.55f, L * 0.5f + L * 0.16f),
+                new Vector2(-B * 0.55f, L * 0.55f), new Vector2(B * 0.55f, L * 0.66f),
                 -draft * 0.55f, fb * 0.75f, bowTaper: true);
             // bande de flottabilite (accent) au niveau de la ligne de flottaison
             mb.TaperBox(MatAccent,
                 new Vector2(-B * 0.93f, -L * 0.40f), new Vector2(B * 0.93f, L * 0.55f),
                 fb * 0.15f, fb * 0.32f);
             mb.TaperBox(MatAccent,
-                new Vector2(-B * 0.56f, L * 0.55f), new Vector2(B * 0.56f, L * 0.5f + L * 0.16f),
+                new Vector2(-B * 0.56f, L * 0.55f), new Vector2(B * 0.56f, L * 0.66f),
                 fb * 0.15f, fb * 0.32f, bowTaper: true);
             // pont
             mb.TaperBox(MatDeck,
                 new Vector2(-B * 0.88f, -L * 0.40f), new Vector2(B * 0.88f, L * 0.55f),
                 fb * 0.6f, fb * 0.66f);
             mb.TaperBox(MatDeck,
-                new Vector2(-B * 0.52f, L * 0.55f), new Vector2(B * 0.52f, L * 0.5f + L * 0.16f),
+                new Vector2(-B * 0.52f, L * 0.55f), new Vector2(B * 0.52f, L * 0.66f),
                 fb * 0.75f, fb * 0.81f, bowTaper: true);
             // helipont
             mb.Box(MatDark, new Vector3(-B * 0.45f, fb * 0.66f, -L * 0.30f),
                 new Vector3(B * 0.45f, fb * 0.67f, -L * 0.06f));
 
-            // superstructure : bloc principal + passerelle + maturite
+            // superstructure : bloc principal + passerelle + mat
             mb.Box(MatSuper, new Vector3(-B * 0.30f, fb * 0.66f, L * 0.02f),
                 new Vector3(B * 0.30f, fb * 1.5f, L * 0.22f));
             mb.Box(MatSuper, new Vector3(-B * 0.22f, fb * 1.5f, L * 0.06f),
                 new Vector3(B * 0.22f, fb * 1.9f, L * 0.18f));
             mb.Box(MatDark, new Vector3(-B * 0.19f, fb * 1.55f, L * 0.065f),
                 new Vector3(B * 0.19f, fb * 1.72f, L * 0.172f)); // vitrees passerelle
-            // mat + radar
             mb.Cylinder(MatDark, new Vector3(0f, fb * 1.9f, L * 0.10f), 0.35f, fb * 1.1f, 8);
             mb.Box(MatDark, new Vector3(-B * 0.16f, fb * 2.75f, L * 0.10f),
                 new Vector3(B * 0.16f, fb * 2.85f, L * 0.10f + 1.2f));
-            // funnel
             mb.Cylinder(MatSuper, new Vector3(0f, fb * 1.5f, -L * 0.08f), Mathf.Max(0.9f, B * 0.10f), fb * 1.2f, 10);
 
             // tourelles : canons puis CIWS, positions depuis la spec
@@ -268,7 +256,6 @@ namespace OmniWarships.Unity
                 }
                 else if (w.Kind == WeaponKind.Ssm || w.Kind == WeaponKind.Sam)
                 {
-                    // conteneurs lanceurs inclines (decoratifs v1)
                     mb.Box(MatDark, new Vector3(-B * 0.30f, fb * 0.66f, -L * 0.02f),
                         new Vector3(-B * 0.12f, fb * 0.9f, L * 0.12f));
                 }
@@ -303,7 +290,7 @@ namespace OmniWarships.Unity
             }
         }
 
-        private void BuildWake(BattleDirector director)
+        private void BuildWake()
         {
             _wake = new GameObject("Wake");
             _wake.transform.parent = transform;
@@ -387,7 +374,7 @@ namespace OmniWarships.Unity
         public void Box(int mat, Vector3 min, Vector3 max)
         {
             Vector3 n;
-            n = Vector3.down;  Quad(mat, new Vector3(min.x, min.y, min.z), new Vector3(max.x, min.y, min.z), new Vector3(max.x, min.y, max.z), new Vector3(min.x, min.y, max.z), n);
+            n = Vector3.down;  Quad(mat, new Vector3(min.x, min.y, min.z), new Vector3(max.x, min.y, min.z), new Vector3(max.x, min.y, max.z), new Vector3(min.x, min.y, min.z), n);
             n = Vector3.up;    Quad(mat, new Vector3(min.x, max.y, min.z), new Vector3(min.x, max.y, max.z), new Vector3(max.x, max.y, max.z), new Vector3(max.x, max.y, min.z), n);
             n = Vector3.left;  Quad(mat, new Vector3(min.x, min.y, min.z), new Vector3(min.x, min.y, max.z), new Vector3(min.x, max.y, max.z), new Vector3(min.x, max.y, min.z), n);
             n = Vector3.right; Quad(mat, new Vector3(max.x, min.y, min.z), new Vector3(max.x, max.y, min.z), new Vector3(max.x, max.y, max.z), new Vector3(max.x, min.y, max.z), n);
@@ -395,13 +382,12 @@ namespace OmniWarships.Unity
             n = Vector3.forward; Quad(mat, new Vector3(min.x, min.y, max.z), new Vector3(max.x, min.y, max.z), new Vector3(max.x, max.y, max.z), new Vector3(min.x, max.y, max.z), n);
         }
 
-        /// <summary>Boite dont la face avant (+z haut) est effilee pour la proue.</summary>
+        /// <summary>Boite dont la face avant (+z) est effilee pour la proue.</summary>
         public void TaperBox(int mat, Vector2 min, Vector2 max, float yMin, float yMax, bool bowTaper = false)
         {
             float x0 = min.x, x1 = max.x, z0 = min.y, z1 = max.y;
             float bowScale = bowTaper ? 0.12f : 1f;
             float bowLift = bowTaper ? (yMax - yMin) * 0.45f : 0f;
-            // coins arriere (z0) et avant (z1) avec effileage sur l'avant
             Vector3 a0 = new Vector3(x0, yMin, z0), a1 = new Vector3(x1, yMin, z0);
             Vector3 a2 = new Vector3(x1, yMax, z0), a3 = new Vector3(x0, yMax, z0);
             Vector3 b0 = new Vector3(x0 * bowScale, yMin + bowLift, z1), b1 = new Vector3(x1 * bowScale, yMin + bowLift, z1);
@@ -417,7 +403,6 @@ namespace OmniWarships.Unity
 
         public void Cylinder(int mat, Vector3 baseCenter, float radius, float height, int segments)
         {
-            int start = _verts.Count;
             for (int i = 0; i < segments; i++)
             {
                 float a0 = 2f * Mathf.PI * i / segments;
@@ -427,12 +412,10 @@ namespace OmniWarships.Unity
                 Vector3 n = new Vector3(Mathf.Cos((a0 + a1) * 0.5f), 0f, Mathf.Sin((a0 + a1) * 0.5f));
                 Quad(mat, p0, p1, p1 + Vector3.up * height, p0 + Vector3.up * height, n);
             }
-            // caps
             Vector3 top = baseCenter + Vector3.up * height;
-            int ci = _verts.Count;
-            _verts.Add(baseCenter); _norms.Add(Vector3.down);
-            _verts.Add(top); _norms.Add(Vector3.up);
-            int baseIdx = ci, topIdx = ci + 1;
+            int baseIdx = _verts.Count; _verts.Add(baseCenter); _norms.Add(Vector3.down);
+            int topIdx = _verts.Count; _verts.Add(top); _norms.Add(Vector3.up);
+            var t = _tris[mat];
             for (int i = 0; i < segments; i++)
             {
                 float a0 = 2f * Mathf.PI * i / segments;
@@ -441,13 +424,11 @@ namespace OmniWarships.Unity
                 Vector3 p1 = baseCenter + new Vector3(Mathf.Cos(a1) * radius, 0f, Mathf.Sin(a1) * radius);
                 int i0 = _verts.Count; _verts.Add(p0); _norms.Add(Vector3.down);
                 int i1 = _verts.Count; _verts.Add(p1); _norms.Add(Vector3.down);
-                var t = _tris[mat];
                 t.Add(baseIdx); t.Add(i0); t.Add(i1);
                 int j0 = _verts.Count; _verts.Add(p0 + Vector3.up * height); _norms.Add(Vector3.up);
                 int j1 = _verts.Count; _verts.Add(p1 + Vector3.up * height); _norms.Add(Vector3.up);
                 t.Add(topIdx); t.Add(j1); t.Add(j0);
             }
-            start = start; // (indices auto)
         }
     }
 }
