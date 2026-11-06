@@ -1,0 +1,23 @@
+# Sous-marin classe Ombre (originale) — discret, torpilles lourdes, lent en plongée
+version 1
+id ws-submarine-01
+name Sous-marin classe Ombre
+class Submarine
+length_m 75
+beam_m 9
+draft_m 7.0
+displacement_t 3000
+max_speed_kn 16
+accel_m_s2 0.35
+turn_deg_s 1.8
+rcs_m2 300
+acoustic 0.25
+compartment bow 0.12 0.12 1400 1.15 Sonar
+compartment torpedo-room 0.30 0.10 1500 1.20 Gunnery
+compartment control 0.48 0.09 1300 1.15 Comms,Radar,Steering
+compartment reactor 0.66 0.11 1600 1.30 Propulsion
+compartment stern 0.88 0.12 1300 1.15 Missiles
+weapon heavy-torp Torpedo 3200 12000 25 45.0 2 10 straight
+weapon ssm-x4 Ssm 1500 11000 300 15.0 2 6 pn
+sensor radar-1 Radar 6000 10000
+sensor sonar-1 Sonar 12000 0.8

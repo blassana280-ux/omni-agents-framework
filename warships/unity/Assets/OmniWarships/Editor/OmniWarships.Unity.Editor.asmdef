@@ -1,0 +1,20 @@
+{
+    "name": "OmniWarships.Unity.Editor",
+    "rootNamespace": "OmniWarships.Unity.EditorTools",
+    "references": [
+        "OmniWarships.Core",
+        "OmniWarships.Unity",
+        "Unity.RenderPipelines.Universal.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

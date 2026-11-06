@@ -1,0 +1,27 @@
+# Porte-avions classe Horizon (originale) — projection aérienne, défense en CIWS/SAM
+version 1
+id ws-carrier-01
+name Porte-avions classe Horizon
+class Carrier
+length_m 265
+beam_m 32
+draft_m 10.5
+displacement_t 45000
+max_speed_kn 24
+accel_m_s2 0.20
+turn_deg_s 0.9
+rcs_m2 60000
+acoustic 0.85
+compartment bow 0.07 0.08 4200 1.25 Sonar
+compartment island-fwd 0.30 0.09 4600 1.30 Radar,Comms,Gunnery
+compartment hangar-fwd 0.45 0.11 5200 1.30 Hangar,Missiles
+compartment reactor 0.60 0.11 5400 1.40 Propulsion
+compartment hangar-aft 0.76 0.10 5200 1.30 Hangar,Missiles
+compartment stern 0.92 0.08 4200 1.25 Steering
+weapon sam-x12 Sam 750 8500 900 8.0 3 36 pn
+weapon ciws-1 Ciws 130 1700 1000 0.5 10 3000 auto
+weapon ciws-2 Ciws 130 1700 1000 0.5 10 3000 auto
+weapon ciws-3 Ciws 130 1700 1000 0.5 10 3000 auto
+weapon ciws-4 Ciws 130 1700 1000 0.5 10 3000 auto
+sensor radar-1 Radar 30000 10000
+sensor sonar-1 Sonar 8000 0.8

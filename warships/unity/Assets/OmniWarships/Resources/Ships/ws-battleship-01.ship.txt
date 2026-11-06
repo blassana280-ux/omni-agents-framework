@@ -1,0 +1,29 @@
+# Cuirassé classe Volcan (originale) — canons lourds, blindage, lent
+version 1
+id ws-battleship-01
+name Cuirasse classe Volcan
+class Battleship
+length_m 235
+beam_m 30
+draft_m 9.2
+displacement_t 28000
+max_speed_kn 24
+accel_m_s2 0.22
+turn_deg_s 1.1
+rcs_m2 40000
+acoustic 0.80
+compartment bow 0.07 0.09 3400 1.35 Sonar
+compartment turret-a 0.22 0.08 3600 1.40 Gunnery
+compartment super-fwd 0.36 0.10 3800 1.35 Radar,Comms,Missiles
+compartment engine 0.52 0.13 4200 1.45 Propulsion
+compartment super-aft 0.68 0.10 3800 1.35 Missiles,Gunnery
+compartment turret-x 0.82 0.08 3600 1.40 Gunnery
+compartment stern 0.92 0.08 3200 1.30 Steering
+weapon heavy-guns Gun 2200 18000 850 9.0 2 160 none
+weapon ssm-x8 Ssm 1700 13000 300 10.0 4 16 pn
+weapon sam-x16 Sam 800 9000 900 8.0 4 48 pn
+weapon ciws-1 Ciws 130 1600 1000 0.5 10 3000 auto
+weapon ciws-2 Ciws 130 1600 1000 0.5 10 3000 auto
+weapon ciws-3 Ciws 130 1600 1000 0.5 10 3000 auto
+sensor radar-1 Radar 26000 10000
+sensor sonar-1 Sonar 7000 0.8

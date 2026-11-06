@@ -21,8 +21,8 @@ prévue → en développement → implémentée (code écrit) → testée (test 
 | Replay déterministe | tests réussis | idem (égalité d'états sur 200 ticks) |
 | Matrice de fidélité | validée (données) | validateur python en CI |
 | Scénarios Battle Sandbox | validée (données) | validateur python en CI |
-| Générateurs d'assets Blender | en développement (outils écrits, non exécutés — Blender indisponible ici) | tools/omni-asset-factory |
-| Couche Unity (contrôleurs, HUD, océan visuel) | implémentée (code écrit, compilation Unity requise) | unity/ |
+| Générateurs d'assets Blender | en développement (script paramétrique écrit, non exécuté — Blender indisponible ici) | tools/omni-asset-factory/gen_destroyer_blender.py |
+| Couche Unity (contrôleurs, HUD, océan visuel, noyau copié) | implémentée (code écrit + structure et copies octet par octet validées en CI ; compilation Unity requise) | warships/unity + job CI « Couche Unity » (validate_unity_layer.py) |
 | APK Android | prévue | nécessite Unity + SDK Android |
 | 30 FPS sur Tecno KN3 | prévue | nécessite appareil réel |
 
