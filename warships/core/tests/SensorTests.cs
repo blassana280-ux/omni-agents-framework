@@ -1,4 +1,5 @@
 using System;
+using OmniWarships.Core.Spec;
 using OmniWarships.Core.Simulation;
 using Xunit;
 
