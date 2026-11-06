@@ -7,7 +7,7 @@ superstructure, tourelles, VLS, mats et cheminee — formes 100% originales,
 aucune donnee proprietaire. Dimensions = spec ws-destroyer-01 du depot
 (155 m x 20 m) : la geometrie suit la donnee, pas l'inverse.
 
-Statut honnete : IMPLMENTEE, NON EXECUTEE ici (Blender absent de
+Statut honnete : IMPLEMENTEE, NON EXECUTEE ici (Blender absent de
 l'environnement d'execution de l'assistant). Execution locale :
 
     blender --background --factory-startup \
@@ -23,7 +23,6 @@ import sys
 try:
     import bpy
     import bmesh
-    from mathutils import Matrix
 except ImportError:
     sys.exit("Erreur : bpy indisponible. Executer ce script DANS Blender >= 3.0 "
              "(blender --background --python gen_destroyer_blender.py -- --out out.fbx)")
@@ -34,9 +33,9 @@ HULL_BEAM = 20.0
 DRAFT = 6.1
 FREEBOARD_MID = 8.0
 
-SECTIONS = 40       # stations le long de la coque
-RING_POINTS = 7     # points par demi-section (quille -> pont)
-BOW_POWER = 1.9     # pincement de la proue
+SECTIONS = 40         # stations le long de la coque
+RING_POINTS = 7       # points par demi-section (quille -> pont)
+BOW_POWER = 1.9       # pincement de la proue
 SECTION_POWER = 0.62  # forme en U/V des sections
 
 
@@ -45,7 +44,7 @@ def half_beam(t):
     if t < 0.35:
         return 0.82 + 0.18 * (t / 0.35)          # tranche poupe -> mi-navire
     if t < 0.75:
-        return 1.0                                // plein bordeaux
+        return 1.0                               # plein bateau : section maximale
     return max(0.04, 1.0 - ((t - 0.75) / 0.25) ** BOW_POWER)
 
 
@@ -80,7 +79,7 @@ def section_ring(t):
 
 
 def build_hull():
-    """Coque par skinning de sections (bmesh), fond a la poupe (tranche)."""
+    """Coque par skinning de sections (bmesh), fermeture tranche + proue."""
     mesh = bpy.data.meshes.new("ws-destroyer-hull")
     obj = bpy.data.objects.new("ws-destroyer-hull", mesh)
     bpy.context.collection.objects.link(obj)
@@ -97,16 +96,16 @@ def build_hull():
     n = len(rings[0])
     for s in range(SECTIONS):
         for i in range(n):
-            a, b, c, d = rings[s][i], rings[s][(i + 1) % n], rings[s + 1][(i + 1) % n], rings[s + 1][i]
+            a = rings[s][i]
+            b = rings[s][(i + 1) % n]
+            c = rings[s + 1][(i + 1) % n]
+            d = rings[s + 1][i]
             bm.faces.new((a, b, c, d))
 
     # tranche (poupe) : polygone plein
     bm.faces.new(reversed(rings[0]))
-    # proue : eventail vers un point
+    # proue : eventail vers un point unique
     bow = bm.verts.new((0.0, HULL_LENGTH * 0.5 + 0.35, deck_height(1.0) - 0.9))
-    for v in rings[SECTIONS]:
-        pass
-    bm.verts.ensure_lookup_table()
     ring_last = rings[SECTIONS]
     for i in range(len(ring_last) - 1):
         bm.faces.new((bow, ring_last[i], ring_last[i + 1]))
@@ -117,7 +116,7 @@ def build_hull():
     return obj
 
 
-def add_box(name, size, location, collection_obj=None):
+def add_box(name, size, location):
     bpy.ops.mesh.primitive_cube_add(size=1.0, location=location)
     obj = bpy.context.active_object
     obj.name = name
@@ -142,7 +141,8 @@ def build_superstructure():
     # hangar helico
     objs.append(add_box("hangar", (11.0, 22.0, 6.5), (0.0, -38.0, FREEBOARD_MID + 3.2)))
     # mat principal (pyramide simplifiee)
-    bpy.ops.mesh.primitive_cone_add(radius1=1.6, radius2=0.35, depth=18.0, location=(0.0, 16.0, FREEBOARD_MID + 17.0))
+    bpy.ops.mesh.primitive_cone_add(radius1=1.6, radius2=0.35, depth=18.0,
+                                    location=(0.0, 16.0, FREEBOARD_MID + 17.0))
     mast = bpy.context.active_object
     mast.name = "main-mast"
     objs.append(mast)
@@ -155,19 +155,13 @@ def build_superstructure():
 def build_turrets():
     objs = []
     for name, z in (("turret-fwd", 38.0), ("turret-aft", -52.0)):
-        base = add_cylinder(name + "-base", 3.4, 2.2, (0.0, z, FREEBOARD_MID + 2.0))
-        objs.append(base)
-        bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0.0, z + 1.6, FREEBOARD_MID + 3.3))
-        housing = bpy.context.active_object
-        housing.name = name + "-housing"
-        housing.scale = (5.2, 7.0, 2.4)
-        bpy.ops.object.transform_apply(scale=True)
+        objs.append(add_cylinder(name + "-base", 3.4, 2.2, (0.0, z, FREEBOARD_MID + 2.0)))
+        housing = add_box(name + "-housing", (5.2, 7.0, 2.4), (0.0, z + 1.6, FREEBOARD_MID + 3.3))
         objs.append(housing)
+        # canon : cylindre oriente vers +Y (rotation X de 90 degres)
         barrel = add_cylinder(name + "-barrel", 0.32, 9.5, (0.0, z + 6.6, FREEBOARD_MID + 3.4))
-        barrel.rotation_euler = (math.radians(90) * 0.0, 0.0, 0.0)
-        barrel.rotation_euler[1] = 0.0  # le canon pointe vers +Y par construction (axe cylindre = Z)
         barrel.rotation_mode = "XYZ"
-        barrel.rotation_euler = (math.radians(90), 0.0, 0.0)
+        barrel.rotation_euler = (math.radians(90.0), 0.0, 0.0)
         objs.append(barrel)
     return objs
 
@@ -176,7 +170,7 @@ def build_vls():
     objs = []
     for i in range(8):
         objs.append(add_box("vls-cell-" + str(i + 1), (1.7, 1.7, 1.0),
-                             (-3.0 + (i % 4) * 2.0, 30.0 - (i // 4) * 2.4, FREEBOARD_MID + 0.5)))
+                            (-3.0 + (i % 4) * 2.0, 30.0 - (i // 4) * 2.4, FREEBOARD_MID + 0.5)))
     return objs
 
 
@@ -184,10 +178,10 @@ def main():
     parser = argparse.ArgumentParser(description="Generateur destroyer (Omni Asset Factory)")
     parser.add_argument("--out", required=True, help="chemin du FBX de sortie")
     parser.add_argument("--scale", type=float, default=1.0, help="echelle d'export (defaut 1.0 = metres)")
-    args, _ = parser.parse_known_args(sys.argv[sys.argv.index("--") + 1:]) if "--" in sys.argv else (None, None)
-    if args is None:
+    if "--" not in sys.argv:
         parser.print_help()
         sys.exit("Erreur : utiliser -- pour separer les arguments de Blender (voir docstring).")
+    args = parser.parse_known_args(sys.argv[sys.argv.index("--") + 1:])[0]
 
     # scene propre
     bpy.ops.wm.read_factory_settings(use_empty=True)
