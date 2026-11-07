@@ -27,6 +27,13 @@ Vérifie, sans jamais simuler un statut :
      obligatoire, parcours email neutralisé, sorties filtrées
      (add-mask + grep -vFf), arbre npm verrouillé (npm ci + package-lock
      67 paquets) — avec SELF-TESTS de non-régression sur snippets.
+ 13. T-013.5 — installation npm MAITRISEE : npm ci --ignore-scripts
+     obligatoire, aucun script d installation tiers exécuté, Chromium
+     uniquement depuis l URL épinglée (révision 982053 de puppeteer
+     13.7.0), domaines externes explicites limités (whitelist), scripts
+     d installation du lock limités aux 3 paquets audités — et
+     check_license_lock réellement BRANCHÉ (ses erreurs étaient
+     ignorées par main : le comptage remontait un double compteur).
 
 Sortie ::error:: GitHub Actions ; exit 1 si au moins une erreur.
 """
@@ -536,6 +543,17 @@ def check_workflow_security(text):
         errs.append("workflow de licence : @latest interdit")
     if "npm ci" not in joined:
         errs.append("workflow de licence : npm ci (arbre verrouille) requis")
+    # T-013.5 : installation maitrisee
+    if "npm ci --ignore-scripts" not in joined:
+        errs.append("workflow de licence : npm ci doit bloquer les scripts d installation (--ignore-scripts, T-013.5)")
+    if re.search(r"\bnode\s+[^\n]*install\.js", joined):
+        errs.append("workflow de licence : execution interdite d un script d installation tiers (node ... install.js, T-013.5)")
+    if "chromium-browser-snapshots/Linux_x64/982053/chrome-linux.zip" not in joined:
+        errs.append("workflow de licence : Chromium doit venir de l URL epinglee (revision 982053, T-013.5)")
+    for m in re.finditer(r"https?://([^/\s\"]+)", joined):
+        host = m.group(1)
+        if host not in ("storage.googleapis.com", "registry.npmjs.org"):
+            errs.append("workflow de licence : domaine externe non autorise : " + host)
     if "node_modules/.bin/unity-license-activate" not in joined:
         errs.append("workflow de licence : le binaire doit venir de l arbre verrouille (node_modules/.bin/unity-license-activate)")
     if re.search(r"unity-license-activate@[0-9]", joined):
@@ -585,7 +603,6 @@ def check_license_lock():
             n += 1
             if not str(entry.get("version", "")).strip():
                 errs.append("package-lock.json : champ version manquant pour " + key + " (npm ci refuserait l entree)")
-            n += 1
             if not str(entry.get("integrity", "")).startswith("sha512-"):
                 errs.append("package-lock.json : integrite sha512 manquante pour " + key)
             if "registry.npmjs.org" not in str(entry.get("resolved", "")):
@@ -597,6 +614,19 @@ def check_license_lock():
             errs.append("package-lock.json : puppeteer doit declarer hasInstallScripts (telechargement Chromium documente)")
         if "puppeteer-13.7.0.tgz" not in str(pp.get("resolved", "")):
             errs.append("package-lock.json : puppeteer doit etre verrouille en 13.7.0")
+        # T-013.5 : scripts d installation declares == les 3 AUDITEES
+        # (puppeteer install.js, bufferutil et utf-8-validate
+        # node-gyp-build) ; toute autre entree hasInstallScripts est une
+        # execution de code inattendue a l installation.
+        flagged = sorted(k for k, e in packs.items()
+                         if isinstance(e, dict) and e.get("hasInstallScripts"))
+        expected_scripts = sorted([
+            "node_modules/bufferutil",
+            "node_modules/puppeteer",
+            "node_modules/utf-8-validate",
+        ])
+        if flagged != expected_scripts:
+            errs.append("package-lock.json : scripts d installation declarees != 3 auditees (puppeteer, bufferutil, utf-8-validate) : " + ", ".join(flagged))
     return errs
 
 
@@ -633,7 +663,8 @@ jobs:
           chmod +x "$shim_dir/unity-verify-code"
           masks="$RUNNER_TEMP/masks.txt"
           printf '%s\n' "$UNITY_EMAIL" "$UNITY_PASSWORD" "$UNITY_TOTP_KEY" > "$masks"
-          npm ci
+          npm ci --ignore-scripts
+          curl --fail --output "$RUNNER_TEMP/c.zip" "https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/982053/chrome-linux.zip"
           "$GITHUB_WORKSPACE/tools/node_modules/.bin/unity-license-activate" "$UNITY_EMAIL" "$UNITY_PASSWORD" a.alf --authenticator-key "$UNITY_TOTP_KEY" > "$RUNNER_TEMP/activation.log" 2>&1
           if [ -f "$shim_dir/BLOCKED" ] || grep -q '2FA (Email)' "$RUNNER_TEMP/activation.log"; then
             echo "::error::email 2FA — arret propre"
@@ -678,6 +709,20 @@ BAD_SNIPPETS = [
                           '          set -x\n          echo "::add-mask::$UNITY_EMAIL"')),
     ("TOTP facultatif",
      GOOD_SNIPPET.replace('          if [ -z "${UNITY_TOTP_KEY:-}" ]; then\n            echo "::error::TOTP obligatoire"\n            exit 1\n          fi\n', "")),
+    ("npm ci sans --ignore-scripts (scripts tiers executes, T-013.5)",
+     GOOD_SNIPPET.replace("npm ci --ignore-scripts", "npm ci")),
+    ("script d installation tiers execute (node install.js, T-013.5)",
+     GOOD_SNIPPET.replace(
+         '          curl --fail --output "$RUNNER_TEMP/c.zip" "https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/982053/chrome-linux.zip"\n',
+         '          curl --fail --output "$RUNNER_TEMP/c.zip" "https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/982053/chrome-linux.zip"\n'
+         '          node node_modules/puppeteer/install.js\n')),
+    ("URL Chromium non epinglee (revision non figee, T-013.5)",
+     GOOD_SNIPPET.replace("Linux_x64/982053/chrome-linux.zip",
+                          "Linux_x64/999999/chrome-linux.zip")),
+    ("domaine externe non autorise (miroir inconnu, T-013.5)",
+     GOOD_SNIPPET.replace(
+         "https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/982053/chrome-linux.zip",
+         "https://chromium.mirror-inconnu.example/Linux_x64/982053/chrome-linux.zip")),
 ]
 
 
@@ -732,7 +777,8 @@ def main():
     check_build_reporting()
     check_ulf_publication()
     check_license_workflow()
-    check_license_lock()
+    for e in check_license_lock():
+        err(e)
     run_security_selftests()
     check_docs()
     if errors:
@@ -747,7 +793,9 @@ def main():
           + " (chemin unique + inclusion explicite), namespaces build OK,"
           + " aucune publication .ulf, aucun secret, docs cohérents,"
           + " PAT isolé + TOTP obligatoire + parcours email neutralisé"
-          + " + arbre verrouillé 67 paquets (T-013.4), self-tests OK.")
+          + " + arbre verrouillé 67 paquets + scripts d installation"
+          + " maitrisés + domaines épinglés (T-013.4/T-013.5),"
+          + " self-tests OK.")
 
 
 if __name__ == "__main__":

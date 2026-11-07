@@ -1,4 +1,5 @@
-# OMNI WARSHIPS T-013.4 — activation Unity SANS PC, SANS fuite de secrets.
+# OMNI WARSHIPS T-013.4/013.5 — activation Unity SANS PC, SANS fuite
+# de secrets, installation npm MAITRISEE.
 # Depot PUBLIC — regles absolues :
 #   * le .ulf (licence nominative) n est JAMAIS publie (ni artefact,
 #     ni release, ni commit, ni capture) : il va UNIQUEMENT dans le
@@ -12,12 +13,18 @@
 #   * TOTP OBLIGATOIRE (UNITY_TOTP_KEY) : si Unity presente une
 #     demande de verification par EMAIL, arret propre immediat — aucun
 #     identifiant transmis, aucun code soumis, aucune recuperation ;
-#   * outils reproductibles : npm ci depuis warships/unity/ci/
-#     license-tools (package-lock verrouille, 67 paquets, integrite
-#     sha512 par paquet ; plus aucun npx --yes ni @latest).
+#   * outils reproductibles : npm ci --ignore-scripts depuis
+#     warships/unity/ci/license-tools (package-lock verrouille, 67
+#     paquets, integrite sha512 par paquet ; plus aucun npx --yes ni
+#     @latest) — AUCUN script d installation tiers execute (T-013.5) ;
+#   * Chromium (T-013.5) : telecharge SEPAREMENT par curl depuis une
+#     URL EPINGLEE (revision 982053 figee par puppeteer 13.7.0),
+#     empreinte sha256 consignee, aucun script npm dans l operation.
 # DOMAINES EXTERNES contactes par ce workflow (exhaustif) :
-#   registry.npmjs.org (paquets verifies) ; storage.googleapis.com
-#   (Chromium, script d installation de puppeteer 13.7.0) ;
+#   registry.npmjs.org (paquets verifies sha512) ;
+#   storage.googleapis.com (Chromium 101.0.4951.64, revision 982053 —
+#   URL epinglee chromium-browser-snapshots/Linux_x64/982053/
+#   chrome-linux.zip, curl + sha256 consigne) ;
 #   license.unity3d.com (formulaire Unity ID, seul site fonctionnel) ;
 #   api.github.com (gh secret set/list) ; hub.docker.com (image
 #   unityci/editor pour le .alf).
@@ -94,14 +101,79 @@ jobs:
           cp "${alfs[0]}" activation.alf
           stat -c 'alf genere : %n : %s octets' activation.alf
 
-      - name: Outils reproductibles (npm ci, package-lock verrouille)
+      - name: Outils reproductibles (npm ci --ignore-scripts, aucun script tiers execute)
         run: |
           set -e
           cd warships/unity/ci/license-tools
-          npm ci --no-audit --no-fund
+          set +e
+          out=$(npm ci --ignore-scripts --no-audit --no-fund 2>&1)
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            echo "$out" | tail -40
+            msg=$(printf '%s' "$out" | tail -10 | tr '\n' ' ' | cut -c1-800)
+            echo "::error::npm ci rc=$rc — $msg"
+            exit "$rc"
+          fi
+          echo "$out" | tail -6
           grep -q '"version": "0.3.9"' node_modules/unity-license-activate/package.json
           grep -q '"version": "13.7.0"' node_modules/puppeteer/package.json
-          echo "npm ci OK : arbre exact installe depuis package-lock.json (67 paquets verrouilles, integrite sha512)."
+          # T-013.5 : --ignore-scripts — les 3 scripts d installation
+          # declares dans le lock (puppeteer install.js, bufferutil et
+          # utf-8-validate node-gyp-build, 67/67 audites) ne s executent
+          # JAMAIS : aucune compilation native, aucun telechargement.
+          if [ -d node_modules/puppeteer/.local-chromium ]; then
+            echo "::error::--ignore-scripts devait bloquer tout telechargement durant l installation"
+            exit 1
+          fi
+          echo "npm ci --ignore-scripts OK : arbre exact (0.3.9 + puppeteer 13.7.0), aucun script d installation execute."
+
+      - name: Chromium maitrise (origine epinglee, empreinte consignee, aucun script tiers)
+        run: |
+          set -e
+          cd warships/unity/ci/license-tools
+          # ORIGINE EPINGLEE (identique au BrowserFetcher de puppeteer
+          # 13.7.0, fige dans lib/cjs/puppeteer/revisions.js) :
+          #   https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/982053/chrome-linux.zip
+          #   = Chromium 101.0.4951.64, revision 982053. Le zip est
+          #   telecharge en DONNEE (curl) puis dezippe : aucun script
+          #   npm ne s execute, puppeteer retrouve le binaire a son
+          #   chemin attendu (.local-chromium/linux-982053).
+          chromium_url="https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/982053/chrome-linux.zip"
+          chromium_zip="$RUNNER_TEMP/chromium-982053.zip"
+          curl --fail --location --retry 3 --silent --show-error --output "$chromium_zip" "$chromium_url"
+          # EMPREINTE consignee dans les logs (Google ne publie pas de
+          # checksum pour ce snapshot : la garantie = HTTPS + hote
+          # epingle + revision figee + version verifiee ci-dessous).
+          sha256sum "$chromium_zip"
+          stat -c 'chromium zip : %s octets' "$chromium_zip"
+          dest="node_modules/puppeteer/.local-chromium/linux-982053"
+          mkdir -p "$dest"
+          unzip -q "$chromium_zip" -d "$dest"
+          rm -f "$chromium_zip"
+          chrome="$dest/chrome-linux/chrome"
+          if [ ! -x "$chrome" ]; then
+            echo "::error::binaire chrome introuvable a l emplacement attendu par puppeteer ($chrome)"
+            exit 1
+          fi
+          ver=$("$chrome" --version)
+          case "$ver" in
+            *101.0.4951*)
+              echo "Chromium installe : $ver" ;;
+            *)
+              echo "::error::version Chromium inattendue : $ver (101.0.4951.x attendu pour la revision 982053)"
+              exit 1 ;;
+          esac
+          # resolution : puppeteer DOIT retrouver ce binaire sans config
+          resolved=$(node -e "console.log(require('puppeteer').executablePath())")
+          case "$resolved" in
+            *"$chrome")
+              echo "puppeteer resout le Chromium maitrise : $resolved" ;;
+            *)
+              echo "::error::puppeteer ne resout pas le Chromium maitrise : $resolved"
+              exit 1 ;;
+          esac
+          echo "Chromium maitrise : origine $chromium_url, empreinte sha256 consignee ci-dessus, aucun script tiers execute."
 
       - name: Activation (TOTP obligatoire, parcours email neutralise, sorties filtrees)
         env:
@@ -208,3 +280,13 @@ jobs:
           fi
           rm -f -- "${ulfs[@]}"
           echo "Secret UNITY_LICENSE mis a jour et verifie (horodatage : $updated — valeur jamais affichee, PAT efface apres usage)."
+
+      - name: Nettoyage du runner (fichiers sensibles supprimes meme en cas d echec)
+        if: always()
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          rm -f "$RUNNER_TEMP/activation.log" "$RUNNER_TEMP/masks.txt" "$RUNNER_TEMP/chromium-982053.zip"
+          rm -f activation.alf error.png error.html code.txt
+          rm -f -- *.ulf
+          rm -rf "$RUNNER_TEMP/unity-email-guard"
+          echo "Nettoyage runner : log d activation, masques, zip Chromium, shim anti-email, .alf/.ulf et captures supprimes (meme en cas d echec)."

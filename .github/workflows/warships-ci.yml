@@ -68,7 +68,7 @@ jobs:
           echo "$out"
           if [ $rc -ne 0 ]; then msg=$(echo "$out" | tr '\n' '|' | tail -c 900); echo "::error::validate_unity_layer rc=$rc — $msg"; exit $rc; fi
 
-      - name: Reproductibilite des outils de licence (T-013.4 — package-lock verrouille)
+      - name: Reproductibilite des outils de licence (T-013.5 — scripts bloques, domaines epingles)
         run: |
           set -e
           cd warships/unity/ci/license-tools
@@ -85,11 +85,29 @@ jobs:
           echo "$out" | tail -6
           grep -q '"version": "0.3.9"' node_modules/unity-license-activate/package.json
           grep -q '"version": "13.7.0"' node_modules/puppeteer/package.json
+          # T-013.5 — 1) aucun telechargement durant l installation
           if [ -d node_modules/puppeteer/.local-chromium ]; then
             echo "::error::--ignore-scripts devait bloquer tout telechargement"
             exit 1
           fi
-          echo "npm ci --ignore-scripts OK : arbre exact installe (unity-license-activate 0.3.9, puppeteer 13.7.0), aucun script execute."
+          # T-013.5 — 2) domaines du lock : registry.npmjs.org UNIQUEMENT
+          hosts=$(sed -n 's/.*"resolved": "https:\/\/\([^/"]*\)\/.*/\1/p' package-lock.json | sort -u)
+          if [ "$hosts" != "registry.npmjs.org" ]; then
+            echo "::error::domaine(s) non autorise(s) dans le lock : $hosts"
+            exit 1
+          fi
+          # T-013.5 — 3) scripts d installation declares == les 3 auditees
+          flagged=$(grep -B3 '"hasInstallScripts": true' package-lock.json | grep -o '"node_modules/[^"]*"' | sort -u)
+          expected=$(printf '%s\n%s\n%s\n' '"node_modules/bufferutil"' '"node_modules/puppeteer"' '"node_modules/utf-8-validate"' | sort -u)
+          if [ "$flagged" != "$expected" ]; then
+            echo "::error::scripts d installation du lock differentes des 3 auditees : $flagged"
+            exit 1
+          fi
+          # T-013.5 — 4) coherence cross-fichiers : revision 982053 figee
+          grep -q "982053" node_modules/puppeteer/lib/cjs/puppeteer/revisions.js
+          grep -q 'chromium-browser-snapshots/Linux_x64/982053/chrome-linux.zip' "$GITHUB_WORKSPACE/.github/workflows/warships-license.yml"
+          grep -q 'npm ci --ignore-scripts' "$GITHUB_WORKSPACE/.github/workflows/warships-license.yml"
+          echo "T-013.5 OK : arbre exact (0.3.9 + puppeteer 13.7.0), aucun script execute, domaines lock = registry.npmjs.org, scripts declares = 3 auditees, revision Chromium 982053 coherente workflow/lock/paquet."
 
   workflows:
     name: Workflows (actionlint)

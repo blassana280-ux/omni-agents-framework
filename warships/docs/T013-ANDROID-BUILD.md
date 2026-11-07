@@ -427,3 +427,70 @@ La PR #16 a été vérifiée indépendamment. Corrections apportées :
   officiellement supportée (option masquée) ; l authentification
   complète (mot de passe + TOTP) reste toujours requise ; preuve =
   première exécution réelle. Repli : Unity Hub sur un PC emprunté.
+
+## 11. T-013.5 — dernier audit du pipeline d activation (07/11/2026)
+
+### 11.1 Audit des scripts d installation (67/67, contre le registry)
+- Difference réelle corrigée : le workflow de licence installait avec
+  npm ci simple (scripts exécutés) alors que la CI vérifiait
+  --ignore-scripts. Les DEUX utilisent désormais
+  npm ci --ignore-scripts --no-audit --no-fund.
+- Audit réel des 67 entrées du lock : EXACTEMENT 3 paquets déclarent
+  des scripts d installation — puppeteer 13.7.0 (« install » = node
+  install.js, télécharge Chromium), bufferutil 4.1.0 et utf-8-validate
+  5.0.10 (« install » = node-gyp-build, binaires locaux). Aucun autre
+  script (les prepare/prebuild/postpublish des deps du registre ne
+  s exécutent jamais). Le champ hasInstallScripts du lock porte
+  exactement ces 3 paquets — vérifié par le validateur ET un test grep
+  réel en CI.
+- Le lock n est PAS considéré comme une garantie : le validateur exige
+  --ignore-scripts dans le workflow, interdit tout « node ...
+  install.js », et un test CI réel vérifie que .local-chromium est
+  ABSENT après l installation (aucun téléchargement durant npm ci).
+
+### 11.2 Chromium maitrise (sans casser Puppeteer)
+- Origine ÉPINGLÉE : curl (donnée, pas un script npm) vers
+  https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/982053/chrome-linux.zip
+  — révision 982053 figée dans revisions.js de puppeteer 13.7.0 =
+  Chromium 101.0.4951.64. Le zip est dézippé à l emplacement attendu :
+  node_modules/puppeteer/.local-chromium/linux-982053.
+- Empreinte : sha256sum consigné dans les logs (Google ne publie PAS de
+  checksum pour ce snapshot — garantie = HTTPS + hôte épinglé +
+  révision figée + version vérifiée à l exécution : chrome --version
+  doit rendre 101.0.4951.x sinon échec).
+- Résolution vérifiée : require('puppeteer').executablePath() DOIT
+  retourner le binaire dézippé, sinon échec — Puppeteer fonctionne
+  sans qu aucun script npm ne s exécute.
+- Exécutables additionnels autorisés : curl, unzip, node -e
+  (résolution) — c est tout ; aucun script tiers.
+
+### 11.3 Domaines externes (liste blanche structurelle)
+- registry.npmjs.org (arbre 67 paquets) ; storage.googleapis.com
+  (UNIQUEMENT l URL épinglée 982053) ; license.unity3d.com (via l
+  outil d activation) ; api.github.com (stockage du secret) ;
+  hub.docker.com (image unityci/editor). Le validateur rejette tout
+  autre domaine du workflow ; un test CI réel vérifie que le lock ne
+  résout QUE registry.npmjs.org.
+
+### 11.4 Correctif du validateur (bug réel trouvé par l audit)
+- check_license_lock() retournait sa liste d erreurs mais main()
+  IGNORAIT la valeur de retour : tous les checks du lock étaient du
+  code mort. Corrigé : chaque erreur fait désormais échouer la CI ;
+  le comptage doublé a été corrigé et le check exige exactement les
+  3 paquets hasInstallScripts attendus.
+- check_workflow_security +4 règles T-013.5 : npm ci --ignore-scripts
+  obligatoire ; node install.js interdit ; URL Chromium épinglée
+  obligatoire ; domaines du workflow en liste blanche. SELF-TESTS
+  portés à 12 snippets FAUX + 1 sain (13 au total).
+
+### 11.5 Nettoyage du runner (échecs intermédiaires)
+- Nouveau step final « Nettoyage du runner » (if: always()) : log d
+  activation, fichier de masques, zip Chromium, shim anti-email,
+  .alf/.ulf, captures (error.png/error.html/code.txt) supprimés MÊME
+  SI un step précédent échoue. Les secrets de step ne vivent que
+  dans env GitHub (jamais écrits sur disque) ; masks.txt (valeurs de
+  masquage) supprimé.
+
+### 11.6 Statut inchangé (honnête)
+- Aucune acquisition réelle déclenchée, aucun secret demandé, aucune
+  fusion, main intacte. Preuve = première exécution réelle.

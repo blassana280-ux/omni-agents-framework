@@ -39,7 +39,7 @@ configurée). Le workflow réel vit sur la branche `warships/android-build`
 4. Télécharger l APK : artefact `omni-warships-apk` ou release brouillon
    `android-build-N`.
 
-## Licence Unity sans PC (T-013.4 — workflow warships-license.yml durci)
+## Licence Unity sans PC (T-013.4 + T-013.5 — workflow durci, installation maitrisee)
 
 La documentation officielle actuelle de game.ci recommande Unity Hub sur
 un PC — Lassana n en a pas. Le workflow
@@ -56,7 +56,7 @@ public) et SANS JAMAIS exposer les identifiants :
    à CE dépôt, permission « Secrets » en lecture/écriture seule,
    expiration ~30 jours — cf. LICENSE-TRIGGER.md).
 3. Modifier `LICENSE-TRIGGER.md` : le workflow installe l arbre
-   VERROUILLÉ (`npm ci` depuis `license-tools/package-lock.json`, 67
+   VERROUILLÉ (`npm ci --ignore-scripts` depuis `license-tools/package-lock.json`, 67
    paquets, intégrité sha512 — plus aucun `npx --yes` ni `@latest`),
    génère le .alf (image unityci/editor, drapeau documenté
    -createManualActivationFile), l échange contre un .ulf via le binaire
@@ -76,6 +76,27 @@ Honnêteté : méthode réelle mais NON officiellement prise en charge
 (option Personal masquée) ; authentification complète toujours requise ;
 prouvée à sa première exécution réelle. Ne JAMAIS communiquer
 identifiants, PAT ou licence dans une conversation.
+
+## T-013.5 — installation réellement maitrisee (audit 67/67)
+
+- Les DEUX workflows (licence et CI) installent avec `npm ci
+  --ignore-scripts` : aucun script d installation tiers ne s exécute.
+  Audit réel des 67 paquets du lock : EXACTEMENT 3 scripts déclarés
+  (puppeteer install.js, bufferutil et utf-8-validate node-gyp-build)
+  — tous bloqués, aucune compilation native, aucun téléchargement
+  pendant l installation.
+- Chromium est installé séparément par curl depuis l URL ÉPINGLÉE
+  https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/982053/chrome-linux.zip
+  (révision 982053 = Chromium 101.0.4951.64) ; sha256 consigné dans
+  les logs, version vérifiée à l exécution, résolution Puppeteer
+  vérifiée (executablePath) — l activation fonctionne sans exécuter
+  un seul script npm.
+- Domaines autorisés (liste blanche structurelle dans le validateur) :
+  registry.npmjs.org, storage.googleapis.com (URL épinglée),
+  license.unity3d.com, api.github.com, hub.docker.com.
+- Nettoyage final du runner (if: always(), même en cas d échec) : log
+  d activation, masques, zip Chromium, shim anti-email, .alf/.ulf et
+  captures supprimés.
 
 ## Ce que ce pipeline NE fait PAS
 
