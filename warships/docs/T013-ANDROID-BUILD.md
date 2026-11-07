@@ -352,3 +352,78 @@ La PR #16 a été vérifiée indépendamment. Corrections apportées :
   workflow de licence ne publie AUCUN artefact, exige ACCESS_TOKEN
   et l épingle 0.3.9 — la faille ne peut plus revenir sans faire
   échouer la CI.
+
+## 10. T-013.4 — durcissement final de l activation (audit externe, 07/11/2026)
+
+### 10.1 Isolation stricte du PAT
+- ACCESS_TOKEN retiré de l étape de vérification ; injecté UNIQUEMENT dans
+  l étape de stockage ; présence vérifiée sans affichage ; après usage :
+  unset ulf_value + ACCESS_TOKEN puis vérification d absence ; permissions
+  minimales inchangées (fine-grained, seul dépôt, Secrets: Read and write,
+  ~30 jours) ; permissions du workflow : contents: read.
+- Interprétation de « vérifier son absence » : (a) le validateur CI impose
+  structurellement que le PAT n apparaisse dans AUCUN autre step ;
+  (b) l étape de stockage vérifie sa présence sans affichage avant toute
+  opération ; (c) après usage, unset + re-vérification d absence.
+
+### 10.2 Fuite des identifiants Unity — parcours email neutralisé
+- Faille réelle (audit du code source 0.3.9, lib/activate.js) : dans le
+  parcours 2FA email, l outil fait console.log d une commande
+  unity-verify-code avec EMAIL et PASSWORD en clair, puis tente une
+  récupération automatique du code — identifiants exposés dans les logs.
+- Corrections (le TOTP obligatoire NE SUFFIT PAS : le parcours email est
+  neutralisé indépendamment) :
+  * TOTP OBLIGATOIRE (UNITY_TOTP_KEY exigé, --authenticator-key) ;
+  * shim unity-verify-code (garde unity-email-guard, en tête de PATH) qui
+    échoue sans rien transmettre et pose un marqueur BLOCKED — aucune
+    récupération automatique possible ;
+  * masquage GitHub ::add-mask:: des trois secrets (toute occurrence
+    serait *** même si elle passait) ;
+  * sortie de l outil CAPTURÉE puis FILTRÉE (grep -vFf fichier de
+    masques) — aucune ligne contenant un identifiant n est affichée,
+    même en cas d erreur ;
+  * captures d erreur de l outil (error.png, error.html, code.txt)
+    supprimées, jamais publiées ; set -x interdit par le validateur.
+- stdout et stderr de l outil sont capturés ensemble (2>&1) puis
+  filtrés ; les sorties de npm ci et gh ne contiennent aucun secret.
+
+### 10.3 Reproductibilité des dépendances (fin de npx --yes / @latest)
+- Arbre verrouillé dans warships/unity/ci/license-tools : package.json
+  (unity-license-activate 0.3.9 EXACT) + package-lock.json
+  (lockfileVersion 2) ; 67 paquets résolus depuis le registry npm avec
+  intégrité sha512 par paquet (puppeteer 13.7.0, crypto-js 4.2.0, etc.) ;
+  le workflow lance npm ci et le binaire node_modules/.bin.
+- Scripts d installation réels de l arbre (audités) : puppeteer
+  (node install.js — télécharge Chromium depuis storage.googleapis.com),
+  bufferutil + utf-8-validate (node-gyp-build — binaires locaux, aucun
+  réseau). Aucun autre script.
+- Job CI « Couche Unity » : npm ci --ignore-scripts installe EXACTEMENT
+  l arbre verrouillé (versions 0.3.9 / 13.7.0 vérifiées, aucun script
+  exécuté, aucun téléchargement Chromium).
+- Domaines externes documentés (workflow entier) : registry.npmjs.org,
+  storage.googleapis.com, license.unity3d.com, api.github.com,
+  hub.docker.com.
+
+### 10.4 Garde-fous CI structurels + self-tests
+- check_workflow_security (STRUCTUREL : parse les steps, pas une
+  recherche de chaînes) : ACCESS_TOKEN dans la seule étape de stockage
+  (env + unset + vérification d absence + gh secret set/list), add-mask
+  des 3 secrets, TOTP obligatoire, garde anti-email, filtrage des
+  sorties, npm ci, binaire de l arbre verrouillé ; interdit npx,
+  @latest, unity-license-activate@X, upload-artifact, git add/commit/
+  push, set -x, tout appel unity-verify-code hors garde.
+- check_license_lock : 67 paquets, intégrité sha512 partout, resolved
+  sur registry.npmjs.org, racine épinglée 0.3.9, hasInstallScripts
+  déclaré pour puppeteer.
+- SELF-TESTS de non-régression (dans validate_unity_layer.py) : un
+  snippet SAIN (0 erreur attendue) + 8 snippets FAUX (PAT déplacé,
+  add-mask manquant, npx @latest, upload-artifact, unity-verify-code
+  direct, PAT non effacé, set -x, TOTP facultatif) — chaque régression
+  détectée fait échouer la CI.
+
+### 10.5 Statut inchangé (honnête)
+- Aucune acquisition réelle déclenchée, aucun secret demandé, aucune
+  compilation Unity, aucune APK. La méthode Personal reste NON
+  officiellement supportée (option masquée) ; l authentification
+  complète (mot de passe + TOTP) reste toujours requise ; preuve =
+  première exécution réelle. Repli : Unity Hub sur un PC emprunté.

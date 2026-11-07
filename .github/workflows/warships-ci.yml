@@ -68,6 +68,19 @@ jobs:
           echo "$out"
           if [ $rc -ne 0 ]; then msg=$(echo "$out" | tr '\n' '|' | tail -c 900); echo "::error::validate_unity_layer rc=$rc — $msg"; exit $rc; fi
 
+      - name: Reproductibilite des outils de licence (T-013.4 — package-lock verrouille)
+        run: |
+          set -e
+          cd warships/unity/ci/license-tools
+          npm ci --ignore-scripts --no-audit --no-fund
+          grep -q '"version": "0.3.9"' node_modules/unity-license-activate/package.json
+          grep -q '"version": "13.7.0"' node_modules/puppeteer/package.json
+          if [ -d node_modules/puppeteer/.local-chromium ]; then
+            echo "::error::--ignore-scripts devait bloquer tout telechargement"
+            exit 1
+          fi
+          echo "npm ci --ignore-scripts OK : arbre exact installe (unity-license-activate 0.3.9, puppeteer 13.7.0), aucun script execute."
+
   workflows:
     name: Workflows (actionlint)
     runs-on: ubuntu-latest

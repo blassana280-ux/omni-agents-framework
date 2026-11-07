@@ -1,25 +1,27 @@
-# OMNI WARSHIPS T-013.3 — acquisition de la licence Unity Personal SANS PC.
-# SECURITE (depot PUBLIC) : le .ulf (licence Unity nominative) n est JAMAIS
-# publie — ni artefact (les artefacts ne sont PAS prives sur un depot
-# public), ni release, ni commit, ni capture d ecran. Il va UNIQUEMENT
-# dans le secret UNITY_LICENSE via l API GitHub.
-# Le PAT (secret ACCESS_TOKEN) est injecte UNIQUEMENT dans l etape de
-# stockage — JAMAIS dans l etape d activation (qui ne voit que les
-# identifiants Unity). Si ACCESS_TOKEN est absent : echec explicite,
-# AUCUN repli par artefact.
-# OUTIL EPINGLE : unity-license-activate@0.3.9 (organisation game-ci,
-# fork maintenu de MizoTake) — version exacte, integrite verifiee par
-# npm a l installation, AUCUN script d installation dans le package ;
-# code audite : seul domaine contacte = license.unity3d.com (formulaire
-# Unity ID). Dependances transitives (puppeteer, crypto-js) resolues
-# par npm — limite documentee, aucune certification excessive.
-# DECLENCHEMENT : push sur warships/android-build limite au fichier
-#   warships/unity/ci/LICENSE-TRIGGER.md. workflow_dispatch conserve
-#   pour usage futur.
-# ATTENDU : sans les secrets UNITY_EMAIL / UNITY_PASSWORD / ACCESS_TOKEN,
-#   le run s arrete a la verification (echec rapide, aucune action sur
-#   le compte Unity, aucun artefact).
-name: Warships licence Unity (acquisition .ulf sans PC)
+# OMNI WARSHIPS T-013.4 — activation Unity SANS PC, SANS fuite de secrets.
+# Depot PUBLIC — regles absolues :
+#   * le .ulf (licence nominative) n est JAMAIS publie (ni artefact,
+#     ni release, ni commit, ni capture) : il va UNIQUEMENT dans le
+#     secret UNITY_LICENSE via l API GitHub ;
+#   * le PAT ACCESS_TOKEN est injecte UNIQUEMENT dans l etape de
+#     stockage — jamais dans la verification ni l activation — puis
+#     efface de la memoire (unset + verification d absence) ;
+#   * les identifiants Unity ne figurent JAMAIS dans les logs :
+#     masquage GitHub (::add-mask::), sortie de l outil capturee puis
+#     FILTREE, aucune commande externe de recuperation email ;
+#   * TOTP OBLIGATOIRE (UNITY_TOTP_KEY) : si Unity presente une
+#     demande de verification par EMAIL, arret propre immediat — aucun
+#     identifiant transmis, aucun code soumis, aucune recuperation ;
+#   * outils reproductibles : npm ci depuis warships/unity/ci/
+#     license-tools (package-lock verrouille, 67 paquets, integrite
+#     sha512 par paquet ; plus aucun npx --yes ni @latest).
+# DOMAINES EXTERNES contactes par ce workflow (exhaustif) :
+#   registry.npmjs.org (paquets verifies) ; storage.googleapis.com
+#   (Chromium, script d installation de puppeteer 13.7.0) ;
+#   license.unity3d.com (formulaire Unity ID, seul site fonctionnel) ;
+#   api.github.com (gh secret set/list) ; hub.docker.com (image
+#   unityci/editor pour le .alf).
+name: Warships licence Unity (activation TOTP sans PC)
 
 on:
   push:
@@ -33,18 +35,18 @@ permissions:
 
 jobs:
   acquire-license:
-    name: Demande .alf + activation + stockage du secret
+    name: .alf + activation TOTP + stockage du secret (aucune publication)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verification des secrets (jamais affiches dans les logs)
+      - name: Verification des secrets Unity (le PAT n est PAS fourni a cette etape)
         env:
           MAIL: ${{ secrets.UNITY_EMAIL }}
           PASS: ${{ secrets.UNITY_PASSWORD }}
-          PAT: ${{ secrets.ACCESS_TOKEN }}
+          TOTP: ${{ secrets.UNITY_TOTP_KEY }}
         run: |
           set -e
           verify_secret() {
@@ -60,8 +62,8 @@ jobs:
           }
           verify_secret UNITY_EMAIL "$MAIL"
           verify_secret UNITY_PASSWORD "$PASS"
-          verify_secret ACCESS_TOKEN "$PAT"
-          echo "Secrets UNITY_EMAIL / UNITY_PASSWORD / ACCESS_TOKEN presents et propres (aucune valeur affichee)."
+          verify_secret UNITY_TOTP_KEY "$TOTP"
+          echo "Secrets UNITY_EMAIL / UNITY_PASSWORD / UNITY_TOTP_KEY presents et propres — TOTP OBLIGATOIRE (aucune valeur affichee, aucun PAT dans cette etape)."
 
       - name: Generation du fichier de demande .alf (image Unity CI, aucune licence requise)
         run: |
@@ -92,34 +94,97 @@ jobs:
           cp "${alfs[0]}" activation.alf
           stat -c 'alf genere : %n : %s octets' activation.alf
 
-      - name: Activation (unity-license-activate 0.3.9 epingle, audite)
+      - name: Outils reproductibles (npm ci, package-lock verrouille)
+        run: |
+          set -e
+          cd warships/unity/ci/license-tools
+          npm ci --no-audit --no-fund
+          grep -q '"version": "0.3.9"' node_modules/unity-license-activate/package.json
+          grep -q '"version": "13.7.0"' node_modules/puppeteer/package.json
+          echo "npm ci OK : arbre exact installe depuis package-lock.json (67 paquets verrouilles, integrite sha512)."
+
+      - name: Activation (TOTP obligatoire, parcours email neutralise, sorties filtrees)
         env:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
           UNITY_TOTP_KEY: ${{ secrets.UNITY_TOTP_KEY }}
         run: |
           set -e
-          args=("$UNITY_EMAIL" "$UNITY_PASSWORD" "activation.alf")
-          if [ -n "$UNITY_TOTP_KEY" ]; then
-            args+=(--authenticator-key "$UNITY_TOTP_KEY")
+          # 1) masquage GitHub : toute occurrence de ces valeurs dans les
+          #    logs du step (y compris depuis un processus fils) sera ***
+          echo "::add-mask::$UNITY_EMAIL"
+          echo "::add-mask::$UNITY_PASSWORD"
+          echo "::add-mask::$UNITY_TOTP_KEY"
+          # 2) TOTP OBLIGATOIRE (T-013.4 : le parcours 2FA email de l outil,
+          #    audite, afficherait une commande contenant les identifiants)
+          if [ -z "${UNITY_TOTP_KEY:-}" ]; then
+            echo "::error::secret UNITY_TOTP_KEY absent — TOTP obligatoire pour ce workflow (activer l app d authentification sur le compte Unity)"
+            exit 1
           fi
-          npx --yes unity-license-activate@0.3.9 "${args[@]}"
+          # 3) neutralisation du parcours email : shim unity-verify-code
+          #    place en tete du PATH — il echoue sans rien transmettre et
+          #    pose un marqueur (aucune recuperation automatique possible)
+          shim_dir="$RUNNER_TEMP/unity-email-guard"
+          mkdir -p "$shim_dir"
+          cat > "$shim_dir/unity-verify-code" <<'UNITY_EMAIL_GUARD'
+          #!/bin/sh
+          echo "[GARDE] verification par EMAIL interdite (T-013.4) : aucun identifiant ne sera transmis a une commande externe" >&2
+          d=$(dirname "$0")
+          echo blocked > "$d/BLOCKED"
+          exit 86
+          UNITY_EMAIL_GUARD
+          chmod +x "$shim_dir/unity-verify-code"
+          # 4) activation : sortie CAPTUREE (jamais affichee brute), le
+          #    binaire vient de l arbre verrouille (aucun npx, aucun @latest)
+          ulf_log="$RUNNER_TEMP/activation.log"
+          masks="$RUNNER_TEMP/masks.txt"
+          printf '%s\n' "$UNITY_EMAIL" "$UNITY_PASSWORD" "$UNITY_TOTP_KEY" > "$masks"
+          tools_bin="$GITHUB_WORKSPACE/warships/unity/ci/license-tools/node_modules/.bin/unity-license-activate"
+          set +e
+          PATH="$shim_dir:$PATH" "$tools_bin" \
+            "$UNITY_EMAIL" "$UNITY_PASSWORD" activation.alf \
+            --authenticator-key "$UNITY_TOTP_KEY" > "$ulf_log" 2>&1
+          rc=$?
+          set -e
+          # 5) arret propre si Unity a presente une verification par email
+          if [ -f "$shim_dir/BLOCKED" ] || grep -q '2FA (Email)' "$ulf_log"; then
+            echo "::error::Unity presente une verification par EMAIL (2FA email) — ARRET PROPRE : aucun identifiant transmis, aucun code soumis, aucune recuperation automatique. Activer le TOTP sur le compte Unity."
+            rm -f "$ulf_log" "$masks"
+            exit 1
+          fi
+          # 6) affichage FILTRE : aucune ligne contenant un identifiant ne
+          #    passe dans les logs (double garde avec add-mask)
+          if grep -qFf "$masks" "$ulf_log"; then
+            echo "::warning::la sortie de l outil contenait des valeurs sensibles — ces lignes sont supprimees"
+          fi
+          grep -vFf "$masks" "$ulf_log" || true
+          rm -f "$ulf_log" "$masks" error.png error.html code.txt
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::activation echouee (code $rc) — sortie filtree ci-dessus, aucune valeur sensible affichee"
+            exit 1
+          fi
+          # 7) .ulf produit (contenu jamais affiche, jamais publie)
           shopt -s nullglob
           ulfs=(*.ulf)
           shopt -u nullglob
           if [ "${#ulfs[@]}" -eq 0 ]; then
-            echo "::error::AUCUN fichier .ulf produit — consulter les logs de ce step (rien n est publie)"
+            echo "::error::AUCUN fichier .ulf produit — consulter la sortie filtree ci-dessus"
             exit 1
           fi
           stat -c 'ulf produit : %n : %s octets (contenu jamais affiche)' "${ulfs[0]}"
           rm -f -- activation.alf
 
-      - name: Stockage du secret UNITY_LICENSE puis verification (PAT uniquement ici)
+      - name: Stockage du secret UNITY_LICENSE (PAT uniquement ici, jamais ailleurs)
         env:
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -e
+          # presence du PAT verifiee SANS jamais l afficher
+          if [ -z "${ACCESS_TOKEN:-}" ]; then
+            echo "::error::secret ACCESS_TOKEN absent — echec explicite, AUCUN repli ; le .ulf reste confine au runner (ephemere) et n est publie nulle part"
+            exit 1
+          fi
           shopt -s nullglob
           ulfs=(*.ulf)
           shopt -u nullglob
@@ -129,11 +194,17 @@ jobs:
           fi
           ulf_value=$(<"${ulfs[0]}")
           printf '%s' "$ulf_value" | GH_TOKEN="$ACCESS_TOKEN" gh secret set UNITY_LICENSE --repo "$GH_REPO"
-          unset ulf_value
-          rm -f -- "${ulfs[@]}"
           updated=$(GH_TOKEN="$ACCESS_TOKEN" gh secret list --repo "$GH_REPO" --json name,updatedAt --jq '.[] | select(.name == "UNITY_LICENSE") | .updatedAt')
           if [ -z "$updated" ]; then
             echo "::error::secret UNITY_LICENSE introuvable apres la mise a jour"
             exit 1
           fi
-          echo "Secret UNITY_LICENSE mis a jour et verifie (horodatage : $updated — valeur jamais affichee)."
+          # effacement de la memoire : ni la valeur .ulf ni le PAT ne
+          # doivent rester presents dans cette etape
+          unset ulf_value ACCESS_TOKEN
+          if [ -n "${ACCESS_TOKEN:-}" ]; then
+            echo "::error::ACCESS_TOKEN toujours present apres usage"
+            exit 1
+          fi
+          rm -f -- "${ulfs[@]}"
+          echo "Secret UNITY_LICENSE mis a jour et verifie (horodatage : $updated — valeur jamais affichee, PAT efface apres usage)."

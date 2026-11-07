@@ -39,42 +39,43 @@ configurée). Le workflow réel vit sur la branche `warships/android-build`
 4. Télécharger l APK : artefact `omni-warships-apk` ou release brouillon
    `android-build-N`.
 
-## Licence Unity sans PC (T-013.3 — workflow warships-license.yml sécurisé)
+## Licence Unity sans PC (T-013.4 — workflow warships-license.yml durci)
 
-La documentation officielle actuelle de game.ci recommande Unity Hub
-sur un PC — Lassana n en a pas. Le workflow
-`.github/workflows/warships-license.yml` (déclenché par le fichier
+La documentation officielle actuelle de game.ci recommande Unity Hub sur
+un PC — Lassana n en a pas. Le workflow
+`.github/workflows/warships-license.yml` (déclenché par
 `warships/unity/ci/LICENSE-TRIGGER.md`) permet d obtenir le .ulf
 ENTIÈREMENT depuis le téléphone, SANS JAMAIS publier le .ulf (dépôt
-public) :
+public) et SANS JAMAIS exposer les identifiants :
 
-1. Compte Unity gratuit (id.unity.com, navigateur).
-2. Secrets : `UNITY_EMAIL`, `UNITY_PASSWORD`, `UNITY_TOTP_KEY` (clé
-   authenticator TOTP — sans elle, Unity peut exiger un code envoyé par
-   email que le workflow ne sait pas lire) et `ACCESS_TOKEN`
-   **obligatoire** (PAT fine-grained limité à CE dépôt, permission
-   « Secrets » en écriture seule, expiration courte ~30 jours — cf.
-   LICENSE-TRIGGER.md).
-3. Modifier `LICENSE-TRIGGER.md` (incrémenter le compteur) : le workflow
-   génère le .alf (image Docker unityci/editor, drapeau documenté
-   -createManualActivationFile, aucune licence requise), l échange
-   contre un .ulf via l outil ÉPINGLÉ `unity-license-activate@0.3.9`
-   (organisation game-ci, audité : seul domaine contacté =
-   license.unity3d.com ; aucun script d installation ; intégrité
-   vérifiée par npm à l installation), puis stocke le .ulf DIRECTEMENT
-   dans le secret `UNITY_LICENSE` via l API GitHub — le PAT est injecté
-   UNIQUEMENT dans cette étape, jamais dans l activation.
-4. Sans `ACCESS_TOKEN` : échec explicite — AUCUN repli par artefact
-   (un .ulf en artefact n est jamais privé sur un dépôt public).
-5. Aucune capture ni artefact publié ; en cas d échec, consulter les
-   logs du run.
+1. Compte Unity gratuit (id.unity.com) + TOTP activé.
+2. Secrets : `UNITY_EMAIL`, `UNITY_PASSWORD`, `UNITY_TOTP_KEY`
+   (OBLIGATOIRE — le parcours de vérification par email est neutralisé :
+   si Unity le présente, arrêt propre, aucun identifiant transmis, aucune
+   récupération automatique) et `ACCESS_TOKEN` (PAT fine-grained limité
+   à CE dépôt, permission « Secrets » en lecture/écriture seule,
+   expiration ~30 jours — cf. LICENSE-TRIGGER.md).
+3. Modifier `LICENSE-TRIGGER.md` : le workflow installe l arbre
+   VERROUILLÉ (`npm ci` depuis `license-tools/package-lock.json`, 67
+   paquets, intégrité sha512 — plus aucun `npx --yes` ni `@latest`),
+   génère le .alf (image unityci/editor, drapeau documenté
+   -createManualActivationFile), l échange contre un .ulf via le binaire
+   de l arbre verrouillé (unity-license-activate 0.3.9, seul site
+   fonctionnel : license.unity3d.com), avec sortie CAPTURÉE et FILTRÉE
+   + masquage GitHub (`::add-mask::`) — aucun identifiant dans les
+   logs, même en cas d erreur.
+4. Stockage DIRECT du .ulf dans le secret `UNITY_LICENSE` via l API
+   GitHub : le PAT est injecté UNIQUEMENT dans cette étape, puis effacé
+   de la mémoire (`unset` + vérification d absence). Sans
+   `ACCESS_TOKEN` : échec explicite — AUCUN repli par artefact.
+5. Aucune capture ni artefact publié ; fichiers d erreur de l outil
+   supprimés (error.png / error.html) ; en cas d échec, consulter les
+   logs filtrés.
 
-Honnêteté : l activation manuelle Personal via license.unity3d.com n
-est pas officiellement prise en charge par Unity (option masquée) ;
-l outil sélectionne cette option masquée — l authentification complète
-(mot de passe + TOTP) reste TOUJOURS requise, aucune protection de
-compte n est contournée. Flux prouvé à sa première exécution réelle.
-Ne JAMAIS communiquer identifiants, PAT ou licence dans une conversation.
+Honnêteté : méthode réelle mais NON officiellement prise en charge
+(option Personal masquée) ; authentification complète toujours requise ;
+prouvée à sa première exécution réelle. Ne JAMAIS communiquer
+identifiants, PAT ou licence dans une conversation.
 
 ## Ce que ce pipeline NE fait PAS
 
