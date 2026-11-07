@@ -1,42 +1,61 @@
-# OMNI WARSHIPS T-013.1/T-013.2 — compilation Android (APK) via GameCI, CORRIGE.
-# Corrections auditees contre le action.yml REEL de game-ci/unity-builder@v4 :
-#   - expressions ${{ }} propres : les backslashs parasites \${{ }}
-#     auraient transmis une chaine litterale au lieu des secrets ;
-#   - inputs valides v4 : androidExportType: androidPackage (APK) ;
-#     androidBuildAppType / androidBuildSystem / androidArchitecture
-#     N EXISTENT PAS en v4 (ARM64 et IL2CPP sont regles par le projet
-#     via AndroidBuildConfig.Configure, appele par buildMethod) ;
-#   - buildMethod explicite : scene de bataille incluse EXPLICITEMENT
-#     dans BuildPlayerOptions.scenes (BattleSceneGuard) ;
-#   - permissions: contents: write (requis pour la release brouillon) ;
-#   - verification des secrets SANS jamais les afficher ;
-#   - verification de l APK produite (taille + sha256) : aucune simulation ;
-#   - scripts shell propres pour shellcheck (SC2034, SC2012 corriges).
-# T-013.2 — DECLENCHEMENT SANS MAIN : ce workflow vit uniquement sur la
-# branche warships/android-build (PR #16 ouverte, main INTACT). Un
-# workflow_dispatch n est PAS utilisable depuis l interface tant que le
-# fichier n existe pas sur la branche par defaut -> declenchement par
-# PUSH limite a cette branche avec filtre de chemins : la compilation ne
-# part QUE si le fichier warships/unity/ci/BUILD-TRIGGER.md est modifie
-# (commit explicite, editable depuis le navigateur du telephone). Les
-# secrets du depot sont disponibles pour les evenements push de la
-# branche. workflow_dispatch conserve pour usage futur.
-# T-013.7 — ACTIVATION PERSONAL PAR IDENTIFIANTS (plus de .ulf) :
-#   Unity a supprime l activation manuelle des licences Personal
-#   (license.unity3d.com/manual -> /new, « Offline activation is
-#   available only for Enterprise and Industry seats »). La methode
-#   actuelle (auditee dans game-ci/cli, scripts activate.sh) : le Unity
-#   Licensing Client DU CONTENEUR DU BUILD demande un siege avec
-#   UNITY_EMAIL + UNITY_PASSWORD (methode personal, --activate-all
-#   --include-personal, mesuree sur 2022.3.62f3). Le secret
-#   UNITY_LICENSE (.ulf) N EST PLUS REQUIS NI TRANSMIS. Le siege est
-#   rendu automatiquement a la fin du build (return_license, trap EXIT,
-#   meme conteneur). REQUIS : 2FA DESACTIVEE sur le compte Unity (l
-#   activation headless ne peut repondre a aucun defi 2FA ni
-#   verification d appareil) — compte dedie au CI recommande.
-#   Tant que les secrets ne sont pas configures, le run s arrete a l
-#   etape de verification (AUCUNE compilation Unity lancee) — run rouge
-#   ATTENDU sur le commit d integration.
+# OMNI WARSHIPS T-013.8 — build Android via GameCI CLI v0.1.72 : UN SEUL
+# CONTENEUR (siege Personal + compilation + restitution).
+#
+# BUG BLOQUANT T-013.7 CORRIGE (audite dans le code reel, 07/11/2026) :
+#   le flux T-013.7 utilisait l action game-ci/unity-builder (v4). Cette
+#   action lance son propre conteneur et monte SES scripts dans /steps
+#   du conteneur (volume), ECRASANT ceux de l image ; or ces scripts v4
+#   ne contiennent PAS le chemin personal de la CLI (siege demande avec
+#   UNITY_EMAIL + UNITY_PASSWORD seuls) — avec uniquement ces deux
+#   secrets, l activation ECHOUAIT AVANT la compilation.
+#
+# MIGRATION T-013.8 :
+#   - game-ci/cli@v0.1.72 = action OFFICIELLE a la racine du depot
+#     game-ci/cli. Avec args VIDE elle ne fait QU INSTALLER le binaire,
+#     a la version du TAG (archive de la release + checksums verifies
+#     par son propre script d installation, mismatch = FATAL) ;
+#   - une SEULE commande de build declenche UN SEUL conteneur docker
+#     (src/model/docker.ts : le CLI monte SA PROPRE archive
+#     dist/platforms/ubuntu/steps dans /steps, jamais celle d une
+#     action tierce) : activation du siege personal -> compilation ->
+#     restitution du siege, MEME EN CAS D ECHEC du build (trap EXIT
+#     arme par runsteps.sh APRES la reussite de l activation) ;
+#   - une activation isolee via la CLI laisse le siege ACTIF sans
+#     armer la restitution (conteneurs distincts = machine-binding
+#     casse) : ELLE EST INTERDITE ICI, seul le flux build compte ;
+#   - scripts reellement actives dans le conteneur = ceux de l archive
+#     du CLI v0.1.72 : activate.sh (branche personal), build.sh,
+#     return_license.sh (branche personal), runsteps.sh, entrypoint.sh.
+#
+# SECURITE (documentee honnetement) :
+#   - le CLI lit UNITY_EMAIL/UNITY_PASSWORD dans l ENV de son processus,
+#     jamais en arguments de sa propre ligne de commande ;
+#   - DANS le conteneur, le Unity Licensing Client exige le mot de
+#     passe PAR ARGUMENT DE PROCESSUS (aucune alternative stdin ou
+#     fichier n existe) : visible dans la liste de processus du
+#     conteneur pendant l appel, jamais affiche dans les logs (aucun
+#     set -x sur ce chemin, le code du CLI le documente) ;
+#   - compte Unity CI DEDIE requis (JAMAIS le compte principal de
+#     Lassana), sa 2FA DESACTIVEE (aucun defi repondable en headless) ;
+#     creation et usage de ce compte = decision explicite de Lassana ;
+#   - aucune activation, aucune connexion Unity pendant la mise au
+#     point : ce workflow ne part QUE si BUILD-TRIGGER.md est modifie.
+#
+# COMPILATION PERSONNALISEE CONSERVEE (buildMethod inchange) :
+#   OmniWarships.Unity.EditorTools.WarshipsBuildScript.BuildAndroid ->
+#   AndroidBuildConfig.Configure (ARM64, IL2CPP, minSdk 24, paysage,
+#   URP, profils graphiques) + scene de bataille EXPLICITE via
+#   BattleSceneGuard (modeles FBX, HUD, controles tactiles dans le
+#   projet) ; le buildMethod ecrit l APK dans warships/unity/Builds/
+#   (chemin explicite du script ; le chemin de sortie interne du CLI
+#   est ignore par notre methode) — la verification cherche LA.
+#   versioningStrategy None : le numero de version vient du projet,
+#   pas des tags git du depot.
+#
+# Tant que les secrets ne sont pas configures, le run s arrete a l
+# etape de verification des secrets (AUCUNE installation CLI, AUCUNE
+# compilation Unity lancee) — run rouge ATTENDU sur le commit d
+# integration, sans aucune activation.
 name: Warships GameCI (APK Android)
 
 on:
@@ -51,7 +70,7 @@ permissions:
 
 jobs:
   build-android:
-    name: Compilation APK (Unity 2022.3, ARM64, IL2CPP, activation Personal par identifiants)
+    name: Compilation APK (Unity 2022.3, ARM64, IL2CPP, siege Personal par identifiants, CLI v0.1.72)
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -80,25 +99,37 @@ jobs:
           verify_secret UNITY_EMAIL "$MAIL"
           verify_secret UNITY_PASSWORD "$PASS"
           echo "Secrets UNITY_EMAIL / UNITY_PASSWORD presents et propres (aucune valeur affichee)."
-          echo "Methode d activation T-013.7 : Personal PAR IDENTIFIANTS dans le conteneur du build"
-          echo "(plus de UNITY_LICENSE/.ulf — 2FA du compte Unity DESACTIVEE requise, siege rendu automatiquement)."
+          echo "Methode d activation T-013.8 : siege Personal PAR IDENTIFIANTS dans le conteneur"
+          echo "du build (GameCI CLI v0.1.72, une seule commande, restitution par trap EXIT)."
+          echo "Compte Unity CI DEDIE requis — JAMAIS le compte principal de Lassana ;"
+          echo "sa 2FA doit etre DESACTIVEE (decision explicite de Lassana)."
+          echo "Le run s arrete ICI tant que les secrets ne sont pas configures :"
+          echo "aucune installation CLI, aucune activation, aucune compilation Unity."
 
       - name: Liberation d espace disque (image Unity Android lourde)
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup 2>/dev/null || true
           df -h /
 
-      - name: Compilation Unity + APK (activation Personal par identifiants, scene explicite via buildMethod)
-        uses: game-ci/unity-builder@v4
+      - name: Installation de GameCI CLI v0.1.72 (action officielle, version epinglee par le tag)
+        uses: game-ci/cli@v0.1.72
+        with:
+          version: v0.1.72
+          # args VIDE : cette action n installe QUE le binaire de la
+          # release v0.1.72 (checksums verifies par son script) ; la
+          # commande de build est lancee par le step suivant, avec un
+          # env totalement maitrise.
+
+      - name: Compilation Unity + APK (un seul conteneur : siege Personal, build, restitution)
         env:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-        with:
-          targetPlatform: Android
-          projectPath: warships/unity
-          buildMethod: OmniWarships.Unity.EditorTools.WarshipsBuildScript.BuildAndroid
-          androidExportType: androidPackage
-          versioning: None
+        run: |
+          game-ci build warships/unity \
+            --targetPlatform Android \
+            --buildMethod OmniWarships.Unity.EditorTools.WarshipsBuildScript.BuildAndroid \
+            --androidExportType androidPackage \
+            --versioningStrategy None
 
       - name: Verification APK produite (taille + empreinte, aucune simulation)
         run: |
@@ -129,7 +160,7 @@ jobs:
           gh release create "$tag" warships/unity/Builds/*.apk \
             --draft --repo "$GITHUB_REPOSITORY" \
             --title "OMNI WARSHIPS build Android ${{ github.run_number }}" \
-            --notes "APK ARM64 IL2CPP compilee par GameCI (Unity 2022.3, scene de bataille incluse explicitement, activation Personal par identifiants T-013.7). Brouillon : verifier l installation sur Tecno KN3 avant toute publication." \
+            --notes "APK ARM64 IL2CPP compilee par GameCI CLI v0.1.72 (Unity 2022.3, scene de bataille incluse explicitement, siege Personal par identifiants T-013.8, un seul conteneur). Brouillon : verifier l installation sur Tecno KN3 avant toute publication." \
             || echo "::warning::release non creee (voir l artefact APK)"
 
       - name: Nettoyage du runner (fichiers temporaires supprimes meme en cas d echec)
@@ -138,4 +169,4 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           rm -rf /tmp/alfdir 2>/dev/null || true
           rm -f activation.alf code.txt error.png error.html 2>/dev/null || true
-          echo "Nettoyage runner : la licence vit dans le conteneur du build (rendue par trap EXIT), aucun fichier de licence ne doit rester sur le runner."
+          echo "Nettoyage runner : le siege vit dans le conteneur du build (rendu par trap EXIT meme en cas d echec), aucun fichier de licence ne doit rester sur le runner."

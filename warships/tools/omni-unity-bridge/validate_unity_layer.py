@@ -46,6 +46,22 @@ Vérifie, sans jamais simuler un statut :
      (warships-gameci.yml) ; 2FA du compte Unity DÉSACTIVÉE requise
      (aucun défi réponse-able en headless, plus de TOTP) ; license-tools
      supprimé du dépôt, AUCUN workflow ne le référence.
+  15. T-013.8 — build : la compilation passe par GameCI CLI v0.1.72
+     (game-ci/cli@v0.1.72, action officielle du dépôt game-ci/cli,
+     installation épinglée par le tag) et UNE SEULE commande de build :
+     le CLI monte SA PROPRE archive de scripts dans /steps du conteneur
+     (src/model/docker.ts) — un seul conteneur fait siège Personal (par
+     identifiants) + compilation + restitution (trap EXIT armé par
+     runsteps.sh même en cas d échec du build). game-ci/unity-builder@v4
+     INTERDIT (il monte SES scripts dans /steps en écrasant ceux de l
+     image, et ces scripts ne contiennent PAS le chemin personal — bug
+     bloquant T-013.7) ; activation isolée interdite (siège laissé actif,
+     restitution entre conteneurs distincts non fiable) ; buildMethod et
+     scène explicite conservés ; le mot de passe est transmis au Unity
+     Licensing Client PAR ARGUMENT DE PROCESSUS dans le conteneur
+     (documenté dans le code du CLI, aucune alternative stdin/fichier,
+     jamais affiché, aucun set -x) ; compte Unity CI dédié (jamais le
+     compte principal), 2FA de ce compte désactivée.
 
 Sortie ::error:: GitHub Actions ; exit 1 si au moins une erreur.
 """
@@ -560,6 +576,110 @@ def check_license_tools():
     return errs
 
 
+# --------------------------- T-013.8 : build par GameCI CLI v0.1.72
+
+GAMECI_WF = ROOT / ".github" / "workflows" / "warships-gameci.yml"
+
+
+def check_gameci_workflow_content(text):
+    """T-013.8 : le workflow de build compile via GameCI CLI v0.1.72 en
+    UNE SEULE commande de build. Un seul conteneur (celui du CLI, qui
+    monte SA PROPRE archive dist/ dans /steps) fait : siege Personal
+    par identifiants + compilation + restitution du siege (trap EXIT,
+    meme en cas d echec). L action de build v4 est INTERDITE : elle
+    monte ses propres scripts dans /steps en ecrasant ceux de l image,
+    et ces scripts ne contiennent PAS le chemin personal de la CLI
+    (bug bloquant T-013.7 corrige par cette migration). Renvoie les
+    violations (lignes actives uniquement, commentaires exclus)."""
+    noncomment = "\n".join(ln for ln in text.splitlines()
+                           if ln.strip() and not ln.strip().startswith("#"))
+    errs = []
+    requis = (
+        "game-ci/cli@v0.1.72",
+        "game-ci build",
+        "OmniWarships.Unity.EditorTools.WarshipsBuildScript.BuildAndroid",
+        "--targetPlatform Android",
+        "--androidExportType androidPackage",
+        "--versioningStrategy None",
+        "verify_secret UNITY_EMAIL",
+        "verify_secret UNITY_PASSWORD",
+        "always()",
+    )
+    for req in requis:
+        if req not in noncomment:
+            errs.append("warships-gameci.yml : requis absent (T-013.8) : " + req)
+    interdits = (
+        "unity-builder", "unity-activate@", "game-ci activate",
+        "UNITY_LICENSE", "UNITY_SERIAL", "UNITY_TOTP_KEY",
+        "license.unity3d.com", "set -x",
+    )
+    for itd in interdits:
+        if itd in noncomment:
+            errs.append("warships-gameci.yml : interdit present (T-013.8) : " + itd)
+    return errs
+
+
+def check_gameci_workflow():
+    """Applique les regles T-013.8 au VRAI workflow de build du depot."""
+    if not GAMECI_WF.is_file():
+        err("warships-gameci.yml introuvable : checks T-013.8 inapplicables")
+        return
+    for e in check_gameci_workflow_content(GAMECI_WF.read_text(encoding="utf-8")):
+        err(e)
+
+
+GOOD_GC_SNIPPET = r"""name: t
+on: push
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verification des secrets Unity (jamais affiches)
+        env:
+          MAIL: ${{ secrets.UNITY_EMAIL }}
+          PASS: ${{ secrets.UNITY_PASSWORD }}
+        run: |
+          verify_secret UNITY_EMAIL "$MAIL"
+          verify_secret UNITY_PASSWORD "$PASS"
+      - name: Installation CLI
+        uses: game-ci/cli@v0.1.72
+        with:
+          version: v0.1.72
+      - name: Build (un seul conteneur)
+        env:
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        run: |
+          game-ci build warships/unity --targetPlatform Android --buildMethod OmniWarships.Unity.EditorTools.WarshipsBuildScript.BuildAndroid --androidExportType androidPackage --versioningStrategy None
+      - name: Nettoyage du runner
+        if: always()
+        run: |
+          rm -rf /tmp/alfdir
+"""
+
+BAD_GC_SNIPPETS = [
+    ("retour a l action de build v4 (scripts /steps sans chemin personal)",
+     GOOD_GC_SNIPPET.replace(
+         "      - name: Installation CLI\n"
+         "        uses: game-ci/cli@v0.1.72\n"
+         "        with:\n"
+         "          version: v0.1.72\n",
+         "      - name: Build v4\n"
+         "        uses: game-ci/unity-builder@v4\n"
+         "        with:\n"
+         "          targetPlatform: Android\n")),
+    ("activation isolee (siege laisse actif, restitution inter-conteneurs non fiable)",
+     GOOD_GC_SNIPPET.replace(
+         "          game-ci build warships/unity",
+         "          game-ci activate warships/unity\n"
+         "          game-ci build warships/unity")),
+    ("build sans buildMethod (compilation par defaut, scene non garantie)",
+     GOOD_GC_SNIPPET.replace(
+         " --buildMethod OmniWarships.Unity.EditorTools.WarshipsBuildScript.BuildAndroid",
+         "")),
+]
+
+
 GOOD_SNIPPET = r"""name: t
 on: push
 jobs:
@@ -637,23 +757,32 @@ BAD_SNIPPETS = [
 
 
 def run_security_selftests():
-    """SELF-TESTS de non-regression : le snippet SAIN doit donner 0 erreur,
-    chaque snippet FAUX doit etre detecte. Une regression du validateur ou
-    du workflow de licence fait echouer la CI (T-013.7)."""
+    """SELF-TESTS de non-regression : les snippets SAINS (licence T-013.7
+    et build T-013.8) doivent donner 0 erreur, chaque snippet FAUX doit
+    etre detecte. Une regression du validateur, du workflow de licence
+    ou du workflow de build fait echouer la CI."""
     fails = []
     errs = check_workflow_security(GOOD_SNIPPET)
     if errs:
-        fails.append("snippet SAIN doit donner 0 erreur — trouve : " + " | ".join(errs[:4]))
+        fails.append("snippet SAIN (licence) doit donner 0 erreur — trouve : " + " | ".join(errs[:4]))
     for label, snippet in BAD_SNIPPETS:
         if not check_workflow_security(snippet):
             fails.append("regression NON detectee : " + label)
-    total = 1 + len(BAD_SNIPPETS)
+    errs = check_gameci_workflow_content(GOOD_GC_SNIPPET)
+    if errs:
+        fails.append("snippet SAIN (build) doit donner 0 erreur — trouve : " + " | ".join(errs[:4]))
+    for label, snippet in BAD_GC_SNIPPETS:
+        if not check_gameci_workflow_content(snippet):
+            fails.append("regression NON detectee (build) : " + label)
+    total = 2 + len(BAD_SNIPPETS) + len(BAD_GC_SNIPPETS)
     if fails:
         for f in fails:
-            err("self-test T-013.7 : " + f)
+            err("self-test T-013.7/T-013.8 : " + f)
     else:
-        print("self-tests T-013.7 : " + str(total) + "/" + str(total)
-              + " OK (snippet sain + " + str(len(BAD_SNIPPETS)) + " regressions toutes detectees)")
+        print("self-tests T-013.7/T-013.8 : " + str(total) + "/" + str(total)
+              + " OK (2 snippets sains + "
+              + str(len(BAD_SNIPPETS) + len(BAD_GC_SNIPPETS))
+              + " regressions toutes detectees)")
 
 
 # -------------------------------------------------------------------- docs
@@ -689,6 +818,7 @@ def main():
     check_license_workflow()
     for e in check_license_tools():
         err(e)
+    check_gameci_workflow()
     run_security_selftests()
     check_docs()
     if errors:
@@ -706,6 +836,10 @@ def main():
           + " (méthode personal par identifiants, 2FA désactivée requise,"
           + " plus de TOTP ni d outillage npm ni de navigateur,"
           + " license-tools absent des workflows) (T-013.7),"
+          + " build = GameCI CLI v0.1.72 en UNE SEULE commande (un seul"
+          + " conteneur : siège personal + compilation + restitution par"
+          + " trap EXIT, action de build v4 et activation isolée"
+          + " INTERDITES) (T-013.8),"
           + " self-tests OK.")
 
 

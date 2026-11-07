@@ -601,3 +601,116 @@ La PR #16 a été vérifiée indépendamment. Corrections apportées :
   embarqués dans l image du builder sera tranché par le premier run
   réel (repli documenté : game-ci/cli directement dans le
   conteneur).
+
+## 13. T-013.8 — correction du moteur d activation réel : GameCI CLI v0.1.72 (07/11/2026)
+
+### 13.1 Bug bloquant T-013.7 (audit indépendant confirmé)
+- warships-gameci.yml utilisait game-ci/unity-builder@v4 : cette
+  action lance son propre conteneur et monte SES scripts dans /steps
+  (volume docker), ÉCRASANT ceux de l image. Ces scripts v4 ne
+  contiennent PAS le chemin personal de la CLI (siège demandé avec
+  UNITY_EMAIL + UNITY_PASSWORD seuls) : avec notre configuration
+  T-013.7 (plus de UNITY_SERIAL ni UNITY_LICENSE), l activation
+  aurait ÉCHOUÉ AVANT la compilation. Le « repli documenté » de la
+  section 12.6 (game-ci/cli directement) devient le chemin
+  PRINCIPAL.
+
+### 13.2 Audit réel au tag v0.1.72 (commit 7da0cea2, celui de la release)
+- action.yml à la racine du dépôt game-ci/cli : inputs args, version,
+  working-directory. Avec args VIDE, l action n installe QUE le
+  binaire ; version par défaut = le tag du ref (épinglage par
+  uses: game-ci/cli@v0.1.72) ; scripts/install.sh télécharge l
+  archive de la release et vérifie le sha256 contre checksums.txt
+  (mismatch = FATAL ; fetch impossible = soft-skip documenté — le
+  job CI T-013.8 fait sa propre vérification STRICTE).
+- src/model/docker.ts : `game-ci build` lance UN SEUL docker run et
+  monte SA PROPRE archive (cliDistPath/platforms/ubuntu/steps vers
+  /steps, entrypoint.sh vers /entrypoint.sh) : les scripts du
+  conteneur sont ceux du CLI v0.1.72, JAMAIS ceux d une action
+  tierce. Le workspace du runner est monté (/github/workspace) et le
+  CLI refuse un projectPath hors du répertoire courant.
+- runsteps.sh : trap `return_license_once` EXIT armé APRÈS la
+  réussite de l activation (jamais en activate-only) → siège
+  Personal restitué même si le build échoue (set -e, SIGINT/SIGTERM
+  compris) ; activate.sh : branche personal = Unity Licensing Client
+  (--activate-all --include-personal --username --password), garde
+  anti faux-succès (« No seat available » → échec explicite),
+  fallback éditeur pour les clients antérieurs à --include-personal ;
+  return_license.sh : branche personal dédiée (routes client et
+  éditeur, retries sur signatures transitoires, avertissement si le
+  siège reste tenu) ; build.sh : appelle notre -executeMethod avec
+  -customBuildPath / -androidExportType ; entrypoint.sh : prépare le
+  SDK Android (targetAPI lu dans ProjectSettings.asset) puis source
+  /steps/runsteps.sh.
+- Options réelles vérifiées dans le code : projectPath POSITIONNEL,
+  --targetPlatform (OBLIGATOIRE, choix Android), --buildMethod,
+  --androidExportType androidPackage, --buildsPath (défaut
+  build/<platform>), --versioningStrategy (choix None réel, défaut
+  Semantic), secrets UNITY_EMAIL/UNITY_PASSWORD lus dans l ENV du
+  processus du CLI (jamais en arguments de sa ligne de commande).
+
+### 13.3 Sécurité (documentée honnêtement)
+- Dans le conteneur, le Unity Licensing Client exige le mot de passe
+  PAR ARGUMENT DE PROCESSUS (aucune alternative stdin ou fichier n
+  existe — documenté dans le code du CLI) : visible dans la liste de
+  processus du conteneur pendant l appel, jamais affiché dans les
+  logs, aucun set -x sur ce chemin. Acceptable en CI isolée.
+- Compte Unity CI DÉDIÉ uniquement (JAMAIS le compte principal de
+  Lassana), sa 2FA DÉSACTIVÉE — création et usage = décision
+  explicite de Lassana. Aucune activation déclenchée pendant cette
+  mission, aucun identifiant demandé, aucun fichier de licence
+  publié.
+
+### 13.4 Nouvelle architecture (warships-gameci.yml)
+- Installation : uses: game-ci/cli@v0.1.72 avec args VIDE
+  (installation seule, version épinglée par le tag).
+- UNE SEULE commande de build, secrets passés par env (jamais en
+  arguments) :
+  `game-ci build warships/unity --targetPlatform Android
+  --buildMethod OmniWarships.Unity.EditorTools.WarshipsBuildScript.
+  BuildAndroid --androidExportType androidPackage
+  --versioningStrategy None`
+- buildMethod conservé : AndroidBuildConfig.Configure (ARM64, IL2CPP,
+  minSdk 24, paysage, URP, profils graphiques) + scène explicite
+  (BattleSceneGuard) ; l APK sort dans warships/unity/Builds/ (chemin
+  explicite du script, dans le volume monté) — la vérification
+  (taille + sha256) cherche là.
+- game-ci activate isolé et game-ci/unity-builder@v4 INTERDITS par la
+  CI : step T-013.8 de warships-ci.yml (greps structurels),
+  check_gameci_workflow du validateur et 4 nouveaux self-tests de
+  non-régression (2 snippets sains + régressions v4 / activation
+  isolée / build sans buildMethod).
+
+### 13.5 Tests SANS identifiants réels (job CI dédié, exécuté à chaque push)
+- Installation réelle du CLI v0.1.72 via l action officielle ;
+  `game-ci --version` doit rendre 0.1.72.
+- Preuve du checksum PUBLIÉ : téléchargement de l archive et de
+  checksums.txt de la release, comparaison sha256 STRICTE (mismatch =
+  échec, pas de soft-skip).
+- `game-ci build --help` : présence des options réelles
+  (--targetPlatform, --buildMethod, --androidExportType,
+  --buildsPath, --versioningStrategy, --unityLicensingMethod).
+- Preuve des scripts du conteneur réel : grep de --include-personal
+  (activate.sh), du trap return_license_once EXIT (runsteps.sh), de la
+  branche personal (return_license.sh) et de l orchestration
+  (entrypoint.sh) dans l archive installée — les scripts que le CLI
+  montera dans /steps.
+- Résolution du projet : ProjectVersion.txt = 2022.3.62f1 ;
+  namespace, classe et méthode du buildMethod présents dans le .cs
+  réel.
+- AUCUNE commande ne touche Unity : ce job ne prouve PAS une
+  activation (siège = premier run réel du build). YAML/actionlint,
+  34 tests noyau, vérifications des données et générateurs Blender :
+  inchangés et exécutés comme avant.
+
+### 13.6 Statut (honnête)
+- Aucune activation réelle, aucune connexion Unity, aucun identifiant
+  demandé, aucun fichier de licence publié ; aucune fusion, main
+  intacte, PRs #13/#14/#15/#16 ouvertes.
+- Limites restantes : chemin personal expérimental (mesuré
+  publiquement par game-ci sur 2020.3.49f1/2022.3.62f3/6000.x, mais
+  jamais exécuté sur NOTRE compte) ; mot de passe transmis au
+  Licensing Client par argument de processus dans le conteneur ;
+  compte CI dédié + 2FA désactivée = décision explicite de Lassana ;
+  le premier run réel du build reste la SEULE preuve d obtention du
+  siège.

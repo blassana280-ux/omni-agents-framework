@@ -35,10 +35,14 @@ configurée). Le workflow réel vit sur la branche `warships/android-build`
 2. Ouvrir `warships/unity/ci/BUILD-TRIGGER.md` sur GitHub (navigateur
    mobile), crayon, incrémenter le compteur, commiter sur la branche.
 3. Le job build-android : vérifie les secrets, libère l espace disque,
-   compile (image unityci/editor 2022.3.62f1-android, buildMethod
+   installe GameCI CLI v0.1.72 (action officielle, version épinglée par
+   le tag, checksums vérifiés), puis UNE SEULE commande `game-ci build`
+   fait tout dans UN SEUL conteneur : siège Personal par identifiants,
+   compilation (image unityci/editor 2022.3.62f1-android, buildMethod
    WarshipsBuildScript.BuildAndroid — scène incluse EXPLICITEMENT),
-   vérifie l APK (taille + sha256), l uploade en artefact et crée une
-   release brouillon.
+   restitution du siège même en cas d échec (trap EXIT), vérifie l APK
+   (taille + sha256), l uploade en artefact et crée une release
+   brouillon.
 4. Télécharger l APK : artefact `omni-warships-apk` ou release brouillon
    `android-build-N`.
 
@@ -59,8 +63,9 @@ game-ci/cli (v0.1.72, commit 7da0cea2 ; PAS de v1.5.1). Conclusions :
   de licence Unity, DANS LE CONTENEUR DU BUILD, demande un siège
   Personal avec UNITY_EMAIL + UNITY_PASSWORD (chaîne file → serial →
   floating → personal des scripts d activation game-ci ; mesurée par
-  game-ci sur 2022.3.62f3, voisin direct de notre 2022.3.62f1). C est
-  le flux standard unity-builder@v4 de warships-gameci.yml.
+  game-ci sur 2022.3.62f3, voisin direct de notre 2022.3.62f1). Depuis
+  T-013.8, c est le flux de la commande de build de GameCI CLI v0.1.72
+  dans warships-gameci.yml (un seul conteneur — voir section T-013.8).
 - 2FA : l activation headless ne peut répondre à AUCUN défi 2FA ni
   vérification d appareil — le compte Unity utilisé DOIT avoir la 2FA
   DÉSACTIVÉE (compte dédié au CI recommandé). Plus de TOTP (il
@@ -85,6 +90,54 @@ le premier run réel du build avec les secrets de Lassana (aucune
 simulation, aucun identifiant réel utilisé pendant l audit). Ne
 JAMAIS communiquer identifiants ou licence dans une conversation.
 Licence MIT de game-ci ≠ licence Unity.
+
+## T-013.8 — build par GameCI CLI v0.1.72 (correction du bug bloquant, audit réel)
+
+Un audit indépendant a révélé un bug bloquant dans le flux T-013.7 :
+l action de build v4 lance son propre conteneur et monte SES scripts
+dans /steps (volume docker), ÉCRASANT ceux de l image — or ces scripts
+v4 ne contiennent PAS le chemin personal de la CLI (siège demandé avec
+UNITY_EMAIL + UNITY_PASSWORD seuls). Avec notre configuration T-013.7
+(plus de UNITY_SERIAL ni UNITY_LICENSE), l activation aurait ÉCHOUÉ
+AVANT la compilation.
+
+Migration (auditee au tag v0.1.72 du dépôt game-ci/cli, commit 7da0cea2
+= celui de la release) :
+
+- `game-ci/cli@v0.1.72` = action OFFICIELLE à la racine du dépôt
+  game-ci/cli. Avec args VIDE elle n installe QUE le binaire (archive
+  de la release, sha256 vérifié contre checksums.txt, mismatch =
+  FATAL), version épinglée par le tag.
+- UNE SEULE commande `game-ci build warships/unity --targetPlatform
+  Android --buildMethod OmniWarships.Unity.EditorTools.
+  WarshipsBuildScript.BuildAndroid --androidExportType androidPackage
+  --versioningStrategy None` lance UN SEUL conteneur (src/model/
+  docker.ts : le CLI monte SA PROPRE archive de scripts dans /steps,
+  jamais ceux d une action tierce) : siège Personal → compilation →
+  restitution (trap EXIT armé par runsteps.sh après la réussite de l
+  activation, même en cas d échec du build).
+- buildMethod conservé : ARM64, IL2CPP, minSdk 24, URP, profils
+  graphiques, scène de bataille explicite ; l APK sort dans
+  warships/unity/Builds/ (chemin explicite du script, dans le volume
+  monté) — c est là que la vérification taille + sha256 la cherche.
+- Sécurité : le CLI lit les secrets dans l ENV de son processus
+  (jamais en arguments) ; DANS le conteneur, le Unity Licensing Client
+  exige le mot de passe PAR ARGUMENT DE PROCESSUS (aucune alternative
+  stdin/fichier n existe — documenté dans le code du CLI) : visible
+  dans la liste de processus du conteneur pendant l appel, jamais
+  affiché dans les logs, aucun set -x. Compte Unity CI DÉDIÉ requis
+  (jamais le compte principal), 2FA de ce compte désactivée.
+- CI : l action de build v4 et une activation isolée (`game-ci
+  activate`) sont INTERDITES (step T-013.8 de warships-ci.yml,
+  check_gameci_workflow du validateur, 4 nouveaux self-tests) ; le
+  job « GameCI CLI v0.1.72 (installation réelle, sans activation) »
+  prouve à chaque push : version installée, checksum sha256 strict
+  contre checksums.txt, options réelles de `game-ci build --help`,
+  présence des scripts personal (activate.sh/runsteps.sh/
+  return_license.sh/entrypoint.sh) dans l archive, résolution du
+  projet (ProjectVersion.txt 2022.3.62f1, buildMethod dans le .cs
+  réel). AUCUNE commande de ce job ne touche Unity : il ne prouve PAS
+  une activation (siège = premier run réel du build).
 
 ## Historique licence (T-013.2 à T-013.5 — flux .alf/.ulf, RETIRÉ)
 
