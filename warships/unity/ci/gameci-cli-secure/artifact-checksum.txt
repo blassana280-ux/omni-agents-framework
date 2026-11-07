@@ -1,0 +1,1 @@
+49c49df3f4af768e0cae82fc7c92b6ae6fa3769ae8703b50d8b9d35f830fc3a7  gameci-cli-secure-linux-x64.tar.gz
