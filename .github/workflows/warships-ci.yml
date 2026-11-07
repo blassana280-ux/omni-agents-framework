@@ -68,46 +68,47 @@ jobs:
           echo "$out"
           if [ $rc -ne 0 ]; then msg=$(echo "$out" | tr '\n' '|' | tail -c 900); echo "::error::validate_unity_layer rc=$rc — $msg"; exit $rc; fi
 
-      - name: Reproductibilite des outils de licence (T-013.5 — scripts bloques, domaines epingles)
+      - name: Licence T-013.7 — flux .alf/.ulf, npm et puppeteer totalement absents des workflows
         run: |
           set -e
-          cd warships/unity/ci/license-tools
-          set +e
-          out=$(npm ci --ignore-scripts --no-audit --no-fund 2>&1)
-          rc=$?
-          set -e
-          if [ "$rc" -ne 0 ]; then
-            echo "$out" | tail -40
-            msg=$(printf '%s' "$out" | tail -10 | tr '\n' ' ' | cut -c1-800)
-            echo "::error::npm ci rc=$rc — $msg"
-            exit "$rc"
-          fi
-          echo "$out" | tail -6
-          grep -q '"version": "0.3.9"' node_modules/unity-license-activate/package.json
-          grep -q '"version": "13.7.0"' node_modules/puppeteer/package.json
-          # T-013.5 — 1) aucun telechargement durant l installation
-          if [ -d node_modules/puppeteer/.local-chromium ]; then
-            echo "::error::--ignore-scripts devait bloquer tout telechargement"
+          lic="$GITHUB_WORKSPACE/.github/workflows/warships-license.yml"
+          gc="$GITHUB_WORKSPACE/.github/workflows/warships-gameci.yml"
+          # T-013.7 — 1) le workflow de licence ne contient AUCUNE
+          # activation, AUCUN outil npm, AUCUN navigateur, AUCUN fichier
+          # de licence, AUCUN PAT (verifications uniquement)
+          for motif in 'npm ci' 'npm install' 'npm run' 'npx ' 'puppeteer' 'chromium' 'unity-license-activate' 'license.unity3d.com' 'unityci/editor' 'docker run' 'activation.alf' '.ulf' 'ACCESS_TOKEN' 'gh secret set' 'UNITY_TOTP_KEY' 'UNITY_LICENSE'; do
+            if grep -qF "$motif" "$lic"; then
+              echo "::error::warships-license.yml ne doit plus contenir le motif : $motif (T-013.7 : verification SANS activation)"
+              exit 1
+            fi
+          done
+          # T-013.7 — 2) le workflow de licence verifie les 2 secrets de
+          # la methode personal SANS les afficher et nettoie always()
+          grep -qF 'verify_secret UNITY_EMAIL' "$lic"
+          grep -qF 'verify_secret UNITY_PASSWORD' "$lic"
+          grep -q 'always()' "$lic"
+          # T-013.7 — 3) le workflow de build active PAR IDENTIFIANTS :
+          # plus d exigence UNITY_LICENSE (methode personal), secrets
+          # UNITY_EMAIL/UNITY_PASSWORD transmis au builder par env
+          if grep -qF 'verify_secret UNITY_LICENSE' "$gc"; then
+            echo "::error::warships-gameci.yml ne doit plus exiger UNITY_LICENSE (T-013.7 : methode personal par identifiants)"
             exit 1
           fi
-          # T-013.5 — 2) domaines du lock : registry.npmjs.org UNIQUEMENT
-          hosts=$(sed -n 's/.*"resolved": "https:\/\/\([^/"]*\)\/.*/\1/p' package-lock.json | sort -u)
-          if [ "$hosts" != "registry.npmjs.org" ]; then
-            echo "::error::domaine(s) non autorise(s) dans le lock : $hosts"
-            exit 1
-          fi
-          # T-013.5 — 3) scripts d installation declares == les 3 auditees
-          flagged=$(grep -B3 '"hasInstallScripts": true' package-lock.json | grep -o '"node_modules/[^"]*"' | sort -u)
-          expected=$(printf '%s\n%s\n%s\n' '"node_modules/bufferutil"' '"node_modules/puppeteer"' '"node_modules/utf-8-validate"' | sort -u)
-          if [ "$flagged" != "$expected" ]; then
-            echo "::error::scripts d installation du lock differentes des 3 auditees : $flagged"
-            exit 1
-          fi
-          # T-013.5 — 4) coherence cross-fichiers : revision 982053 figee
-          grep -q "982053" node_modules/puppeteer/lib/cjs/puppeteer/revisions.js
-          grep -q 'chromium-browser-snapshots/Linux_x64/982053/chrome-linux.zip' "$GITHUB_WORKSPACE/.github/workflows/warships-license.yml"
-          grep -q 'npm ci --ignore-scripts' "$GITHUB_WORKSPACE/.github/workflows/warships-license.yml"
-          echo "T-013.5 OK : arbre exact (0.3.9 + puppeteer 13.7.0), aucun script execute, domaines lock = registry.npmjs.org, scripts declares = 3 auditees, revision Chromium 982053 coherente workflow/lock/paquet."
+          grep -qF 'UNITY_EMAIL' "$gc"
+          grep -qF 'UNITY_PASSWORD' "$gc"
+          grep -q 'unity-builder@v4' "$gc"
+          # T-013.7 — 4) aucun workflow ne reference l ancien dossier npm
+          # d activation (supprime du depot) — motif construit pour ne
+          # pas matcher ce fichier lui-meme
+          lt="license"
+          pat="${lt}-tools"
+          for wf in "$GITHUB_WORKSPACE"/.github/workflows/warships-*.yml; do
+            if grep -qF "$pat" "$wf"; then
+              echo "::error::$wf ne doit plus referencer ${lt}-tools (T-013.7 : dependances npm supprimees)"
+              exit 1
+            fi
+          done
+          echo "T-013.7 OK : workflow de licence = verifications sans activation (aucun npm/puppeteur/.ulf/PAT), build = activation personal par identifiants, ancien dossier npm absent des workflows."
 
   workflows:
     name: Workflows (actionlint)

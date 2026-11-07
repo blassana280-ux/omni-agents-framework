@@ -494,3 +494,110 @@ La PR #16 a été vérifiée indépendamment. Corrections apportées :
 ### 11.6 Statut inchangé (honnête)
 - Aucune acquisition réelle déclenchée, aucun secret demandé, aucune
   fusion, main intacte. Preuve = première exécution réelle.
+
+## 12. T-013.7 — vérification de la migration GameCI et réconciliation (07/11/2026)
+
+### 12.1 Réconciliation GitHub (divergence T-013.6)
+- Le rapport T-013.6 annonçait un commit 26344d2a « livré » : il n a
+  JAMAIS existé sur GitHub (branche toujours sur 0e5ec86d, aucun run
+  pour ce SHA, PR #16 intacte, aucune trace dans la base de
+  connaissance). La migration « game-ci/unity-activate v2 + CLI
+  v1.5.1 » de T-013.6 était THÉORIQUE et partiellement inventée
+  (inputs username/password/totp inexistantes dans l action v2 ;
+  version v1.5.1 de la CLI inexistante). T-013.7 repart de la tête
+  réelle 0e5ec86d et ne pousse que du travail vérifié, commit par
+  commit, sur GitHub.
+
+### 12.2 Audit réel de game-ci/unity-activate (v2)
+- Dépôt github.com/game-ci/unity-activate, tête main 2e3cdcc0,
+  package version 2.0.0, action node20 ; tag v2 = commit 33cd3ea9.
+- action.yml : inputs RÉELLES = unityVersion (inutilisée, pure
+  compatibilité), cliVersion (défaut latest, épinglable),
+  githubToken (défaut github.token, sert UNIQUEMENT à résoudre
+  « latest » en tag via api.github.com). AUCUNE input
+  username/password/totp ou credentials : les secrets Unity sont lus
+  par la CLI depuis l ENVIRONNEMENT (jamais en arguments de ligne de
+  commande — pas de fuite par table des processus ou logs de job).
+- src/index.ts lance « game-ci activate <path> » ; l action wrapper
+  transmet GITHUB_WORKSPACE comme projet racine — inadapté à notre
+  projet (warships/unity) : nous n utilisons PAS l action wrapper
+  mais unity-builder@v4 (build complet, conteneur unique).
+
+### 12.3 Audit réel de game-ci/cli et réponse « Personal sans PC »
+- Versions RÉELLES : v0.1.x, dernière v0.1.72 (2026-10-03, commit
+  7da0cea2) — PAS de v1.5.1. Releases binaires par OS/architecture
+  avec checksums.txt (sha256).
+- Scripts d activation (activate.sh, licensing_method.sh) : chaîne
+  de méthode = file → serial → floating → personal ; « personal » =
+  UNITY_EMAIL + UNITY_PASSWORD seuls : le Unity Licensing Client
+  (« --activate-all --include-personal --username --password »)
+  obtient un siège Personal SANS fichier de licence et SANS
+  navigateur. Mesuré publiquement par game-ci sur Unity
+  2022.3.62f3 (voisin direct de notre 2022.3.62f1).
+- .alf/.ulf : MORT pour Personal — license.unity3d.com/manual
+  redirige vers /new (« Offline activation is available only for
+  Enterprise and Industry seats »). Le flux T-013.2 à T-013.5 est
+  périmé côté Unity et retiré du dépôt.
+- 2FA : aucun défi 2FA ni vérification d appareil ne peut recevoir
+  de réponse en headless → compte Unity avec 2FA DÉSACTIVÉE
+  obligatoire (compte dédié au CI recommandé, jamais le compte
+  principal). Le TOTP de T-013.4 concernait l ancien parcours
+  navigateur : retiré.
+- Sièges : un siège Personal est TENU jusqu à restitution, et la
+  restitution n est fiable que DANS LE MÊME CONTENEUR que l
+  activation (game-ci activate-only laisse le siège actif ; le
+  retour entre conteneurs distincts échoue : « bound to a different
+  machine »). Décision : activation + build + restitution dans le
+  MÊME run unity-builder@v4 ; AUCUN workflow d activation standalone.
+
+### 12.4 Décision d architecture (T-013.7)
+- warships-gameci.yml (déclenché par BUILD-TRIGGER.md) = point d
+  activation UNIQUE : méthode personal par identifiants dans le
+  conteneur du builder, siège rendu automatiquement (trap EXIT du
+  conteneur, même en cas d échec du build). Plus d exigence
+  UNITY_LICENSE.
+- warships-license.yml devient une GARDE DE VÉRIFICATION sans
+  activation : vérifie UNITY_EMAIL/UNITY_PASSWORD (propres, jamais
+  affichés), ne contacte PAS Unity, ne produit AUCUN fichier,
+  nettoie always() (dont /tmp/alfdir, résidu des anciens flux).
+  Plus de PAT, plus de TOTP, plus de dépendance npm, plus de
+  navigateur de 2022.
+- Suppression de warships/unity/ci/license-tools (67 paquets,
+  puppeteer 13.7.0, Chromium 101 d avril 2022) : plus de navigateur
+  obsolète exposé à des identifiants réels.
+- Secrets requis : UNIQUEMENT UNITY_EMAIL + UNITY_PASSWORD (compte
+  Unity gratuit Personal, 2FA désactivée). Plus de UNITY_LICENSE,
+  UNITY_TOTP_KEY ni ACCESS_TOKEN.
+
+### 12.5 Garde-fous CI refondus
+- check_workflow_security (T-013.7) : step de vérification des
+  secrets (env + verify_secret sans affichage, TOTP proscrit), step
+  nettoyage always() avec /tmp/alfdir, 21 motifs interdits sur les
+  lignes actives (outils npm, navigateur, image docker d activation,
+  fichiers de licence, PAT, TOTP, UNITY_SERIAL...), set -x /
+  upload-artifact / opérations git interdits.
+- SELF-TESTS refondus : 1 snippet sain + 8 snippets FAUX (relance
+  docker du flux .alf, outil npm réintroduit, stockage de fichier de
+  licence via PAT, TOTP exigé, set -x, always() retiré,
+  UNITY_LICENSE exigé, activation par navigateur) — tous rejoués en
+  simulation avant le push (aucun non-détecté).
+- check_license_tools : AUCUN workflow ne référence license-tools ;
+  le step CI T-013.7 vérifie en plus 16 motifs interdits sur le
+  workflow de licence ENTIER (commentaires compris) et l absence d
+  exigence UNITY_LICENSE sur le workflow de build.
+
+### 12.6 Statut (honnête)
+- Réponse à « Unity Personal sans PC ? » : OUI pour le mécanisme —
+  prouvé par le code source des scripts d activation game-ci et
+  leurs mesures publiques (2022.3.62f3) ; la PREUVE d obtention ne
+  peut exister qu au premier run réel du build avec les identifiants
+  de Lassana (aucun identifiant réel utilisé dans cet audit, aucune
+  activation déclenchée, aucun fichier de licence publié). Un test
+  avec de faux identifiants ne prouve rien : il sera explicitement
+  rouge sans siège.
+- Licence MIT de game-ci ≠ licence Unity (jamais confondues).
+- Blocages : identifiants Unity = décision de Lassana (compte dédié
+  CI, 2FA désactivée) ; le support Personal des scripts v4
+  embarqués dans l image du builder sera tranché par le premier run
+  réel (repli documenté : game-ci/cli directement dans le
+  conteneur).

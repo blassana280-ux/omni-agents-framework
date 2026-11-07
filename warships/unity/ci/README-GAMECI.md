@@ -27,8 +27,11 @@ configurée). Le workflow réel vit sur la branche `warships/android-build`
 ## Compilation (étapes exactes, téléphone uniquement)
 
 1. Secrets du dépôt (Settings > Secrets and variables > Actions) :
-   `UNITY_LICENSE` (contenu du .ulf), `UNITY_EMAIL`, `UNITY_PASSWORD` —
-   sans espaces parasites autour.
+   `UNITY_EMAIL`, `UNITY_PASSWORD` (compte Unity GRATUIT Personal avec
+   2FA DÉSACTIVÉE — compte dédié au CI recommandé), sans espaces
+   parasites autour. Plus de fichier de licence (T-013.7 : Unity a
+   retiré l activation manuelle des licences Personal ; le build
+   demande un siège Personal par identifiants, dans son conteneur).
 2. Ouvrir `warships/unity/ci/BUILD-TRIGGER.md` sur GitHub (navigateur
    mobile), crayon, incrémenter le compteur, commiter sur la branche.
 3. Le job build-android : vérifie les secrets, libère l espace disque,
@@ -39,64 +42,59 @@ configurée). Le workflow réel vit sur la branche `warships/android-build`
 4. Télécharger l APK : artefact `omni-warships-apk` ou release brouillon
    `android-build-N`.
 
-## Licence Unity sans PC (T-013.4 + T-013.5 — workflow durci, installation maitrisee)
+## Licence Unity sans PC (T-013.7 — méthode personal PAR IDENTIFIANTS, audit réel du code)
 
-La documentation officielle actuelle de game.ci recommande Unity Hub sur
-un PC — Lassana n en a pas. Le workflow
-`.github/workflows/warships-license.yml` (déclenché par
-`warships/unity/ci/LICENSE-TRIGGER.md`) permet d obtenir le .ulf
-ENTIÈREMENT depuis le téléphone, SANS JAMAIS publier le .ulf (dépôt
-public) et SANS JAMAIS exposer les identifiants :
+Audit du code source réel (07/11/2026) : action game-ci/unity-activate
+v2 (package 2.0.0, tête 2e3cdcc0, tag v2 = 33cd3ea9 ; inputs réelles :
+unityVersion, cliVersion, githubToken — AUCUNE input identifiants) et
+game-ci/cli (v0.1.72, commit 7da0cea2 ; PAS de v1.5.1). Conclusions :
 
-1. Compte Unity gratuit (id.unity.com) + TOTP activé.
-2. Secrets : `UNITY_EMAIL`, `UNITY_PASSWORD`, `UNITY_TOTP_KEY`
-   (OBLIGATOIRE — le parcours de vérification par email est neutralisé :
-   si Unity le présente, arrêt propre, aucun identifiant transmis, aucune
-   récupération automatique) et `ACCESS_TOKEN` (PAT fine-grained limité
-   à CE dépôt, permission « Secrets » en lecture/écriture seule,
-   expiration ~30 jours — cf. LICENSE-TRIGGER.md).
-3. Modifier `LICENSE-TRIGGER.md` : le workflow installe l arbre
-   VERROUILLÉ (`npm ci --ignore-scripts` depuis `license-tools/package-lock.json`, 67
-   paquets, intégrité sha512 — plus aucun `npx --yes` ni `@latest`),
-   génère le .alf (image unityci/editor, drapeau documenté
-   -createManualActivationFile), l échange contre un .ulf via le binaire
-   de l arbre verrouillé (unity-license-activate 0.3.9, seul site
-   fonctionnel : license.unity3d.com), avec sortie CAPTURÉE et FILTRÉE
-   + masquage GitHub (`::add-mask::`) — aucun identifiant dans les
-   logs, même en cas d erreur.
-4. Stockage DIRECT du .ulf dans le secret `UNITY_LICENSE` via l API
-   GitHub : le PAT est injecté UNIQUEMENT dans cette étape, puis effacé
-   de la mémoire (`unset` + vérification d absence). Sans
-   `ACCESS_TOKEN` : échec explicite — AUCUN repli par artefact.
-5. Aucune capture ni artefact publié ; fichiers d erreur de l outil
-   supprimés (error.png / error.html) ; en cas d échec, consulter les
-   logs filtrés.
+- Unity a SUPPRIMÉ l activation manuelle (hors-ligne) des licences
+  Personal : license.unity3d.com/manual redirige vers /new et répond
+  que l activation hors-ligne est réservée aux sièges Enterprise et
+  Industry. L ancien flux .alf/.ulf (T-013.2 à T-013.5, y compris l
+  outillage npm + navigateur de 2022) est OBSOLÈTE et RETIRÉ du
+  dépôt (dossier license-tools supprimé).
+- La méthode Personal SANS PC et SANS fichier de licence : le client
+  de licence Unity, DANS LE CONTENEUR DU BUILD, demande un siège
+  Personal avec UNITY_EMAIL + UNITY_PASSWORD (chaîne file → serial →
+  floating → personal des scripts d activation game-ci ; mesurée par
+  game-ci sur 2022.3.62f3, voisin direct de notre 2022.3.62f1). C est
+  le flux standard unity-builder@v4 de warships-gameci.yml.
+- 2FA : l activation headless ne peut répondre à AUCUN défi 2FA ni
+  vérification d appareil — le compte Unity utilisé DOIT avoir la 2FA
+  DÉSACTIVÉE (compte dédié au CI recommandé). Plus de TOTP (il
+  concernait l ancien parcours navigateur).
+- Siège : rendu automatiquement à la fin du build (retour de licence
+  armé sur le trap EXIT du MÊME conteneur, même en cas d échec) —
+  c est pourquoi activation et compilation vivent dans le MÊME
+  conteneur unity-builder@v4 (le retour de siège entre conteneurs
+  distincts n est PAS fiable).
+- warships-license.yml (déclenché par LICENSE-TRIGGER.md) est devenu
+  une GARDE DE VÉRIFICATION SANS AUCUNE ACTIVATION : il vérifie
+  UNIQUEMENT la présence et la propreté des secrets, sans jamais les
+  afficher, sans contacter Unity, sans produire aucun fichier, avec
+  nettoyage always(). Le validateur CI (validate_unity_layer.py)
+  interdit structurellement tout retour des anciens motifs (outils
+  npm, navigateur, fichiers de licence, PAT, TOTP) — 8 self-tests de
+  non-régression.
 
-Honnêteté : méthode réelle mais NON officiellement prise en charge
-(option Personal masquée) ; authentification complète toujours requise ;
-prouvée à sa première exécution réelle. Ne JAMAIS communiquer
-identifiants, PAT ou licence dans une conversation.
+Honnêteté : mécanisme prouvé par le code source et les mesures
+publiques de game-ci, MAIS l obtention réelle ne sera PROUVÉE que par
+le premier run réel du build avec les secrets de Lassana (aucune
+simulation, aucun identifiant réel utilisé pendant l audit). Ne
+JAMAIS communiquer identifiants ou licence dans une conversation.
+Licence MIT de game-ci ≠ licence Unity.
 
-## T-013.5 — installation réellement maitrisee (audit 67/67)
+## Historique licence (T-013.2 à T-013.5 — flux .alf/.ulf, RETIRÉ)
 
-- Les DEUX workflows (licence et CI) installent avec `npm ci
-  --ignore-scripts` : aucun script d installation tiers ne s exécute.
-  Audit réel des 67 paquets du lock : EXACTEMENT 3 scripts déclarés
-  (puppeteer install.js, bufferutil et utf-8-validate node-gyp-build)
-  — tous bloqués, aucune compilation native, aucun téléchargement
-  pendant l installation.
-- Chromium est installé séparément par curl depuis l URL ÉPINGLÉE
-  https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/982053/chrome-linux.zip
-  (révision 982053 = Chromium 101.0.4951.64) ; sha256 consigné dans
-  les logs, version vérifiée à l exécution, résolution Puppeteer
-  vérifiée (executablePath) — l activation fonctionne sans exécuter
-  un seul script npm.
-- Domaines autorisés (liste blanche structurelle dans le validateur) :
-  registry.npmjs.org, storage.googleapis.com (URL épinglée),
-  license.unity3d.com, api.github.com, hub.docker.com.
-- Nettoyage final du runner (if: always(), même en cas d échec) : log
-  d activation, masques, zip Chromium, shim anti-email, .alf/.ulf et
-  captures supprimés.
+- T-013.2 à T-013.5 avaient construit un flux complet d acquisition
+  du fichier de licence (.alf → .ulf) avec outillage npm verrouillé
+  (67 paquets, --ignore-scripts) et navigateur épinglé : durcissement
+  réel (anti-publication, isolation du PAT, TOTP, filtrage des
+  sorties, nettoyage always()), mais PÉRIMÉ côté Unity — l activation
+  manuelle des licences Personal n existe plus (T-013.7). Tout ce
+  flux est retiré du dépôt ; le validateur interdit son retour.
 
 ## Ce que ce pipeline NE fait PAS
 

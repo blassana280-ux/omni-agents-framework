@@ -34,6 +34,18 @@ Vérifie, sans jamais simuler un statut :
      d installation du lock limités aux 3 paquets audités — et
      check_license_lock réellement BRANCHÉ (ses erreurs étaient
      ignorées par main : le comptage remontait un double compteur).
+ 14. T-013.7 — licence : Unity a SUPPRIMÉ l activation manuelle des
+     licences Personal (le portail d activation hors-ligne est
+     réservé aux sièges Enterprise/Industry) — le flux .alf/.ulf et
+     l outillage npm (67 paquets + navigateur de 2022) sont OBSOLÈTES
+     et RETIRÉS ; le workflow de licence devient une GARDE DE
+     VÉRIFICATION SANS AUCUNE ACTIVATION (aucun npm, aucun navigateur,
+     aucun PAT, aucun fichier de licence, aucune connexion Unity) ;
+     l activation réelle = méthode personal PAR IDENTIFIANTS
+     (UNITY_EMAIL/UNITY_PASSWORD) dans le conteneur du build
+     (warships-gameci.yml) ; 2FA du compte Unity DÉSACTIVÉE requise
+     (aucun défi réponse-able en headless, plus de TOTP) ; license-tools
+     supprimé du dépôt, AUCUN workflow ne le référence.
 
 Sortie ::error:: GitHub Actions ; exit 1 si au moins une erreur.
 """
@@ -416,16 +428,11 @@ def check_ulf_publication():
             t = "\n".join(lines)
             if "upload-artifact" in t:
                 err("warships-license.yml : AUCUN artefact autorisé dans le workflow de licence (T-013.3)")
-            if "ACCESS_TOKEN" not in t:
-                err("warships-license.yml : le stockage du secret exige ACCESS_TOKEN (aucun repli)")
-            if "npm ci" not in t:
-                err("warships-license.yml : npm ci requis — arbre verrouille license-tools (T-013.4)")
 
 
 # --------------------------- T-013.4 : securite structurelle + self-tests
 
 LICENSE_WF = ROOT / ".github" / "workflows" / "warships-license.yml"
-LICENSE_TOOLS = ROOT / "warships" / "unity" / "ci" / "license-tools"
 
 
 def parse_steps(text):
@@ -462,171 +469,94 @@ def step_run_body(step):
 
 
 def check_workflow_security(text):
-    """T-013.4 : regles structurelles du workflow de licence (depot public).
-    Renvoie la liste des violations (vide = conforme)."""
+    """T-013.7 : le workflow de licence est une GARDE DE VERIFICATION
+    SANS AUCUNE ACTIVATION (Unity a supprime l activation manuelle des
+    licences Personal ; l activation reelle = methode personal PAR
+    IDENTIFIANTS dans le conteneur du build). Renvoie les violations."""
     errs = []
     steps = parse_steps(text)
     if not steps:
         return ["workflow de licence : aucun step detecte (structure inattendue)"]
-    pat_idx = set()
-    for i, s in enumerate(steps):
-        if "ACCESS_TOKEN" in "\n".join(s["lines"]) or any(sec == "ACCESS_TOKEN" for _, sec in s["env"]):
-            pat_idx.add(i)
-    if len(pat_idx) != 1:
-        errs.append("ACCESS_TOKEN doit etre reference par EXACTEMENT une etape (le stockage) — etapes trouvees : " + str(len(pat_idx)))
-    else:
-        s = steps[sorted(pat_idx)[0]]
-        if "tockage" not in s["name"]:
-            errs.append("ACCESS_TOKEN doit vivre dans l etape de STOCKAGE, pas dans : " + s["name"])
-        if ("ACCESS_TOKEN", "ACCESS_TOKEN") not in s["env"]:
-            errs.append("l etape de stockage doit recevoir ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}")
-        body = step_run_body(s)
-        if "unset ulf_value ACCESS_TOKEN" not in body:
-            errs.append("l etape de stockage doit effacer ulf_value et ACCESS_TOKEN apres usage (unset)")
-        if '-n "${ACCESS_TOKEN:-}"' not in body:
-            errs.append("l etape de stockage doit verifier l ABSENCE du PAT apres unset")
-        if "gh secret set UNITY_LICENSE" not in body:
-            errs.append("l etape de stockage doit ecrire le secret via gh secret set UNITY_LICENSE")
-        if "gh secret list" not in body:
-            errs.append("l etape de stockage doit verifier la mise a jour via gh secret list (jamais la valeur)")
-    for i, s in enumerate(steps):
-        if i in pat_idx:
-            continue
-        if "ACCESS_TOKEN" in "\n".join(s["lines"]):
-            errs.append("step « " + s["name"] + " » : ACCESS_TOKEN interdit hors de l etape de stockage")
-    act = None
+    verif = None
+    clean = None
     for s in steps:
-        if "ctivation" in s["name"]:
-            act = s
-    if act is None:
-        errs.append("step d activation introuvable")
+        if "erification des secrets" in s["name"]:
+            verif = s
+        if "ettoyage" in s["name"]:
+            clean = s
+    if verif is None:
+        errs.append("step de verification des secrets introuvable (methode personal T-013.7)")
     else:
-        body = step_run_body(act)
-        for var in ("UNITY_EMAIL", "UNITY_PASSWORD", "UNITY_TOTP_KEY"):
-            if ("::add-mask::$" + var) not in body:
-                errs.append("activation : masque GitHub manquant pour " + var + " (::add-mask::)")
-        if "--authenticator-key" not in body:
-            errs.append("activation : --authenticator-key (TOTP) requis")
-        if '-z "${UNITY_TOTP_KEY:-}"' not in body:
-            errs.append("activation : le TOTP doit etre OBLIGATOIRE (arret explicite si absent)")
-        envs = [v for _, v in act["env"]]
-        for sec in ("UNITY_EMAIL", "UNITY_PASSWORD", "UNITY_TOTP_KEY"):
+        envs = [v for _, v in verif["env"]]
+        for sec in ("UNITY_EMAIL", "UNITY_PASSWORD"):
             if sec not in envs:
-                errs.append("activation : secret " + sec + " absent de l env du step")
-        if "ACCESS_TOKEN" in envs:
-            errs.append("activation : le PAT ne doit JAMAIS etre fourni a l etape d activation")
-        if "unity-email-guard" not in body:
-            errs.append("activation : garde anti-email manquante (shim unity-email-guard)")
-        if "BLOCKED" not in body or "2FA (Email)" not in body:
-            errs.append("activation : une demande de verification par EMAIL doit ARRETER proprement (marqueur BLOCKED + detection 2FA (Email))")
-        if "grep -vFf" not in body:
-            errs.append("activation : sortie FILTREE requise (grep -vFf fichier de masques) avant tout affichage")
-        if "masks" not in body or "rm -f" not in body:
-            errs.append("activation : fichier de masques et fichiers temporaires a supprimer (rm -f)")
+                errs.append("verification : secret " + sec + " absent de l env du step (methode personal)")
+        body = step_run_body(verif)
+        if "verify_secret UNITY_EMAIL" not in body:
+            errs.append("verification : verify_secret UNITY_EMAIL requis (jamais affiche)")
+        if "verify_secret UNITY_PASSWORD" not in body:
+            errs.append("verification : verify_secret UNITY_PASSWORD requis (jamais affiche)")
+        if "UNITY_TOTP_KEY" in body:
+            errs.append("verification : UNITY_TOTP_KEY obsolete (T-013.7 : activation headless = 2FA DESACTIVEE, aucun TOTP)")
+    if clean is None:
+        errs.append("step de nettoyage du runner requis (T-013.7)")
+    else:
+        if "always()" not in "\n".join(clean["lines"]):
+            errs.append("le nettoyage doit etre arme sur if: always()")
+        if "/tmp/alfdir" not in step_run_body(clean):
+            errs.append("nettoyage : /tmp/alfdir (residu des anciens flux) doit etre supprime")
     noncomment = [ln for ln in text.splitlines() if ln.strip() and not ln.strip().startswith("#")]
+    joined = "\n".join(noncomment)
+    # T-013.7 : AUCUNE activation, AUCUN npm, AUCUN navigateur, AUCUN
+    # fichier de licence, AUCUN PAT dans le workflow de verification.
+    motifs = (
+        "game-ci activate", "unity-license-activate", "license.unity3d.com",
+        "unityci/editor", "docker run", "npm ci", "npm install", "npm run",
+        "npx ", "puppeteer", "chromium", "chrome-linux",
+        "-createManualActivationFile", "activation.alf", ".ulf",
+        "UNITY_SERIAL", "UNITY_TOTP_KEY", "UNITY_LICENSE",
+        "ACCESS_TOKEN", "gh secret set", "license-tools",
+    )
+    for motif in motifs:
+        if motif in joined:
+            errs.append("workflow de licence T-013.7 SANS activation : motif interdit present : " + motif)
     for ln in noncomment:
-        if "unity-verify-code" in ln and "email-guard" not in ln and "ulf_log" not in ln and "$shim_dir" not in ln:
-            errs.append("ligne interdite : unity-verify-code appele hors de la garde anti-email : " + ln.strip())
+        if "set -x" in ln:
+            errs.append("workflow de licence : set -x interdit (afficherait les valeurs des secrets)")
         if "upload-artifact" in ln:
             errs.append("workflow de licence : upload-artifact interdit (depot public) : " + ln.strip())
         low = ln.lower()
-        if ".ulf" in ln and "release" in low:
-            errs.append("workflow de licence : .ulf associe a une release interdit : " + ln.strip())
         if "git add" in low or "git commit" in low or "git push" in low:
             errs.append("workflow de licence : operation git interdite : " + ln.strip())
-        if "set -x" in ln:
-            errs.append("workflow de licence : set -x interdit (afficherait les valeurs des secrets)")
-    joined = "\n".join(noncomment)
-    if "npx" in joined:
-        errs.append("workflow de licence : npx interdit — outils installes par npm ci depuis le lock")
-    if "@latest" in joined:
-        errs.append("workflow de licence : @latest interdit")
-    if "npm ci" not in joined:
-        errs.append("workflow de licence : npm ci (arbre verrouille) requis")
-    # T-013.5 : installation maitrisee
-    if "npm ci --ignore-scripts" not in joined:
-        errs.append("workflow de licence : npm ci doit bloquer les scripts d installation (--ignore-scripts, T-013.5)")
-    if re.search(r"\bnode\s+[^\n]*install\.js", joined):
-        errs.append("workflow de licence : execution interdite d un script d installation tiers (node ... install.js, T-013.5)")
-    if "chromium-browser-snapshots/Linux_x64/982053/chrome-linux.zip" not in joined:
-        errs.append("workflow de licence : Chromium doit venir de l URL epinglee (revision 982053, T-013.5)")
-    for m in re.finditer(r"https?://([^/\s\"]+)", joined):
-        host = m.group(1)
-        if host not in ("storage.googleapis.com", "registry.npmjs.org"):
-            errs.append("workflow de licence : domaine externe non autorise : " + host)
-    if "node_modules/.bin/unity-license-activate" not in joined:
-        errs.append("workflow de licence : le binaire doit venir de l arbre verrouille (node_modules/.bin/unity-license-activate)")
-    if re.search(r"unity-license-activate@[0-9]", joined):
-        errs.append("workflow de licence : reference npm unity-license-activate@X interdite (epingle via package-lock)")
     return errs
 
 
 def check_license_workflow():
-    """Applique les regles T-013.4 au VRAI workflow du depot."""
+    """Applique les regles T-013.7 au VRAI workflow du depot."""
     if not LICENSE_WF.is_file():
-        err("warships-license.yml introuvable : checks T-013.4 inapplicables")
+        err("warships-license.yml introuvable : checks T-013.7 inapplicables")
         return
     for e in check_workflow_security(LICENSE_WF.read_text(encoding="utf-8")):
         err(e)
 
 
-def check_license_lock():
-    """T-013.4 : arbre npm verrouille — package.json epingle, package-lock
-    complet (67 paquets, integrite sha512, registry officiel)."""
+def check_license_tools():
+    """T-013.7 : l outillage npm de licence (dossier license-tools —
+    67 paquets, unity-license-activate 0.3.9, puppeteer 13.7.0,
+    Chromium 101 d avril 2022) est OBSOLETE et RETIRE : Unity a
+    supprime l activation manuelle des licences Personal, l ancien
+    outil visait une page qui n existe plus. AUCUN workflow ne doit
+    plus referencer ce dossier."""
     errs = []
-    pj = LICENSE_TOOLS / "package.json"
-    lk = LICENSE_TOOLS / "package-lock.json"
-    for p in (pj, lk):
-        if not p.is_file():
-            errs.append("fichier manquant : " + str(p.relative_to(ROOT)))
-    if errs:
-        return errs
-    pkg = load_json(pj)
-    lock = load_json(lk)
-    if pkg is not None:
-        deps = pkg.get("dependencies", {})
-        if deps.get("unity-license-activate") != "0.3.9":
-            errs.append("package.json : unity-license-activate doit etre epingle en 0.3.9 EXACT")
-        for k, v in deps.items():
-            if str(v).startswith("^") or str(v).startswith("~") or str(v) == "latest":
-                errs.append("package.json : plage non verrouillee interdite (" + k + " " + str(v) + ")")
-    if lock is not None:
-        if lock.get("lockfileVersion") not in (2, 3):
-            errs.append("package-lock.json : lockfileVersion invalide (2 ou 3 attendu)")
-        packs = lock.get("packages", {})
-        if packs.get("", {}).get("dependencies", {}).get("unity-license-activate") != "0.3.9":
-            errs.append("package-lock.json : la racine doit dependre de unity-license-activate 0.3.9 EXACT")
-        n = 0
-        for key, entry in packs.items():
-            if key == "":
-                continue
-            n += 1
-            if not str(entry.get("version", "")).strip():
-                errs.append("package-lock.json : champ version manquant pour " + key + " (npm ci refuserait l entree)")
-            if not str(entry.get("integrity", "")).startswith("sha512-"):
-                errs.append("package-lock.json : integrite sha512 manquante pour " + key)
-            if "registry.npmjs.org" not in str(entry.get("resolved", "")):
-                errs.append("package-lock.json : URL registry.npmjs.org absente pour " + key)
-        if n != 67:
-            errs.append("package-lock.json : 67 paquets verrouilles attendus, trouve " + str(n))
-        pp = packs.get("node_modules/puppeteer", {})
-        if not pp.get("hasInstallScripts"):
-            errs.append("package-lock.json : puppeteer doit declarer hasInstallScripts (telechargement Chromium documente)")
-        if "puppeteer-13.7.0.tgz" not in str(pp.get("resolved", "")):
-            errs.append("package-lock.json : puppeteer doit etre verrouille en 13.7.0")
-        # T-013.5 : scripts d installation declares == les 3 AUDITEES
-        # (puppeteer install.js, bufferutil et utf-8-validate
-        # node-gyp-build) ; toute autre entree hasInstallScripts est une
-        # execution de code inattendue a l installation.
-        flagged = sorted(k for k, e in packs.items()
-                         if isinstance(e, dict) and e.get("hasInstallScripts"))
-        expected_scripts = sorted([
-            "node_modules/bufferutil",
-            "node_modules/puppeteer",
-            "node_modules/utf-8-validate",
-        ])
-        if flagged != expected_scripts:
-            errs.append("package-lock.json : scripts d installation declarees != 3 auditees (puppeteer, bufferutil, utf-8-validate) : " + ", ".join(flagged))
+    wf_dir = ROOT / ".github" / "workflows"
+    if not wf_dir.is_dir():
+        return ["workflows introuvables : check license-tools inapplicable"]
+    for wf in sorted(wf_dir.glob("*.yml")):
+        t = wf.read_text(encoding="utf-8")
+        noncomment = "\n".join(ln for ln in t.splitlines()
+                               if ln.strip() and not ln.strip().startswith("#"))
+        if "license-tools" in noncomment:
+            errs.append(wf.name + " : reference a license-tools interdite (T-013.7 : outillage npm supprime)")
     return errs
 
 
@@ -636,100 +566,80 @@ jobs:
   a:
     runs-on: ubuntu-latest
     steps:
-      - name: Verification des secrets Unity (aucun PAT ici)
+      - name: Verification des secrets Unity (jamais affiches)
         env:
           MAIL: ${{ secrets.UNITY_EMAIL }}
+          PASS: ${{ secrets.UNITY_PASSWORD }}
         run: |
-          echo ok
-      - name: Activation (TOTP obligatoire, sorties filtrees)
-        env:
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-          UNITY_TOTP_KEY: ${{ secrets.UNITY_TOTP_KEY }}
+          verify_secret UNITY_EMAIL "$MAIL"
+          verify_secret UNITY_PASSWORD "$PASS"
+      - name: Nettoyage du runner (aucun fichier sensible)
+        if: always()
         run: |
-          echo "::add-mask::$UNITY_EMAIL"
-          echo "::add-mask::$UNITY_PASSWORD"
-          echo "::add-mask::$UNITY_TOTP_KEY"
-          if [ -z "${UNITY_TOTP_KEY:-}" ]; then
-            echo "::error::TOTP obligatoire"
-            exit 1
-          fi
-          shim_dir="$RUNNER_TEMP/unity-email-guard"
-          mkdir -p "$shim_dir"
-          cat > "$shim_dir/unity-verify-code" <<'GUARD'
-          #!/bin/sh
-          exit 86
-          GUARD
-          chmod +x "$shim_dir/unity-verify-code"
-          masks="$RUNNER_TEMP/masks.txt"
-          printf '%s\n' "$UNITY_EMAIL" "$UNITY_PASSWORD" "$UNITY_TOTP_KEY" > "$masks"
-          npm ci --ignore-scripts
-          curl --fail --output "$RUNNER_TEMP/c.zip" "https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/982053/chrome-linux.zip"
-          "$GITHUB_WORKSPACE/tools/node_modules/.bin/unity-license-activate" "$UNITY_EMAIL" "$UNITY_PASSWORD" a.alf --authenticator-key "$UNITY_TOTP_KEY" > "$RUNNER_TEMP/activation.log" 2>&1
-          if [ -f "$shim_dir/BLOCKED" ] || grep -q '2FA (Email)' "$RUNNER_TEMP/activation.log"; then
-            echo "::error::email 2FA — arret propre"
-            rm -f "$masks"
-            exit 1
-          fi
-          grep -vFf "$masks" "$RUNNER_TEMP/activation.log" || true
-          rm -f "$masks" "$RUNNER_TEMP/activation.log" error.png error.html
-      - name: Stockage du secret
-        env:
-          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-        run: |
-          ulf_value=$(cat l.ulf)
-          printf '%s' "$ulf_value" | GH_TOKEN="$ACCESS_TOKEN" gh secret set UNITY_LICENSE
-          updated=$(GH_TOKEN="$ACCESS_TOKEN" gh secret list --json name,updatedAt)
-          unset ulf_value ACCESS_TOKEN
-          if [ -n "${ACCESS_TOKEN:-}" ]; then
-            echo "::error::PAT encore present"
-            exit 1
-          fi
+          rm -rf /tmp/alfdir
 """
 
 BAD_SNIPPETS = [
-    ("PAT fourni a l etape de verification",
-     GOOD_SNIPPET.replace("          MAIL: ${{ secrets.UNITY_EMAIL }}",
-                          "          MAIL: ${{ secrets.UNITY_EMAIL }}\n          PAT: ${{ secrets.ACCESS_TOKEN }}")),
-    ("add-mask manquant",
-     GOOD_SNIPPET.replace('          echo "::add-mask::$UNITY_PASSWORD"\n', "")),
-    ("outil flottant npx --yes @latest",
-     GOOD_SNIPPET.replace('          "$GITHUB_WORKSPACE/tools/node_modules/.bin/unity-license-activate" "$UNITY_EMAIL" "$UNITY_PASSWORD" a.alf --authenticator-key "$UNITY_TOTP_KEY" > "$RUNNER_TEMP/activation.log" 2>&1',
-                          '          npx --yes unity-license-activate@latest "$UNITY_EMAIL" "$UNITY_PASSWORD" a.alf --authenticator-key "$UNITY_TOTP_KEY" > "$RUNNER_TEMP/activation.log" 2>&1')),
-    ("publication artefact",
-     GOOD_SNIPPET.replace("      - name: Stockage du secret",
-                          "      - uses: actions/upload-artifact@v4\n      - name: Stockage du secret")),
-    ("recuperation email autorisee (unity-verify-code direct)",
-     GOOD_SNIPPET.replace('          masks="$RUNNER_TEMP/masks.txt"',
-                          '          masks="$RUNNER_TEMP/masks.txt"\n          npx unity-verify-code "$UNITY_EMAIL" "$UNITY_PASSWORD" out.txt')),
-    ("PAT non efface apres usage",
-     GOOD_SNIPPET.replace("          unset ulf_value ACCESS_TOKEN\n", "")),
-    ("set -x (affichage des secrets)",
-     GOOD_SNIPPET.replace('          echo "::add-mask::$UNITY_EMAIL"',
-                          '          set -x\n          echo "::add-mask::$UNITY_EMAIL"')),
-    ("TOTP facultatif",
-     GOOD_SNIPPET.replace('          if [ -z "${UNITY_TOTP_KEY:-}" ]; then\n            echo "::error::TOTP obligatoire"\n            exit 1\n          fi\n', "")),
-    ("npm ci sans --ignore-scripts (scripts tiers executes, T-013.5)",
-     GOOD_SNIPPET.replace("npm ci --ignore-scripts", "npm ci")),
-    ("script d installation tiers execute (node install.js, T-013.5)",
+    ("activation .alf relancee (docker, ancien flux T-013.5)",
      GOOD_SNIPPET.replace(
-         '          curl --fail --output "$RUNNER_TEMP/c.zip" "https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/982053/chrome-linux.zip"\n',
-         '          curl --fail --output "$RUNNER_TEMP/c.zip" "https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/982053/chrome-linux.zip"\n'
-         '          node node_modules/puppeteer/install.js\n')),
-    ("URL Chromium non epinglee (revision non figee, T-013.5)",
-     GOOD_SNIPPET.replace("Linux_x64/982053/chrome-linux.zip",
-                          "Linux_x64/999999/chrome-linux.zip")),
-    ("domaine externe non autorise (miroir inconnu, T-013.5)",
+         "      - name: Nettoyage du runner (aucun fichier sensible)",
+         "      - name: Generation du fichier de demande .alf\n"
+         "        run: |\n"
+         "          docker run --rm -v /tmp/alfdir:/project unityci/editor:2022.3.62f1 \\\n"
+         "            unity-editor -batchmode -nographics -createManualActivationFile -quit\n"
+         "      - name: Nettoyage du runner (aucun fichier sensible)")),
+    ("outil npm unity-license-activate reintroduit (puppeteer)",
      GOOD_SNIPPET.replace(
-         "https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/982053/chrome-linux.zip",
-         "https://chromium.mirror-inconnu.example/Linux_x64/982053/chrome-linux.zip")),
+         "          verify_secret UNITY_PASSWORD \"$PASS\"\n",
+         "          verify_secret UNITY_PASSWORD \"$PASS\"\n"
+         "          cd warships/unity/ci/license-tools\n"
+         "          npm ci --ignore-scripts\n"
+         "          node_modules/.bin/unity-license-activate \"$MAIL\" \"$PASS\" a.alf\n")),
+    ("stockage d un .ulf via PAT (plus de fichier de licence, T-013.7)",
+     GOOD_SNIPPET.replace(
+         "      - name: Nettoyage du runner (aucun fichier sensible)",
+         "      - name: Stockage du secret\n"
+         "        env:\n"
+         "          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}\n"
+         "        run: |\n"
+         "          ulf_value=$(cat l.ulf)\n"
+         "          printf '%s' \"$ulf_value\" | GH_TOKEN=\"$ACCESS_TOKEN\" gh secret set UNITY_LICENSE\n"
+         "      - name: Nettoyage du runner (aucun fichier sensible)")),
+    ("TOTP exige (obsolete : l activation headless exige une 2FA desactivee)",
+     GOOD_SNIPPET.replace(
+         "          PASS: ${{ secrets.UNITY_PASSWORD }}\n",
+         "          PASS: ${{ secrets.UNITY_PASSWORD }}\n"
+         "          TOTP: ${{ secrets.UNITY_TOTP_KEY }}\n").replace(
+         "          verify_secret UNITY_PASSWORD \"$PASS\"\n",
+         "          verify_secret UNITY_PASSWORD \"$PASS\"\n"
+         "          verify_secret UNITY_TOTP_KEY \"$TOTP\"\n")),
+    ("secrets affiches (set -x)",
+     GOOD_SNIPPET.replace(
+         "          verify_secret UNITY_EMAIL \"$MAIL\"\n",
+         "          set -x\n"
+         "          verify_secret UNITY_EMAIL \"$MAIL\"\n")),
+    ("nettoyage arme seulement en cas de succes (if: always() retire)",
+     GOOD_SNIPPET.replace("        if: always()\n", "")),
+    ("exigence UNITY_LICENSE (fichier .ulf obsolete pour un compte gratuit)",
+     GOOD_SNIPPET.replace(
+         "          PASS: ${{ secrets.UNITY_PASSWORD }}\n",
+         "          PASS: ${{ secrets.UNITY_PASSWORD }}\n"
+         "          LIC: ${{ secrets.UNITY_LICENSE }}\n").replace(
+         "          verify_secret UNITY_PASSWORD \"$PASS\"\n",
+         "          verify_secret UNITY_PASSWORD \"$PASS\"\n"
+         "          verify_secret UNITY_LICENSE \"$LIC\"\n")),
+    ("activation par navigateur (license.unity3d.com, parcours retire par Unity)",
+     GOOD_SNIPPET.replace(
+         "          verify_secret UNITY_PASSWORD \"$PASS\"\n",
+         "          verify_secret UNITY_PASSWORD \"$PASS\"\n"
+         "          curl --fail https://license.unity3d.com/manual -o page.html\n")),
 ]
 
 
 def run_security_selftests():
     """SELF-TESTS de non-regression : le snippet SAIN doit donner 0 erreur,
     chaque snippet FAUX doit etre detecte. Une regression du validateur ou
-    du workflow de licence fait echouer la CI (T-013.4)."""
+    du workflow de licence fait echouer la CI (T-013.7)."""
     fails = []
     errs = check_workflow_security(GOOD_SNIPPET)
     if errs:
@@ -740,9 +650,9 @@ def run_security_selftests():
     total = 1 + len(BAD_SNIPPETS)
     if fails:
         for f in fails:
-            err("self-test T-013.4 : " + f)
+            err("self-test T-013.7 : " + f)
     else:
-        print("self-tests T-013.4 : " + str(total) + "/" + str(total)
+        print("self-tests T-013.7 : " + str(total) + "/" + str(total)
               + " OK (snippet sain + " + str(len(BAD_SNIPPETS)) + " regressions toutes detectees)")
 
 
@@ -777,7 +687,7 @@ def main():
     check_build_reporting()
     check_ulf_publication()
     check_license_workflow()
-    for e in check_license_lock():
+    for e in check_license_tools():
         err(e)
     run_security_selftests()
     check_docs()
@@ -792,9 +702,10 @@ def main():
           + " syntaxiquement valides, garde-fou scène de bataille OK"
           + " (chemin unique + inclusion explicite), namespaces build OK,"
           + " aucune publication .ulf, aucun secret, docs cohérents,"
-          + " PAT isolé + TOTP obligatoire + parcours email neutralisé"
-          + " + arbre verrouillé 67 paquets + scripts d installation"
-          + " maitrisés + domaines épinglés (T-013.4/T-013.5),"
+          + " workflow de licence = VERIFICATION sans activation"
+          + " (méthode personal par identifiants, 2FA désactivée requise,"
+          + " plus de TOTP ni d outillage npm ni de navigateur,"
+          + " license-tools absent des workflows) (T-013.7),"
           + " self-tests OK.")
 
 

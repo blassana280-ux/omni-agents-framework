@@ -20,10 +20,23 @@
 # part QUE si le fichier warships/unity/ci/BUILD-TRIGGER.md est modifie
 # (commit explicite, editable depuis le navigateur du telephone). Les
 # secrets du depot sont disponibles pour les evenements push de la
-# branche. workflow_dispatch conserve pour usage futur. Tant que les
-# secrets ne sont pas configures, le run s arrete a l etape de
-# verification (AUCUNE compilation Unity lancee) — run rouge ATTENDU
-# sur le commit d integration de ce workflow.
+# branche. workflow_dispatch conserve pour usage futur.
+# T-013.7 — ACTIVATION PERSONAL PAR IDENTIFIANTS (plus de .ulf) :
+#   Unity a supprime l activation manuelle des licences Personal
+#   (license.unity3d.com/manual -> /new, « Offline activation is
+#   available only for Enterprise and Industry seats »). La methode
+#   actuelle (auditee dans game-ci/cli, scripts activate.sh) : le Unity
+#   Licensing Client DU CONTENEUR DU BUILD demande un siege avec
+#   UNITY_EMAIL + UNITY_PASSWORD (methode personal, --activate-all
+#   --include-personal, mesuree sur 2022.3.62f3). Le secret
+#   UNITY_LICENSE (.ulf) N EST PLUS REQUIS NI TRANSMIS. Le siege est
+#   rendu automatiquement a la fin du build (return_license, trap EXIT,
+#   meme conteneur). REQUIS : 2FA DESACTIVEE sur le compte Unity (l
+#   activation headless ne peut repondre a aucun defi 2FA ni
+#   verification d appareil) — compte dedie au CI recommande.
+#   Tant que les secrets ne sont pas configures, le run s arrete a l
+#   etape de verification (AUCUNE compilation Unity lancee) — run rouge
+#   ATTENDU sur le commit d integration.
 name: Warships GameCI (APK Android)
 
 on:
@@ -38,7 +51,7 @@ permissions:
 
 jobs:
   build-android:
-    name: Compilation APK (Unity 2022.3, ARM64, IL2CPP)
+    name: Compilation APK (Unity 2022.3, ARM64, IL2CPP, activation Personal par identifiants)
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -49,7 +62,6 @@ jobs:
 
       - name: Verification des secrets (jamais affiches dans les logs)
         env:
-          LIC: ${{ secrets.UNITY_LICENSE }}
           MAIL: ${{ secrets.UNITY_EMAIL }}
           PASS: ${{ secrets.UNITY_PASSWORD }}
         run: |
@@ -65,20 +77,20 @@ jobs:
               exit 1
             fi
           }
-          verify_secret UNITY_LICENSE "$LIC"
           verify_secret UNITY_EMAIL "$MAIL"
           verify_secret UNITY_PASSWORD "$PASS"
-          echo "Secrets UNITY_LICENSE / UNITY_EMAIL / UNITY_PASSWORD presents et propres (aucune valeur affichee)."
+          echo "Secrets UNITY_EMAIL / UNITY_PASSWORD presents et propres (aucune valeur affichee)."
+          echo "Methode d activation T-013.7 : Personal PAR IDENTIFIANTS dans le conteneur du build"
+          echo "(plus de UNITY_LICENSE/.ulf — 2FA du compte Unity DESACTIVEE requise, siege rendu automatiquement)."
 
       - name: Liberation d espace disque (image Unity Android lourde)
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup 2>/dev/null || true
           df -h /
 
-      - name: Compilation Unity + APK (scene explicite via buildMethod)
+      - name: Compilation Unity + APK (activation Personal par identifiants, scene explicite via buildMethod)
         uses: game-ci/unity-builder@v4
         env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
@@ -117,5 +129,13 @@ jobs:
           gh release create "$tag" warships/unity/Builds/*.apk \
             --draft --repo "$GITHUB_REPOSITORY" \
             --title "OMNI WARSHIPS build Android ${{ github.run_number }}" \
-            --notes "APK ARM64 IL2CPP compilee par GameCI (Unity 2022.3, scene de bataille incluse explicitement). Brouillon : verifier l installation sur Tecno KN3 avant toute publication." \
+            --notes "APK ARM64 IL2CPP compilee par GameCI (Unity 2022.3, scene de bataille incluse explicitement, activation Personal par identifiants T-013.7). Brouillon : verifier l installation sur Tecno KN3 avant toute publication." \
             || echo "::warning::release non creee (voir l artefact APK)"
+
+      - name: Nettoyage du runner (fichiers temporaires supprimes meme en cas d echec)
+        if: always()
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          rm -rf /tmp/alfdir 2>/dev/null || true
+          rm -f activation.alf code.txt error.png error.html 2>/dev/null || true
+          echo "Nettoyage runner : la licence vit dans le conteneur du build (rendue par trap EXIT), aucun fichier de licence ne doit rester sur le runner."
