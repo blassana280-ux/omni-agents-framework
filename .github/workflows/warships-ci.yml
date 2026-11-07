@@ -68,7 +68,7 @@ jobs:
           echo "$out"
           if [ $rc -ne 0 ]; then msg=$(echo "$out" | tr '\n' '|' | tail -c 900); echo "::error::validate_unity_layer rc=$rc — $msg"; exit $rc; fi
 
-      - name: Licence et build T-013.8 — verification sans activation, build par GameCI CLI v0.1.72
+      - name: Licence et build T-013.8/T-013.9 — verification sans activation, build par CLI corrige (checksum strict)
         run: |
           set -e
           lic="$GITHUB_WORKSPACE/.github/workflows/warships-license.yml"
@@ -97,7 +97,7 @@ jobs:
             exit 1
           fi
           if echo "$gcnc" | grep -qF 'game-ci/cli@'; then
-            echo "::error::warships-gameci.yml : l action composite game-ci/cli@ est ECARTEE (install.sh racine commite sans bit executable au tag v0.1.72, exit 126 constate par run CI) — utiliser l installateur officiel scripts/install.sh epingle au tag (T-013.8)"
+            echo "::error::warships-gameci.yml : l action composite game-ci/cli@ est ECARTEE (install.sh racine commite sans bit executable au tag v0.1.72, exit 126 constate par run CI) — installer le CLI corrige via verify-gameci-cli.sh (T-013.9)"
             exit 1
           fi
           if echo "$gcnc" | grep -qF 'game-ci activate'; then
@@ -108,11 +108,31 @@ jobs:
             echo "::error::warships-gameci.yml ne doit plus exiger UNITY_LICENSE (T-013.7 : methode personal par identifiants)"
             exit 1
           fi
-          echo "$gcnc" | grep -qF 'raw.githubusercontent.com/game-ci/cli/v0.1.72/scripts/install.sh'
-          echo "$gcnc" | grep -qF -- '-- v0.1.72'
+          # T-013.9 — 2bis) le workflow de build installe le CLI CORRIGE
+          # UNIQUEMENT par verify-gameci-cli.sh : checksum STRICT,
+          # empreinte ANCREE DANS GIT (artifact-checksum.txt, divergence
+          # FATALE), comparaison bit a bit du binaire installe, preuve des
+          # scripts personal + trap EXIT dans l artefact. L INSTALLATEUR
+          # OFFICIEL du depot game-ci/cli est INTERDIT (il poursuit l
+          # installation apres un ECHEC de checksum : soft-fail ; et son
+          # binaire met les identifiants Unity dans la chaine sh -c,
+          # audit T-013.9). Toute installation non verifiee est INTERDITE.
+          if echo "$gcnc" | grep -qF 'raw.githubusercontent.com/game-ci/cli'; then
+            echo "::error::warships-gameci.yml : installation depuis raw.githubusercontent.com/game-ci/cli INTERDITE (T-013.9 : checksum soft-fail + binaire mettant les secrets dans la chaine sh -c) — installer le CLI corrige via verify-gameci-cli.sh depuis la release immuable"
+            exit 1
+          fi
+          if echo "$gcnc" | grep -qF -- 'bash -s --'; then
+            echo "::error::warships-gameci.yml : installation par bash -s -- INTERDITE (T-013.9 : installation non verifiee) — verify-gameci-cli.sh est la SEULE voie d installation"
+            exit 1
+          fi
+          echo "$gcnc" | grep -qF 'verify-gameci-cli.sh' || { echo "::error::warships-gameci.yml doit installer le CLI corrige via verify-gameci-cli.sh (T-013.9)"; exit 1; }
+          echo "$gcnc" | grep -qF 'gameci-cli-secure-v0.1.72w1' || { echo "::error::warships-gameci.yml doit epingler la release immuable gameci-cli-secure-v0.1.72w1 (T-013.9)"; exit 1; }
+          echo "$gcnc" | grep -qF 'artifact-checksum.txt' || { echo "::error::warships-gameci.yml doit exiger l empreinte ancree dans git (artifact-checksum.txt, T-013.9)"; exit 1; }
           echo "$gcnc" | grep -qF 'game-ci build'
           echo "$gcnc" | grep -qF 'OmniWarships.Unity.EditorTools.WarshipsBuildScript.BuildAndroid'
           echo "$gcnc" | grep -qF -- '--targetPlatform Android'
+          echo "$gcnc" | grep -qF -- '--androidExportType androidPackage' || { echo "::error::warships-gameci.yml doit epeler androidExportType androidPackage (T-013.9)"; exit 1; }
+          echo "$gcnc" | grep -qF -- '--versioningStrategy None' || { echo "::error::warships-gameci.yml doit epeler versioningStrategy None (T-013.9)"; exit 1; }
           grep -qF 'UNITY_EMAIL' "$gc"
           grep -qF 'UNITY_PASSWORD' "$gc"
           # T-013.8 — 3) aucun workflow ne reference l ancien dossier npm
@@ -126,7 +146,7 @@ jobs:
               exit 1
             fi
           done
-          echo "T-013.8 OK : licence = verifications sans activation, build = GameCI CLI v0.1.72 en une seule commande (un seul conteneur, action de build v4 INTERDITE), ancien dossier npm absent des workflows."
+          echo "T-013.8/T-013.9 OK : licence = verifications sans activation, build = CLI corrige T-013.9 installe par verify-gameci-cli.sh (checksum strict, empreinte ancree dans git, un seul conteneur, action de build v4, activation isolee et installateur officiel INTERDITS), ancien dossier npm absent des workflows."
 
   gameci-cli:
     name: GameCI CLI corrige T-013.9 (source patchee + tests + verificateur, sans activation)
@@ -240,6 +260,27 @@ jobs:
           echo "Projet resolu : Unity 2022.3.62f1, buildMethod OmniWarships.Unity.EditorTools.WarshipsBuildScript.BuildAndroid present dans le code reel."
           echo "AUCUNE commande ici ne touche Unity : ce job ne prouve PAS une activation (siege = premier run reel du build)."
 
+      - name: Artefact publie VERIFIE (release immuable en ligne + garde anti-staleness)
+        run: |
+          set -e
+          d="$RUNNER_TEMP/gameci-rel-verify"
+          mkdir -p "$d"
+          bash warships/unity/ci/gameci-cli-secure/verify-gameci-cli.sh \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/gameci-cli-secure-v0.1.72w1" \
+            gameci-cli-secure-linux-x64.tar.gz \
+            "$d" \
+            warships/unity/ci/gameci-cli-secure/artifact-checksum.txt
+          built=$(sed -n 's/^built_from_commit=//p' warships/unity/ci/gameci-cli-secure/BUILD-INFO.txt)
+          if [ -z "$built" ]; then
+            echo "::error::BUILD-INFO.txt sans ligne built_from_commit"
+            exit 1
+          fi
+          if ! git diff --quiet "$built" HEAD -- warships/unity/ci/gameci-cli-secure/patched-src/; then
+            echo "::error::ARTEFACT STALE : le correctif T-013.9 a change depuis le commit de build ($built) — re-incrementer RELEASE-TRIGGER.md pour republier avant tout build"
+            exit 1
+          fi
+          echo "Release immuable gameci-cli-secure-v0.1.72w1 verifiee EN LIGNE : checksum strict + empreinte ancree dans git + scripts personal et trap EXIT prouves dans l artefact, correctif a jour (construit depuis $built)."
+
   workflows:
     name: Workflows (actionlint)
     runs-on: ubuntu-latest
@@ -269,3 +310,4 @@ jobs:
             echo "::error::actionlint rc=$rc — $msg"
             exit $rc
           fi
+

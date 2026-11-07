@@ -662,27 +662,31 @@ def check_gameci_cli_secure():
     for e in errs:
         err(e)
 
-# --------------------------- T-013.8 : build par GameCI CLI v0.1.72
+# --------------------------- T-013.8/T-013.9 : build par CLI corrige (heritage ENV)
 
 GAMECI_WF = ROOT / ".github" / "workflows" / "warships-gameci.yml"
 
 
 def check_gameci_workflow_content(text):
-    """T-013.8 : le workflow de build compile via GameCI CLI v0.1.72 en
-    UNE SEULE commande de build. Un seul conteneur (celui du CLI, qui
-    monte SA PROPRE archive dist/ dans /steps) fait : siege Personal
-    par identifiants + compilation + restitution du siege (trap EXIT,
-    meme en cas d echec). L action de build v4 est INTERDITE : elle
-    monte ses propres scripts dans /steps en ecrasant ceux de l image,
-    et ces scripts ne contiennent PAS le chemin personal de la CLI
-    (bug bloquant T-013.7 corrige par cette migration). Renvoie les
-    violations (lignes actives uniquement, commentaires exclus)."""
+    """T-013.8/T-013.9 : le workflow de build compile via le CLI GameCI
+    CORRIGE T-013.9 (v0.1.72 + heritage ENV des identifiants), installe
+    UNIQUEMENT par verify-gameci-cli.sh depuis la release immuable
+    gameci-cli-secure-v0.1.72w1 avec empreinte ancree dans git
+    (artifact-checksum.txt, divergence FATALE). Un seul conteneur (celui
+    du CLI, qui monte SA PROPRE archive dist/ dans /steps) fait : siege
+    Personal par identifiants + compilation + restitution du siege
+    (trap EXIT, meme en cas d echec). L action de build v4 est INTERDITE
+    (bug T-013.7), l installateur officiel du depot game-ci/cli est
+    ECARTE (checksum soft-fail + identifiants dans la chaine sh -c,
+    audit T-013.9). Renvoie les violations (lignes actives uniquement,
+    commentaires exclus)."""
     noncomment = "\n".join(ln for ln in text.splitlines()
                            if ln.strip() and not ln.strip().startswith("#"))
     errs = []
     requis = (
-        "raw.githubusercontent.com/game-ci/cli/v0.1.72/scripts/install.sh",
-        "-- v0.1.72",
+        "verify-gameci-cli.sh",
+        "gameci-cli-secure-v0.1.72w1",
+        "artifact-checksum.txt",
         "game-ci build",
         "OmniWarships.Unity.EditorTools.WarshipsBuildScript.BuildAndroid",
         "--targetPlatform Android",
@@ -694,20 +698,21 @@ def check_gameci_workflow_content(text):
     )
     for req in requis:
         if req not in noncomment:
-            errs.append("warships-gameci.yml : requis absent (T-013.8) : " + req)
+            errs.append("warships-gameci.yml : requis absent (T-013.9) : " + req)
     interdits = (
         "unity-builder", "unity-activate@", "game-ci activate", "game-ci/cli@",
+        "raw.githubusercontent.com/game-ci/cli", "bash -s --",
         "UNITY_LICENSE", "UNITY_SERIAL", "UNITY_TOTP_KEY",
         "license.unity3d.com", "set -x",
     )
     for itd in interdits:
         if itd in noncomment:
-            errs.append("warships-gameci.yml : interdit present (T-013.8) : " + itd)
+            errs.append("warships-gameci.yml : interdit present (T-013.9) : " + itd)
     return errs
 
 
 def check_gameci_workflow():
-    """Applique les regles T-013.8 au VRAI workflow de build du depot."""
+    """Applique les regles T-013.8/T-013.9 au VRAI workflow de build du depot."""
     if not GAMECI_WF.is_file():
         err("warships-gameci.yml introuvable : checks T-013.8 inapplicables")
         return
@@ -728,9 +733,9 @@ jobs:
         run: |
           verify_secret UNITY_EMAIL "$MAIL"
           verify_secret UNITY_PASSWORD "$PASS"
-      - name: Installation CLI (installateur officiel, epingle au tag)
+      - name: Installation du CLI corrige T-013.9 (checksum strict, empreinte ancree dans git)
         run: |
-          curl -fsSL "https://raw.githubusercontent.com/game-ci/cli/v0.1.72/scripts/install.sh" | bash -s -- v0.1.72 "$RUNNER_TEMP/game-ci/bin"
+          bash warships/unity/ci/gameci-cli-secure/verify-gameci-cli.sh "https://github.com/$GITHUB_REPOSITORY/releases/download/gameci-cli-secure-v0.1.72w1" gameci-cli-secure-linux-x64.tar.gz "$RUNNER_TEMP/game-ci/bin" warships/unity/ci/gameci-cli-secure/artifact-checksum.txt
       - name: Build (un seul conteneur)
         env:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
@@ -746,22 +751,20 @@ jobs:
 BAD_GC_SNIPPETS = [
     ("retour a l action de build v4 (scripts /steps sans chemin personal)",
      GOOD_GC_SNIPPET.replace(
-         "      - name: Installation CLI (installateur officiel, epingle au tag)\n"
-         "        run: |\n"
-         "          curl -fsSL \"https://raw.githubusercontent.com/game-ci/cli/v0.1.72/scripts/install.sh\" | bash -s -- v0.1.72 \"$RUNNER_TEMP/game-ci/bin\"\n",
-         "      - name: Build v4\n"
-         "        uses: game-ci/unity-builder@v4\n"
-         "        with:\n"
-         "          targetPlatform: Android\n")),
+         "bash warships/unity/ci/gameci-cli-secure/verify-gameci-cli.sh",
+         "uses: game-ci/unity-builder@v4")),
     ("installation par l action composite racine cassee (install.sh racine commite sans bit executable au tag v0.1.72, exit 126)",
      GOOD_GC_SNIPPET.replace(
-         "      - name: Installation CLI (installateur officiel, epingle au tag)\n"
-         "        run: |\n"
-         "          curl -fsSL \"https://raw.githubusercontent.com/game-ci/cli/v0.1.72/scripts/install.sh\" | bash -s -- v0.1.72 \"$RUNNER_TEMP/game-ci/bin\"\n",
-         "      - name: Installation CLI\n"
-         "        uses: game-ci/cli@v0.1.72\n"
-         "        with:\n"
-         "          version: v0.1.72\n")),
+         "bash warships/unity/ci/gameci-cli-secure/verify-gameci-cli.sh",
+         "uses: game-ci/cli@v0.1.72")),
+    ("retour a l installateur officiel (T-013.9 : checksum soft-fail, binaire mettant les secrets dans la chaine sh -c)",
+     GOOD_GC_SNIPPET.replace(
+         "bash warships/unity/ci/gameci-cli-secure/verify-gameci-cli.sh",
+         'curl -fsSL "https://raw.githubusercontent.com/game-ci/cli/v0.1.72/scripts/install.sh" | bash -s -- v0.1.72 "$RUNNER_TEMP/game-ci/bin"')),
+    ("installation verifiee SANS empreinte ancree dans git (artifact-checksum.txt requis, T-013.9)",
+     GOOD_GC_SNIPPET.replace(
+         "warships/unity/ci/gameci-cli-secure/artifact-checksum.txt",
+         "$RUNNER_TEMP/empreinte.txt")),
     ("activation isolee (siege laisse actif, restitution inter-conteneurs non fiable)",
      GOOD_GC_SNIPPET.replace(
          "          game-ci build warships/unity",
@@ -852,7 +855,7 @@ BAD_SNIPPETS = [
 
 def run_security_selftests():
     """SELF-TESTS de non-regression : les snippets SAINS (licence T-013.7
-    et build T-013.8) doivent donner 0 erreur, chaque snippet FAUX doit
+    et build T-013.8/T-013.9) doivent donner 0 erreur, chaque snippet FAUX doit
     etre detecte. Une regression du validateur, du workflow de licence
     ou du workflow de build fait echouer la CI."""
     fails = []
@@ -871,9 +874,9 @@ def run_security_selftests():
     total = 2 + len(BAD_SNIPPETS) + len(BAD_GC_SNIPPETS)
     if fails:
         for f in fails:
-            err("self-test T-013.7/T-013.8 : " + f)
+            err("self-test T-013.7/T-013.9 : " + f)
     else:
-        print("self-tests T-013.7/T-013.8 : " + str(total) + "/" + str(total)
+        print("self-tests T-013.7/T-013.9 : " + str(total) + "/" + str(total)
               + " OK (2 snippets sains + "
               + str(len(BAD_SNIPPETS) + len(BAD_GC_SNIPPETS))
               + " regressions toutes detectees)")
@@ -944,4 +947,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

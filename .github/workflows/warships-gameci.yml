@@ -1,5 +1,6 @@
-# OMNI WARSHIPS T-013.8 — build Android via GameCI CLI v0.1.72 : UN SEUL
-# CONTENEUR (siege Personal + compilation + restitution).
+# OMNI WARSHIPS T-013.8/T-013.9 — build Android via le CLI GameCI CORRIGE
+# (v0.1.72 + heritage ENV des identifiants) : UN SEUL CONTENEUR (siege
+# Personal + compilation + restitution).
 #
 # BUG BLOQUANT T-013.7 CORRIGE (audite dans le code reel, 07/11/2026) :
 #   le flux T-013.7 utilisait l action game-ci/unity-builder (v4). Cette
@@ -32,9 +33,44 @@
 #     du CLI v0.1.72 : activate.sh (branche personal), build.sh,
 #     return_license.sh (branche personal), runsteps.sh, entrypoint.sh.
 #
+# MIGRATION T-013.9 (CLI CORRIGE, checksum STRICT) :
+#   - le binaire utilise par le build est le CLI CORRIGE T-013.9 :
+#     source officielle game-ci/cli EPINGLEE au commit
+#     7da0cea2f31799a4cbd79c1d452c254023f4f678 + overlay minimal commite
+#     (warships/unity/ci/gameci-cli-secure/patched-src, fork 403
+#     documente dans gameci-cli-secure/README.md), construit par le
+#     workflow de release (warships-cli-release.yml, declenche par
+#     RELEASE-TRIGGER.md) et publie en release IMMUABLE
+#     gameci-cli-secure-v0.1.72w1 (archive + checksums.txt + patch
+#     diff) avec empreinte ANCREE DANS GIT (artifact-checksum.txt +
+#     BUILD-INFO.txt, commits du bot CI) ;
+#   - correctif prouve par audit T-013.9 du code du tag :
+#     ImageEnvironmentFactory.getEnvVarString() emettait
+#     --env UNITY_PASSWORD="VALEUR" dans la chaine de commande passee
+#     a sh -c (argv des processus du runner) ; le CLI corrige emet des
+#     references SANS valeur (--env UNITY_PASSWORD) et transmet les
+#     valeurs par l ENV herite du processus docker ;
+#   - installation UNIQUEMENT par verify-gameci-cli.sh : checksum
+#     STRICT (echec FATAL si checksums.txt est inaccessible, si l
+#     empreinte attendue est absente de checksums.txt OU du fichier
+#     ancree dans git, en cas de divergence ou de mismatch sha256),
+#     comparaison bit a bit du binaire installe avec celui de l
+#     archive verifiee, preuve des scripts personal + trap EXIT dans
+#     l artefact ;
+#   - l INSTALLATEUR OFFICIEL du depot game-ci/cli (v0.1.72) est
+#     ECARTE pour le build : il POURSUIT l installation apres un
+#     ECHEC de checksum (soft-fail, constate dans son code) et son
+#     binaire met les identifiants Unity dans la chaine sh -c ;
+#   - la commande de build reste LA MEME (options prouvees sur les
+#     sources du tag : --targetPlatform, --buildMethod,
+#     --androidExportType, --versioningStrategy).
+#
 # SECURITE (documentee honnetement) :
-#   - le CLI lit UNITY_EMAIL/UNITY_PASSWORD dans l ENV de son processus,
-#     jamais en arguments de sa propre ligne de commande ;
+#   - le CLI CORRIGE T-013.9 lit UNITY_EMAIL/UNITY_PASSWORD dans l ENV
+#     herite du processus docker (references --env SANS valeur) : les
+#     identifiants ne figurent plus dans la chaine de commande passee
+#     a sh -c ni dans l argv des processus du runner (prouve par les
+#     tests a valeurs factices du correctif, executés en CI) ;
 #   - DANS le conteneur, le Unity Licensing Client exige le mot de
 #     passe PAR ARGUMENT DE PROCESSUS (aucune alternative stdin ou
 #     fichier n existe) : visible dans la liste de processus du
@@ -75,7 +111,7 @@ permissions:
 
 jobs:
   build-android:
-    name: Compilation APK (Unity 2022.3, ARM64, IL2CPP, siege Personal par identifiants, CLI v0.1.72)
+    name: Compilation APK (Unity 2022.3, ARM64, IL2CPP, siege Personal par identifiants, CLI corrige T-013.9)
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -116,22 +152,30 @@ jobs:
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup 2>/dev/null || true
           df -h /
 
-      - name: Installation de GameCI CLI v0.1.72 (installateur officiel du depot game-ci/cli, epingle au tag)
+      - name: Installation du CLI corrige T-013.9 (release immuable, checksum STRICT, empreinte ancree dans git)
         run: |
           set -e
           dest="$RUNNER_TEMP/game-ci/bin"
-          mkdir -p "$dest"
-          curl -fsSL "https://raw.githubusercontent.com/game-ci/cli/v0.1.72/scripts/install.sh" \
-            | bash -s -- v0.1.72 "$dest"
+          bash warships/unity/ci/gameci-cli-secure/verify-gameci-cli.sh \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/gameci-cli-secure-v0.1.72w1" \
+            gameci-cli-secure-linux-x64.tar.gz \
+            "$dest" \
+            warships/unity/ci/gameci-cli-secure/artifact-checksum.txt
           echo "$dest" >> "$GITHUB_PATH"
-          # L action composite racine du depot game-ci/cli est ECARTEE :
-          # son install.sh racine est commite sans bit executable
-          # (mode 100644 au tag v0.1.72) et echoue en exit 126 (constate
-          # par run CI reel). L installateur scripts/install.sh est la
-          # source unique documentee par le depot lui-meme : il verifie
-          # le sha256 de l archive contre checksums.txt avant
-          # extraction (mismatch = FATAL). La commande de build est
-          # lancee par le step suivant, avec un env totalement maitrise.
+          # T-013.9 : AUCUNE installation non verifiee. verify-gameci-cli.sh
+          # echoue de maniere FATALE si : checksums.txt est inaccessible,
+          # l empreinte attendue est absente (de checksums.txt OU du fichier
+          # ANCREE DANS GIT artifact-checksum.txt), les empreintes divergent,
+          # le sha256 de l archive ne correspond pas, le binaire installe
+          # differe de celui de l archive verifiee, ou les scripts personal
+          # + trap EXIT manquent dans l artefact.
+          # L INSTALLATEUR OFFICIEL du depot game-ci/cli est ECARTE : il
+          # POURSUIT l installation apres un ECHEC de checksum (soft-fail)
+          # et son binaire v0.1.72 met les identifiants Unity dans la
+          # chaine de commande passee a sh -c (argv des processus du
+          # runner, audit T-013.9). Le CLI corrige, construit depuis la
+          # meme source epinglee, les passe par ENV herite (references
+          # --env SANS valeur).
 
       - name: Compilation Unity + APK (un seul conteneur, siege Personal + build + restitution)
         env:
@@ -173,7 +217,7 @@ jobs:
           gh release create "$tag" warships/unity/Builds/*.apk \
             --draft --repo "$GITHUB_REPOSITORY" \
             --title "OMNI WARSHIPS build Android ${{ github.run_number }}" \
-            --notes "APK ARM64 IL2CPP compilee par GameCI CLI v0.1.72 (Unity 2022.3, scene de bataille incluse explicitement, siege Personal par identifiants T-013.8, un seul conteneur). Brouillon : verifier l installation sur Tecno KN3 avant toute publication." \
+            --notes "APK ARM64 IL2CPP compilee par le CLI corrige T-013.9 (v0.1.72 + heritage ENV des identifiants, Unity 2022.3, scene de bataille incluse explicitement, siege Personal par identifiants T-013.8, un seul conteneur). Brouillon : verifier l installation sur Tecno KN3 avant toute publication." \
             || echo "::warning::release non creee (voir l artefact APK)"
 
       - name: Nettoyage du runner (fichiers temporaires supprimes meme en cas d echec)
@@ -183,3 +227,4 @@ jobs:
           rm -rf /tmp/alfdir 2>/dev/null || true
           rm -f activation.alf code.txt error.png error.html 2>/dev/null || true
           echo "Nettoyage runner : le siege vit dans le conteneur du build (rendu par trap EXIT meme en cas d echec), aucun fichier de licence ne doit rester sur le runner."
+
