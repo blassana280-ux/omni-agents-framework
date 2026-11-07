@@ -3,9 +3,9 @@ name: Omni Warships CI
 on:
   push:
     branches: ['warships/**']
-    paths: ['warships/**', '.github/workflows/warships-ci.yml', '.github/workflows/warships-blender-fbx.yml', '.github/workflows/warships-gameci.yml', '.github/workflows/warships-license.yml']
+    paths: ['warships/**', '.github/workflows/warships-ci.yml', '.github/workflows/warships-blender-fbx.yml', '.github/workflows/warships-gameci.yml', '.github/workflows/warships-license.yml', '.github/workflows/warships-cli-release.yml']
   pull_request:
-    paths: ['warships/**', '.github/workflows/warships-ci.yml', '.github/workflows/warships-blender-fbx.yml', '.github/workflows/warships-gameci.yml', '.github/workflows/warships-license.yml']
+    paths: ['warships/**', '.github/workflows/warships-ci.yml', '.github/workflows/warships-blender-fbx.yml', '.github/workflows/warships-gameci.yml', '.github/workflows/warships-license.yml', '.github/workflows/warships-cli-release.yml']
 
 jobs:
   data:
@@ -129,77 +129,69 @@ jobs:
           echo "T-013.8 OK : licence = verifications sans activation, build = GameCI CLI v0.1.72 en une seule commande (un seul conteneur, action de build v4 INTERDITE), ancien dossier npm absent des workflows."
 
   gameci-cli:
-    name: GameCI CLI v0.1.72 (installation reelle, sans activation)
+    name: GameCI CLI corrige T-013.9 (source patchee + tests + verificateur, sans activation)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Installation reelle du CLI v0.1.72 (installateur officiel du depot game-ci/cli, epingle au tag)
+        with:
+          fetch-depth: 0
+      - name: Source officielle game-ci/cli EPINGLEE (commit exact, integrite par SHA git)
+        uses: actions/checkout@v4
+        with:
+          repository: game-ci/cli
+          ref: 7da0cea2f31799a4cbd79c1d452c254023f4f678
+          path: cli-src
+      - name: Overlay du correctif T-013.9 (minimal, tracable, dist/ INTACT)
         run: |
           set -e
-          dest="$RUNNER_TEMP/game-ci/bin"
-          mkdir -p "$dest"
-          curl -fsSL "https://raw.githubusercontent.com/game-ci/cli/v0.1.72/scripts/install.sh" \
-            | bash -s -- v0.1.72 "$dest"
-          echo "$dest" >> "$GITHUB_PATH"
-          # L action composite racine du depot game-ci/cli est ECARTEE :
-          # son install.sh racine est commite sans bit executable
-          # (mode 100644 au tag v0.1.72) et echoue en exit 126 (constate
-          # par le run CI du commit 07589340). L installateur
-          # scripts/install.sh est la source unique documentee par le
-          # depot lui-meme : sha256 de l archive verifie contre
-          # checksums.txt avant extraction (mismatch = FATAL). Aucune
-          # commande lancee ici, aucun secret, aucune connexion Unity.
-      - name: Preuve d identite du binaire installe (sha256 strict, ce CLI n expose pas --version)
+          cd cli-src
+          actual=$(git rev-parse HEAD)
+          if [ "$actual" != "7da0cea2f31799a4cbd79c1d452c254023f4f678" ]; then
+            echo "::error::commit game-ci/cli inattendu : $actual (epingle : 7da0cea2f31799a4cbd79c1d452c254023f4f678)"
+            exit 1
+          fi
+          cp ../warships/unity/ci/gameci-cli-secure/patched-src/src/model/image-environment-factory.ts src/model/
+          cp ../warships/unity/ci/gameci-cli-secure/patched-src/src/model/secure-env.test.ts src/model/
+          # Correctif MINIMAL prouve : exactement 1 fichier modifie + 1 test
+          # ajoute, RIEN d autre.
+          actual_status=$(git status --porcelain)
+          expected_status=$' M src/model/image-environment-factory.ts\n?? src/model/secure-env.test.ts'
+          if [ "$actual_status" != "$expected_status" ]; then
+            echo "::error::correctif non minimal ou source derivee — attendu exactement 2 fichiers (1 modifie + 1 test ajoute) ; obtenu :"
+            echo "$actual_status"
+            exit 1
+          fi
+          # dist/ = les scripts montes dans /steps du conteneur (chemin
+          # personal, trap EXIT de restitution) : INTACT octet par octet.
+          git diff --quiet -- dist/ || { echo "::error::dist/ (scripts personal) ne doit pas etre modifie"; exit 1; }
+          echo "Correctif minimal T-013.9 applique : heritage ENV des identifiants (references --env SANS valeur, valeurs par l environnement du processus docker) ; dist/ (scripts personal + trap EXIT) INTACT octet par octet."
+      - name: Setup Bun (1.3.13 epinglee — 1.4.0 casse --compile, cf release-cli.yml officiel du tag)
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+      - name: Dependances (lockfile gele)
         run: |
           set -e
-          # Ce CLI DESACTIVE --version et --help (src/cli.ts au tag
-          # v0.1.72 : .version(false) et .help(false), commente
-          # "Fixes broken _handle in yargs 17.0.0") : game-ci --version
-          # echoue en exit 1 (Unknown argument), constate par le run CI
-          # du commit 9ee95795. La preuve de version est donc le
-          # checksum sha256 STRICT de l archive de la release v0.1.72
-          # PLUS l identite bit a bit du binaire installe avec le
-          # binaire extrait de cette meme archive verifiee.
-          ver="v0.1.72"
-          d="$RUNNER_TEMP/gameci-proof"
-          mkdir -p "$d"
-          cd "$d"
-          curl -sSL --retry 3 -o game-ci-linux-x64.tar.gz "https://github.com/game-ci/cli/releases/download/$ver/game-ci-linux-x64.tar.gz"
-          curl -sSL --retry 3 -o checksums.txt "https://github.com/game-ci/cli/releases/download/$ver/checksums.txt"
-          want=$(grep -F 'game-ci-linux-x64.tar.gz' checksums.txt | head -1 | awk '{print $1}')
-          if [ -z "$want" ]; then
-            echo "::error::empreinte attendue absente de checksums.txt (release $ver)"
-            exit 1
-          fi
-          got=$(sha256sum game-ci-linux-x64.tar.gz | awk '{print $1}')
-          if [ "$want" != "$got" ]; then
-            echo "::error::checksum sha256 MISMATCH (attendu $want, obtenu $got)"
-            exit 1
-          fi
-          echo "Checksum sha256 de l archive VERIFIE (strict, pas de soft-skip) : $got"
-          tar -xzf game-ci-linux-x64.tar.gz
-          inst="$RUNNER_TEMP/game-ci/bin/game-ci"
-          if [ ! -f "$inst" ]; then
-            echo "::error::binaire installe introuvable : $inst"
-            exit 1
-          fi
-          a=$(sha256sum "$inst" | awk '{print $1}')
-          b=$(sha256sum ./game-ci | awk '{print $1}')
-          if [ "$a" != "$b" ]; then
-            echo "::error::le binaire installe ne correspond PAS a l archive verifiee de $ver ($a vs $b)"
-            exit 1
-          fi
-          echo "Identite prouvee : le binaire installe est exactement celui de la release $ver (sha256 $a)."
+          cd cli-src
+          bun install --frozen-lockfile
+      - name: Tests du correctif T-013.9 (valeurs 100% FACTICES, jamais affichees)
+        run: |
+          set -e
+          cd cli-src
+          bun test ./src/model/image-environment-factory.test.ts ./src/model/secure-env.test.ts ./src/model/system/system.test.ts ./src/model/docker.test.ts ./src/model/secret-redaction.test.ts
+      - name: Verificateur strict — 8 modes d echec eprouves + 1 acceptation (fixtures factices)
+        run: |
+          set -e
+          bash warships/unity/ci/gameci-cli-secure/test-verify-gameci-cli.sh
       - name: Options reelles de la commande build (sources du tag v0.1.72)
         run: |
           set -e
-          # L aide est DESACTIVEE dans ce CLI (.help(false) dans
-          # src/cli.ts au tag v0.1.72) : les options de la commande
-          # build sont prouvees sur les SOURCES du tag epingle
-          # (src/command-options), l identite du binaire installe
-          # etant deja prouvee par le checksum sha256 du step
-          # precedent. Chaque option utilisee par le workflow de
-          # build doit exister dans le code du tag.
+          # Les options de la commande build sont prouvees sur les SOURCES
+          # du tag epingle (ce CLI desactive --help et --version :
+          # .help(false)/.version(false) dans src/cli.ts au tag). Le binaire
+          # utilise par le build est le CLI CORRIGE construit depuis cette
+          # meme source epinglee (release T-013.9), pas le binaire officiel
+          # qui met les identifiants dans la chaine de commande.
           d="$RUNNER_TEMP/gameci-src"
           mkdir -p "$d"
           base="https://raw.githubusercontent.com/game-ci/cli/v0.1.72/src/command-options"
@@ -214,23 +206,24 @@ jobs:
           grep -qF ".option('versioningStrategy'" "$d/versioning-options.ts" || { echo "::error::versioningStrategy absent des sources du tag"; exit 1; }
           grep -qF "choices: ['androidPackage', 'androidAppBundle', 'androidStudioProject']" "$d/android-options.ts" || { echo "::error::androidExportType/androidPackage absent des sources du tag"; exit 1; }
           echo "Options prouvees dans les sources du tag v0.1.72 : targetPlatform, buildMethod, buildsPath, versioningStrategy, androidExportType (androidPackage), unityLicensingMethod (auto = serial, file, floating, personal)."
-      - name: Scripts personal présents dans l archive installée (preuve du conteneur réel)
+      - name: Scripts personal présents dans l arborescence source (preuve du conteneur réel)
         run: |
           set -e
-          base="$RUNNER_TEMP/game-ci/bin"
-          steps_dir="$base/dist/platforms/ubuntu/steps"
+          base="$GITHUB_WORKSPACE/cli-src/dist"
+          steps_dir="$base/platforms/ubuntu/steps"
           if [ ! -d "$steps_dir" ]; then
-            echo "::error::dist/platforms/ubuntu/steps introuvable dans l installation du CLI ($steps_dir)"
+            echo "::error::dist/platforms/ubuntu/steps introuvable dans la source epinglee ($steps_dir)"
             exit 1
           fi
-          # Ces scripts sont CEUX que le CLI monte dans /steps du conteneur
-          # (src/model/docker.ts de game-ci/cli) : leur contenu prouve le
+          # Ces scripts sont CEUX que le CLI corrige monte dans /steps du
+          # conteneur (src/model/docker.ts de game-ci/cli, dist/ recopie
+          # INTACTE dans l archive de release) : leur contenu prouve le
           # chemin personal — pas ceux d une action tierce.
           grep -q -- '--include-personal' "$steps_dir/activate.sh" || { echo "::error::activate.sh sans chemin personal (--include-personal absent)"; exit 1; }
           grep -qF 'trap return_license_once EXIT' "$steps_dir/runsteps.sh" || { echo "::error::runsteps.sh sans trap EXIT de restitution"; exit 1; }
           grep -qF 'Returning personal license seat' "$steps_dir/return_license.sh" || { echo "::error::return_license.sh sans branche personal"; exit 1; }
-          grep -qF '/steps/runsteps.sh' "$base/dist/platforms/ubuntu/entrypoint.sh" || { echo "::error::entrypoint.sh sans runsteps"; exit 1; }
-          echo "Scripts du conteneur prouves : activate.sh (branche personal), runsteps.sh (trap EXIT arme apres l activation), return_license.sh (branche personal), entrypoint.sh (orchestration /steps/runsteps.sh)."
+          grep -qF '/steps/runsteps.sh' "$base/platforms/ubuntu/entrypoint.sh" || { echo "::error::entrypoint.sh sans runsteps"; exit 1; }
+          echo "Scripts du conteneur prouves dans la source epinglee : activate.sh (branche personal), runsteps.sh (trap EXIT arme apres l activation), return_license.sh (branche personal), entrypoint.sh (orchestration /steps/runsteps.sh)."
       - name: Résolution du projet warships/unity (test local, AUCUNE connexion Unity)
         run: |
           set -e
@@ -252,7 +245,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: actionlint — validation réelle des 4 workflows warships (YAML, expressions, inputs des actions)
+      - name: actionlint — validation réelle des 5 workflows warships (YAML, expressions, inputs des actions)
         run: |
           set -e
           curl -sSL --retry 3 -o /tmp/download-actionlint.bash \
@@ -266,7 +259,8 @@ jobs:
             .github/workflows/warships-ci.yml \
             .github/workflows/warships-blender-fbx.yml \
             .github/workflows/warships-gameci.yml \
-            .github/workflows/warships-license.yml 2>&1)
+            .github/workflows/warships-license.yml \
+            .github/workflows/warships-cli-release.yml 2>&1)
           rc=$?
           set -e
           echo "$out"

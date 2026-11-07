@@ -65,6 +65,23 @@ Vérifie, sans jamais simuler un statut :
      (documenté dans le code du CLI, aucune alternative stdin/fichier,
      jamais affiché, aucun set -x) ; compte Unity CI dédié (jamais le
      compte principal), 2FA de ce compte désactivée.
+  16. T-013.9 — sécurisation du CLI GameCI avant toute utilisation des
+     identifiants Unity : le CLI officiel v0.1.72 met le mot de passe
+     DANS la chaîne de commande docker (getEnvVarString émet
+     `--env UNITY_PASSWORD="valeur"` et System.run passe la commande à
+     `sh -c` : le secret est visible dans l argv des processus du
+     runner ; SecretRedaction protège les LOGS, pas l argv — deux
+     problèmes différents). Le CLI corrigé vit dans
+     warships/unity/ci/gameci-cli-secure : source officielle ÉPINGLÉE
+     par SHA git + overlay MINIMAL committé (dépôt officiel JAMAIS
+     modifié, fork bloqué 403), identifiants transmis par l ENVIRONNEMENT
+     hérité du processus docker (références `--env` SANS valeur),
+     binaire publié en release IMMUABLE avec empreinte ancrée dans git,
+     installation STRICTEMENT vérifiée (checksums.txt inaccessible,
+     empreinte absente, divergence ou mismatch = FATAL ; binaire
+     installé comparé bit à bit à l archive vérifiée ; scripts personal
+     et trap EXIT requis dans l artefact). AUCUNE activation dans ce
+     workflow de release.
 
 Sortie ::error:: GitHub Actions ; exit 1 si au moins une erreur.
 """
@@ -164,6 +181,12 @@ REQUIRED_FILES = [
     UNITY / "README-IMPORT.md",
     UNITY / "ci" / "README-GAMECI.md",
     UNITY / "ci" / "gameci-example.yml",
+    UNITY / "ci" / "gameci-cli-secure" / "README.md",
+    UNITY / "ci" / "gameci-cli-secure" / "RELEASE-TRIGGER.md",
+    UNITY / "ci" / "gameci-cli-secure" / "verify-gameci-cli.sh",
+    UNITY / "ci" / "gameci-cli-secure" / "test-verify-gameci-cli.sh",
+    UNITY / "ci" / "gameci-cli-secure" / "patched-src" / "src" / "model" / "image-environment-factory.ts",
+    UNITY / "ci" / "gameci-cli-secure" / "patched-src" / "src" / "model" / "secure-env.test.ts",
     OMNI / "OmniWarships.Core.asmdef",
     OMNI / "OmniWarships.Unity.asmdef",
     OMNI / "Editor" / "OmniWarships.Unity.Editor.asmdef",
@@ -579,6 +602,66 @@ def check_license_tools():
     return errs
 
 
+# --------------------------- T-013.9 : CLI corrige (heritage ENV)
+
+CLI_SECURE = UNITY / "ci" / "gameci-cli-secure"
+CLI_RELEASE_WF = ROOT / ".github" / "workflows" / "warships-cli-release.yml"
+
+
+def check_gameci_cli_secure():
+    """T-013.9 : structure et integrite du CLI corrige. Le depot officiel
+    game-ci/cli n est PAS modifie : la source epinglee + l overlay
+    commite ici sont verifies structurellement (correctif de securite
+    present, tests factices presents, verificateur strict complet,
+    workflow de release sans AUCUNE activation Unity et sans jamais
+    toucher au bouton de build)."""
+    errs = []
+    patched = CLI_SECURE / "patched-src" / "src" / "model" / "image-environment-factory.ts"
+    if patched.is_file():
+        t = patched.read_text(encoding="utf-8")
+        for marker in ("credentialEnvNames", "'UNITY_EMAIL'", "'UNITY_PASSWORD'",
+                       "if (ImageEnvironmentFactory.credentialEnvNames.has(p.name))"):
+            if marker not in t:
+                errs.append("patched image-environment-factory.ts : marqueur T-013.9 absent : " + marker)
+    test = CLI_SECURE / "patched-src" / "src" / "model" / "secure-env.test.ts"
+    if test.is_file():
+        t = test.read_text(encoding="utf-8")
+        for marker in ("FAKE_EMAIL", "FAKE_PASSWORD", "getEnvVarString",
+                       "getInheritedEnvVars", "--env UNITY_EMAIL",
+                       "--env UNITY_PASSWORD", "example.invalid"):
+            if marker not in t:
+                errs.append("secure-env.test.ts : marqueur T-013.9 absent : " + marker)
+    verify = CLI_SECURE / "verify-gameci-cli.sh"
+    if verify.is_file():
+        t = verify.read_text(encoding="utf-8")
+        for marker in ("set -euo pipefail", "checksums.txt", "sha256sum",
+                       "--include-personal", "trap return_license_once EXIT",
+                       "Returning personal license seat", "/steps/runsteps.sh"):
+            if marker not in t:
+                errs.append("verify-gameci-cli.sh : garde T-013.9 absente : " + marker)
+        if "set -x" in t:
+            errs.append("verify-gameci-cli.sh : set -x interdit (affichage de secrets)")
+    if CLI_RELEASE_WF.is_file():
+        t = CLI_RELEASE_WF.read_text(encoding="utf-8")
+        noncomment = "\n".join(ln for ln in t.splitlines()
+                               if ln.strip() and not ln.strip().startswith("#"))
+        requis = ("game-ci/cli", "7da0cea2f31799a4cbd79c1d452c254023f4f678",
+                  "bun-version: 1.3.13", "build:assets", "--compile",
+                  "frozen-lockfile", "gh release create", "checksums.txt",
+                  "artifact-checksum.txt", "BUILD-INFO.txt", "RELEASE-TRIGGER.md",
+                  "verify-gameci-cli.sh", "secure-env.test.ts")
+        for marker in requis:
+            if marker not in noncomment:
+                errs.append("warships-cli-release.yml : requis T-013.9 absent : " + marker)
+        interdits = ("secrets.UNITY", "unity-builder", "game-ci build", "BUILD-TRIGGER")
+        for marker in interdits:
+            if marker in noncomment:
+                errs.append("warships-cli-release.yml : interdit T-013.9 present : " + marker)
+    else:
+        errs.append("warships-cli-release.yml introuvable : checks T-013.9 inapplicables")
+    for e in errs:
+        err(e)
+
 # --------------------------- T-013.8 : build par GameCI CLI v0.1.72
 
 GAMECI_WF = ROOT / ".github" / "workflows" / "warships-gameci.yml"
@@ -830,6 +913,7 @@ def main():
     for e in check_license_tools():
         err(e)
     check_gameci_workflow()
+    check_gameci_cli_secure()
     run_security_selftests()
     check_docs()
     if errors:
@@ -851,7 +935,11 @@ def main():
           + " conteneur : siège personal + compilation + restitution par"
           + " trap EXIT, action de build v4 et activation isolée"
           + " INTERDITES) (T-013.8),"
-          + " self-tests OK.")
+          + " self-tests OK,"
+          + " et CLI corrigé T-013.9 (identifiants Unity par ENV hérité,"
+          + " hors argv : source officielle épinglée + overlay minimal,"
+         + " installation strictement vérifiée, scripts personal intacts).")
+
 
 
 if __name__ == "__main__":

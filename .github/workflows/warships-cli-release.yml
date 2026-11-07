@@ -1,0 +1,161 @@
+name: Warships CLI corrige (build + release)
+
+# T-013.9 — construit et publie le CLI game-ci CORRIGE (heritage ENV
+# des identifiants Unity : plus aucun secret dans la chaine de commande
+# passee a sh -c, donc plus aucun secret dans l argv des processus du
+# runner). Ce workflow ne TOUCHE JAMAIS Unity : aucune activation, aucun
+# secret, aucune connexion. Il ne declenche JAMAIS le build Android
+# (BUILD-TRIGGER.md n est pas reference ici).
+on:
+  push:
+    branches: ['warships/android-build']
+    paths: ['warships/unity/ci/gameci-cli-secure/RELEASE-TRIGGER.md']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build du CLI corrige (v0.1.72 + patch T-013.9) et publication immuable
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout (depot warships, historique complet)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Source officielle game-ci/cli EPINGLEE (commit exact, integrite par SHA git)
+        uses: actions/checkout@v4
+        with:
+          repository: game-ci/cli
+          ref: 7da0cea2f31799a4cbd79c1d452c254023f4f678
+          path: cli-src
+
+      - name: Overlay du correctif T-013.9 (minimal, tracable, dist/ INTACT)
+        run: |
+          set -e
+          cd cli-src
+          actual=$(git rev-parse HEAD)
+          if [ "$actual" != "7da0cea2f31799a4cbd79c1d452c254023f4f678" ]; then
+            echo "::error::commit game-ci/cli inattendu : $actual (epingle : 7da0cea2f31799a4cbd79c1d452c254023f4f678)"
+            exit 1
+          fi
+          cp ../warships/unity/ci/gameci-cli-secure/patched-src/src/model/image-environment-factory.ts src/model/
+          cp ../warships/unity/ci/gameci-cli-secure/patched-src/src/model/secure-env.test.ts src/model/
+          # Correctif MINIMAL prouve : exactement 1 fichier modifie + 1 test
+          # ajoute, RIEN d autre (sinon l integrite de la source officielle
+          # n est plus demontrable).
+          actual_status=$(git status --porcelain)
+          expected_status=$' M src/model/image-environment-factory.ts\n?? src/model/secure-env.test.ts'
+          if [ "$actual_status" != "$expected_status" ]; then
+            echo "::error::correctif non minimal ou source derivee — attendu exactement :"
+            echo "$expected_status"
+            echo "obtenu :"
+            echo "$actual_status"
+            exit 1
+          fi
+          # dist/ = les scripts que le CLI monte dans /steps du conteneur
+          # (chemin personal, trap EXIT de restitution) : INTACT octet par octet.
+          git diff --quiet -- dist/ || { echo "::error::dist/ (scripts personal) ne doit pas etre modifie"; exit 1; }
+          git diff > ../T013-9-patch.diff
+          cp src/model/secure-env.test.ts ../T013-9-secure-env.test.ts
+          echo "Correctif minimal T-013.9 applique : heritage ENV de UNITY_EMAIL, UNITY_PASSWORD, UNITY_SERIAL, UNITY_LICENSING_SERVER, ANDROID_KEYSTORE_PASS, ANDROID_KEYALIAS_PASS, USYM_UPLOAD_AUTH_TOKEN, PRIVATE_REGISTRY_TOKEN (references --env SANS valeur, valeurs par l environnement du processus docker). dist/ INTACT."
+
+      - name: Setup Bun (1.3.13 epinglee — 1.4.0 casse --compile, cf release-cli.yml officiel du tag)
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      - name: Dependances (lockfile gele)
+        run: |
+          set -e
+          cd cli-src
+          bun install --frozen-lockfile
+
+      - name: Tests du CLI corrige (valeurs 100% FACTICES, jamais affichees)
+        run: |
+          set -e
+          cd cli-src
+          bun test ./src/model/image-environment-factory.test.ts ./src/model/secure-env.test.ts ./src/model/system/system.test.ts ./src/model/docker.test.ts ./src/model/secret-redaction.test.ts
+
+      - name: Tests du verificateur strict (8 modes d echec + 1 acceptation, fixtures factices)
+        run: |
+          set -e
+          bash warships/unity/ci/gameci-cli-secure/test-verify-gameci-cli.sh
+
+      - name: Build du binaire (assets embarques + compilation, comme release-cli.yml officiel)
+        run: |
+          set -e
+          cd cli-src
+          bun run build:assets
+          bun build src/index.ts --compile --target bun-linux-x64 --outfile pkg/game-ci
+          cp -r dist pkg/dist
+
+      - name: Smoke du binaire (s execute sans erreur de module Bun)
+        run: |
+          set -e
+          cd cli-src
+          set +e
+          ./pkg/game-ci --help > /dev/null 2> /tmp/t0139-smoke.err
+          rc=$?
+          set -e
+          if grep -qE "Cannot find module|Module not found|SyntaxError" /tmp/t0139-smoke.err; then
+            echo "::error::binaire casse (module manquant) :"
+            cat /tmp/t0139-smoke.err
+            exit 1
+          fi
+          echo "Binaire executable (rc=$rc — ce CLI desactive --version et --help : .version(false)/.help(false) dans src/cli.ts au tag ; seul un module manquant est fatal)."
+
+      - name: Archive + checksums
+        run: |
+          set -e
+          cd cli-src
+          tar -czf gameci-cli-secure-linux-x64.tar.gz -C pkg .
+          sha256sum gameci-cli-secure-linux-x64.tar.gz > checksums.txt
+          cat checksums.txt
+
+      - name: Release immuable (tag epingle au SHA du build, preuve du correctif jointe)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          tag="gameci-cli-secure-v0.1.72w1"
+          gh release delete "$tag" --yes --cleanup-tag --repo "$GITHUB_REPOSITORY" 2>/dev/null || true
+          gh release create "$tag" \
+            cli-src/gameci-cli-secure-linux-x64.tar.gz \
+            cli-src/checksums.txt \
+            T013-9-patch.diff \
+            T013-9-secure-env.test.ts \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "GameCI CLI corrige (T-013.9) — v0.1.72 + heritage ENV des identifiants" \
+            --notes "CLI game-ci v0.1.72 (commit officiel epingle 7da0cea2f31799a4cbd79c1d452c254023f4f678) + correctif minimal T-013.9 (omni-warships) : UNITY_EMAIL/UNITY_PASSWORD et les autres identifiants passent par l environnement herite du processus docker (references --env sans valeur), jamais par la chaine de commande sh -c. Archive : gameci-cli-secure-linux-x64.tar.gz (binaire + dist/ avec scripts personal intacts). Verifier avec checksums.txt. Prouves par tests (valeurs factices) : secrets hors argv, transmission par environnement, scripts personal et trap EXIT fonctionnels. Aucune activation Unity, aucun secret reel dans ce build."
+
+      - name: L artefact publie est VERIFIE par le meme verificateur strict que le workflow de build
+        run: |
+          set -e
+          bash warships/unity/ci/gameci-cli-secure/verify-gameci-cli.sh \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/gameci-cli-secure-v0.1.72w1" \
+            gameci-cli-secure-linux-x64.tar.gz \
+            "$RUNNER_TEMP/game-ci-secure-selfcheck" \
+            cli-src/checksums.txt
+
+      - name: Empreinte ancree dans git (bot commit — immuabilite verificable par tous)
+        run: |
+          set -e
+          sha=$(awk '{print $1}' cli-src/checksums.txt)
+          dir="warships/unity/ci/gameci-cli-secure"
+          mkdir -p "$dir"
+          printf '%s  gameci-cli-secure-linux-x64.tar.gz\n' "$sha" > "$dir/artifact-checksum.txt"
+          printf 'built_from_commit=%s\nofficial_source=game-ci/cli@7da0cea2f31799a4cbd79c1d452c254023f4f678\nrelease_tag=gameci-cli-secure-v0.1.72w1\n' "$GITHUB_SHA" > "$dir/BUILD-INFO.txt"
+          git config user.name "warships-ci-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add "$dir/artifact-checksum.txt" "$dir/BUILD-INFO.txt"
+          if git diff --cached --quiet; then
+            echo "Empreinte inchangee (release reconstruite a l identique) : rien a committer."
+            exit 0
+          fi
+          git commit -m "warships(t013.9): empreinte du CLI corrige (bot, checksum ancre dans git)"
+          git push
