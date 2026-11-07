@@ -114,6 +114,15 @@ printf '/steps/runsteps.sh\n' > "$f8/tree/dist/platforms/ubuntu/entrypoint.sh"
 pack "$f8"
 expect_refuse "scripts personal absents" bash "$verify" "$f8" "$asset" "$root/dest-8"
 
+# 9) archive elle-meme INACCESSIBLE (checksums.txt present) : REFUSE.
+f9="$root/no-archive"
+mkdir -p "$f9/tree"
+make_tree "$f9/tree"
+pack "$f9"
+rm "$f9/$asset"
+expect_refuse "archive inaccessible (checksums.txt present)" bash "$verify" "$f9" "$asset" "$root/dest-9"
+
+
 echo "verificateur strict T-013.9 : $pass reussite(s), $fail echec(s) — attendu 9 reussites (1 acceptation + 8 refus)."
 rm -rf "$root"
 [ "$fail" -eq 0 ] && [ "$pass" -eq 9 ]

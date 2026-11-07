@@ -11,7 +11,7 @@ declenchera JAMAIS le build Android.
 2. Incrementer le compteur ci-dessous puis committer directement sur la
    branche warships/android-build.
 
-Derniere release demandee : #0 (aucune)
+Derniere release demandee : #1 (premiere demande de publication du CLI corrige)
 
 3. Le workflow « Warships CLI corrige (build + release) » part
    automatiquement : source officielle game-ci/cli EPINGLEE au commit
