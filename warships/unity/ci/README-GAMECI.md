@@ -27,9 +27,10 @@ configurée). Le workflow réel vit sur la branche `warships/android-build`
 ## Compilation (étapes exactes, téléphone uniquement)
 
 1. Secrets du dépôt (Settings > Secrets and variables > Actions) :
-   `UNITY_EMAIL`, `UNITY_PASSWORD` (compte Unity GRATUIT Personal avec
-   2FA DÉSACTIVÉE — compte dédié au CI recommandé), sans espaces
-   parasites autour. Plus de fichier de licence (T-013.7 : Unity a
+   `UNITY_EMAIL`, `UNITY_PASSWORD` (compte Unity GRATUIT Personal CI
+   DÉDIÉ, avec 2FA DÉSACTIVÉE sur ce compte dédié UNIQUEMENT —
+   JAMAIS le compte principal de Lassana, dont la 2FA reste activée),
+   sans espaces parasites autour. Plus de fichier de licence (T-013.7 : Unity a
    retiré l activation manuelle des licences Personal ; le build
    demande un siège Personal par identifiants, dans son conteneur).
 2. Ouvrir `warships/unity/ci/BUILD-TRIGGER.md` sur GitHub (navigateur
@@ -42,7 +43,9 @@ configurée). Le workflow réel vit sur la branche `warships/android-build`
    (immutable: false), la garantie est l empreinte ancrée), puis
    UNE SEULE commande `game-ci build`
    fait tout dans UN SEUL conteneur : siège Personal par identifiants,
-   compilation (image unityci/editor 2022.3.62f1-android, buildMethod
+   compilation (image docker
+   unityci/editor:ubuntu-2022.3.62f1-android-3 — nom EXACT T-013.13,
+   tag actif vérifié sur Docker Hub, buildMethod
    WarshipsBuildScript.BuildAndroid — scène incluse EXPLICITEMENT),
    restitution du siège même en cas d échec (trap EXIT), vérifie l APK
    (taille + sha256), l uploade en artefact et crée une release
@@ -71,14 +74,26 @@ game-ci/cli (v0.1.72, commit 7da0cea2 ; PAS de v1.5.1). Conclusions :
   T-013.8, c est le flux de la commande de build de GameCI CLI v0.1.72
   dans warships-gameci.yml (un seul conteneur — voir section T-013.8).
 - 2FA : l activation headless ne peut répondre à AUCUN défi 2FA ni
-  vérification d appareil — le compte Unity utilisé DOIT avoir la 2FA
-  DÉSACTIVÉE (compte dédié au CI recommandé). Plus de TOTP (il
-  concernait l ancien parcours navigateur).
+  vérification d appareil — la 2FA ne peut être désactivée QUE sur le
+  COMPTE CI DÉDIÉ (jamais le compte principal de Lassana, dont la 2FA
+  reste activée). Plus de TOTP (il concernait l ancien parcours
+  navigateur).
 - Siège : rendu automatiquement à la fin du build (retour de licence
   armé sur le trap EXIT du MÊME conteneur, même en cas d échec) —
   c est pourquoi activation et compilation vivent dans le MÊME
   conteneur unity-builder@v4 (le retour de siège entre conteneurs
   distincts n est PAS fiable).
+- HONNÊTETÉ (T-013.13) : la restitution est best-effort — si elle
+  échoue, le job reste VERT avec un simple warning (« Failed to return the Personal license seat
+  ... Release it at https://id.unity.com or run 'game-ci
+  return-license' »). Un run
+  VERT ne prouve PAS que le siège a été rendu : vérifier les logs
+  après CHAQUE build. Et le trap EXIT ne s exécute PAS si le
+  conteneur est tué brutalement (SIGKILL, timeout du job —
+  timeout-minutes: 90 dans warships-gameci.yml, panne du runner) ni
+  sur un signal fatal non piégé (runsteps.sh n arme QUE le trap
+  EXIT) — récupération : id.unity.com > Seats (libérer le siège du
+  compte CI dédié), ou game-ci return-license depuis un PC.
 - warships-license.yml (déclenché par LICENSE-TRIGGER.md) est devenu
   une GARDE DE VÉRIFICATION SANS AUCUNE ACTIVATION : il vérifie
   UNIQUEMENT la présence et la propreté des secrets, sans jamais les
@@ -219,3 +234,19 @@ est l empreinte SHA-256 ancrée dans git + le vérificateur fail-closed.
 Garde exécutée à l intégration : run rouge ATTENDU à la vérification
 des secrets (AUCUNE installation CLI, AUCUNE activation, AUCUNE
 compilation Unity) — aucune APK produite, compteur #0 inchangé.
+
+Intégration T-013.13 : 07/11/2026 — clôture documentaire pré-build.
+Nom EXACT de l image corrigé (unityci/editor:ubuntu-2022.3.62f1-android-3 :
+préfixe ubuntu, version 2022.3.62f1 du projet, plateforme android,
+suffixe rolling 3 par défaut du CLI, tag actif vérifié sur Docker
+Hub) ; avertissement ajouté : une restitution de licence échouée
+laisse le job VERT (warning seulement, siège potentiellement retenu) ;
+risque SIGKILL/timeout documenté avec procédure de récupération du
+siège (id.unity.com > Seats, ou game-ci return-license) ; timeout
+réel du pipeline documenté : timeout-minutes: 90 dans
+warships-gameci.yml ; périmètre 2FA précisé : désactivation
+EXCLUSIVEMENT sur le compte CI dédié, jamais le compte principal de
+Lassana. Corrections DOCUMENTAIRES uniquement : aucun workflow
+modifié, aucune activation, aucune compilation, compteur
+BUILD-TRIGGER.md #0 inchangé. Publication prévue sur la branche
+dédiée warships/docs-t01313, après validation explicite de Lassana.

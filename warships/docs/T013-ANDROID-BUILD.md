@@ -929,3 +929,79 @@ La PR #16 a été vérifiée indépendamment. Corrections apportées :
   Android attend l autorisation explicite de Lassana (secrets
   UNITY_EMAIL/UNITY_PASSWORD du compte CI dédié 2FA désactivée,
   puis incrément du compteur BUILD-TRIGGER.md).
+
+## 16. T-013.13 — Clôture documentaire et préparation finale (07/11/2026)
+
+Objectif : corriger les anomalies documentaires restantes du rapport
+T-013.12 et préparer la publication, SANS aucun build, SANS secret,
+SANS activation, SANS fusion, SANS push non autorisé.
+
+### 16.1 Nom EXACT de l image Unity CI
+
+Le nom exact de l image docker utilisée par le pipeline est
+unityci/editor:ubuntu-2022.3.62f1-android-3 (et NON
+« unityci/editor 2022.3.62f1-android » comme l indiquaient les docs
+T-013.12) :
+
+- prefix ubuntu (base OS) ;
+- version 2022.3.62f1 = version Unity EXACTE du projet ;
+- plateforme android ;
+- suffixe 3 : valeur par défaut du CLI game-ci
+  (containerRegistryImageVersion='3', build-options.ts L201-206,
+  commit 7da0cea2 — preuve relue octet-exact) ;
+- tag actif sur Docker Hub (vérifié via r.jina.ai le 07/11/2026).
+
+Corrigé dans : warships/unity/ci/BUILD-TRIGGER.md et
+warships/unity/ci/README-GAMECI.md. La mention historique de la
+section 2 (T-013.2) n a PAS été retouchée : l historique reste
+authentique.
+
+### 16.2 Restitution best-effort : un job VERT ne prouve RIEN
+
+La restitution du siège Personal (trap EXIT de runsteps.sh) est
+best-effort : en cas d échec, le job reste VERT avec seulement un
+warning « Failed to return the Personal license seat ... Release it
+at https://id.unity.com or run 'game-ci return-license' ». Un job
+vert ne prouve donc PAS que le siège a été rendu : après CHAQUE
+build, vérifier dans les logs que la restitution a bien eu lieu,
+sinon le build suivant échouera sur « no available seats ».
+
+### 16.3 SIGKILL / timeout (90 min) et récupération du siège
+
+runsteps.sh n arme QUE le trap EXIT (aucun trap INT/TERM). Un signal
+fatal non piégé ou un arrêt brutal ne déclenche AUCUNE restitution :
+timeout du job — timeout-minutes: 90 dans warships-gameci.yml, délai
+applicable à NOTRE pipeline (90 minutes ; toute doc indiquant un
+délai différent a été corrigée) —, SIGKILL de docker, panne du
+runner. Le siège Personal peut alors rester actif côté Unity, SANS
+AUCUNE trace dans les logs du run.
+
+Procédure de récupération du siège :
+
+1. Navigateur du téléphone : https://id.unity.com > Preferences >
+   Seats : libérer le siège encore actif du compte CI dédié.
+2. Ou depuis un PC : game-ci return-license (CLI corrigé).
+3. Patienter quelques minutes puis relancer le build.
+
+### 16.4 Complément T-013.13 : timeout réel, 2FA, best-effort
+
+- Timeout réel du pipeline : timeout-minutes: 90 dans
+  .github/workflows/warships-gameci.yml (ligne vérifiée) ; toute doc
+  indiquant un délai différent est corrigée.
+- 2FA : toute désactivation éventuelle de la 2FA concerne
+  EXCLUSIVEMENT le compte Unity CI dédié, JAMAIS le compte principal
+  de Lassana, dont la 2FA reste activée.
+- Restitution : best-effort ; un job VERT ne prouve PAS la
+  restitution (16.2) ; un SIGKILL/timeout laisse le siège retenu
+  sans trace (16.3) ; récupération via id.unity.com > Seats ou
+  game-ci return-license.
+- Vérifications pré-publication : compteur BUILD-TRIGGER.md #0
+  inchangé, main intacte, PR #16 ouverte (42 commits, tête
+  ef2b3b8f), branche dédiée warships/docs-t01313 depuis ef2b3b8f.
+
+### 16.5 Statut
+
+Corrections DOCUMENTAIRES uniquement. Aucun workflow modifié, aucun
+secret créé, aucune activation Unity, aucune compilation, aucun
+compteur de build modifié, aucune fusion. Publication sur la branche
+dédiée warships/docs-t01313 après validation explicite de Lassana.
