@@ -40,10 +40,15 @@
 #     (warships/unity/ci/gameci-cli-secure/patched-src, fork 403
 #     documente dans gameci-cli-secure/README.md), construit par le
 #     workflow de release (warships-cli-release.yml, declenche par
-#     RELEASE-TRIGGER.md) et publie en release IMMUABLE
+#     RELEASE-TRIGGER.md) et publie en release
 #     gameci-cli-secure-v0.1.72w1 (archive + checksums.txt + patch
 #     diff) avec empreinte ANCREE DANS GIT (artifact-checksum.txt +
-#     BUILD-INFO.txt, commits du bot CI) ;
+#     BUILD-INFO.txt, commits du bot CI). T-013.10 (honetete) : l API
+#     GitHub declare cette release NON immuable (asset
+#     immutable: false — un admin peut remplacer l archive) ; la
+#     protection REELLE est l empreinte ancree dans git : tout
+#     remplacement de l archive est FATAL a l installation
+#     (verify-gameci-cli.sh, fail-closed) ;
 #   - correctif prouve par audit T-013.9 du code du tag :
 #     ImageEnvironmentFactory.getEnvVarString() emettait
 #     --env UNITY_PASSWORD="VALEUR" dans la chaine de commande passee
@@ -152,7 +157,7 @@ jobs:
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup 2>/dev/null || true
           df -h /
 
-      - name: Installation du CLI corrige T-013.9 (release immuable, checksum STRICT, empreinte ancree dans git)
+      - name: Installation du CLI corrige T-013.9 (release verifiee, checksum STRICT, empreinte ancree dans git)
         run: |
           set -e
           dest="$RUNNER_TEMP/game-ci/bin"

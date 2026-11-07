@@ -76,7 +76,7 @@ Vérifie, sans jamais simuler un statut :
      par SHA git + overlay MINIMAL committé (dépôt officiel JAMAIS
      modifié, fork bloqué 403), identifiants transmis par l ENVIRONNEMENT
      hérité du processus docker (références `--env` SANS valeur),
-     binaire publié en release IMMUABLE avec empreinte ancrée dans git,
+     binaire publié en release NON immuable selon l API GitHub (la garantie = empreinte ancrée dans git, tout remplacement est FATAL),
      installation STRICTEMENT vérifiée (checksums.txt inaccessible,
      empreinte absente, divergence ou mismatch = FATAL ; binaire
      installé comparé bit à bit à l archive vérifiée ; scripts personal
@@ -670,8 +670,9 @@ GAMECI_WF = ROOT / ".github" / "workflows" / "warships-gameci.yml"
 def check_gameci_workflow_content(text):
     """T-013.8/T-013.9 : le workflow de build compile via le CLI GameCI
     CORRIGE T-013.9 (v0.1.72 + heritage ENV des identifiants), installe
-    UNIQUEMENT par verify-gameci-cli.sh depuis la release immuable
-    gameci-cli-secure-v0.1.72w1 avec empreinte ancree dans git
+    UNIQUEMENT par verify-gameci-cli.sh depuis la release verifiee
+    gameci-cli-secure-v0.1.72w1 (NON immuable selon l API GitHub —
+    la garantie est l empreinte ancree dans git)
     (artifact-checksum.txt, divergence FATALE). Un seul conteneur (celui
     du CLI, qui monte SA PROPRE archive dist/ dans /steps) fait : siege
     Personal par identifiants + compilation + restitution du siege

@@ -118,7 +118,7 @@ jobs:
           # binaire met les identifiants Unity dans la chaine sh -c,
           # audit T-013.9). Toute installation non verifiee est INTERDITE.
           if echo "$gcnc" | grep -qF 'raw.githubusercontent.com/game-ci/cli'; then
-            echo "::error::warships-gameci.yml : installation depuis raw.githubusercontent.com/game-ci/cli INTERDITE (T-013.9 : checksum soft-fail + binaire mettant les secrets dans la chaine sh -c) — installer le CLI corrige via verify-gameci-cli.sh depuis la release immuable"
+            echo "::error::warships-gameci.yml : installation depuis raw.githubusercontent.com/game-ci/cli INTERDITE (T-013.9 : checksum soft-fail + binaire mettant les secrets dans la chaine sh -c) — installer le CLI corrige via verify-gameci-cli.sh depuis la release gameci-cli-secure-v0.1.72w1"
             exit 1
           fi
           if echo "$gcnc" | grep -qF -- 'bash -s --'; then
@@ -126,7 +126,7 @@ jobs:
             exit 1
           fi
           echo "$gcnc" | grep -qF 'verify-gameci-cli.sh' || { echo "::error::warships-gameci.yml doit installer le CLI corrige via verify-gameci-cli.sh (T-013.9)"; exit 1; }
-          echo "$gcnc" | grep -qF 'gameci-cli-secure-v0.1.72w1' || { echo "::error::warships-gameci.yml doit epingler la release immuable gameci-cli-secure-v0.1.72w1 (T-013.9)"; exit 1; }
+          echo "$gcnc" | grep -qF 'gameci-cli-secure-v0.1.72w1' || { echo "::error::warships-gameci.yml doit epingler la release gameci-cli-secure-v0.1.72w1 (T-013.9)"; exit 1; }
           echo "$gcnc" | grep -qF 'artifact-checksum.txt' || { echo "::error::warships-gameci.yml doit exiger l empreinte ancree dans git (artifact-checksum.txt, T-013.9)"; exit 1; }
           echo "$gcnc" | grep -qF 'game-ci build'
           echo "$gcnc" | grep -qF 'OmniWarships.Unity.EditorTools.WarshipsBuildScript.BuildAndroid'
@@ -260,7 +260,7 @@ jobs:
           echo "Projet resolu : Unity 2022.3.62f1, buildMethod OmniWarships.Unity.EditorTools.WarshipsBuildScript.BuildAndroid present dans le code reel."
           echo "AUCUNE commande ici ne touche Unity : ce job ne prouve PAS une activation (siege = premier run reel du build)."
 
-      - name: Artefact publie VERIFIE (release immuable en ligne + garde anti-staleness)
+      - name: Artefact publie VERIFIE (release verifiee en ligne + garde anti-staleness)
         run: |
           set -e
           d="$RUNNER_TEMP/gameci-rel-verify"
@@ -279,7 +279,7 @@ jobs:
             echo "::error::ARTEFACT STALE : le correctif T-013.9 a change depuis le commit de build ($built) — re-incrementer RELEASE-TRIGGER.md pour republier avant tout build"
             exit 1
           fi
-          echo "Release immuable gameci-cli-secure-v0.1.72w1 verifiee EN LIGNE : checksum strict + empreinte ancree dans git + scripts personal et trap EXIT prouves dans l artefact, correctif a jour (construit depuis $built)."
+          echo "Release gameci-cli-secure-v0.1.72w1 verifiee EN LIGNE (non immuable selon l API GitHub — la garantie est l empreinte ancree dans git) : checksum strict + scripts personal et trap EXIT prouves dans l artefact, correctif a jour (construit depuis $built)."
 
   workflows:
     name: Workflows (actionlint)

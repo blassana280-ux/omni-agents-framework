@@ -46,7 +46,10 @@ dist/ (scripts personal du conteneur) reste INTACT octet par octet.
 1. warships-cli-release.yml : checkout game-ci/cli au commit epingle
    (integrite par SHA git) + overlay + tests + build (Bun 1.3.13 epinglee,
    cf release-cli.yml officiel) + archive + checksums.txt.
-2. Release IMMUABLE : tag gameci-cli-secure-v0.1.72w1, assets archive +
+2. Release publiée : tag gameci-cli-secure-v0.1.72w1 (NON immuable
+   selon l API GitHub — un admin peut remplacer l archive : la
+   protection est l empreinte ancrée au point 3, toute divergence
+   est FATALE), assets archive +
    checksums.txt + T013-9-patch.diff (preuve du correctif) + test.
 3. Empreinte ancree dans git : artifact-checksum.txt + BUILD-INFO.txt
    commites par le bot — la divergence entre checksums.txt et l empreinte
