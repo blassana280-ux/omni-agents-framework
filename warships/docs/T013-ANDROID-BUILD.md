@@ -767,3 +767,98 @@ La PR #16 a été vérifiée indépendamment. Corrections apportées :
   jour. Chaque échec est resté sans aucune activation ni connexion
   Unity.
 - Aucune fusion, main intacte, PRs #13/#14/#15/#16 ouvertes.
+
+
+## 14. T-013.9 — sécurisation finale du CLI GameCI avant tout identifiant réel (07/11/2026)
+
+### 14.1 Audit indépendant : le mot de passe dans l argv des processus
+
+- Constat (lecture du code du tag v0.1.72) :
+  ImageEnvironmentFactory.getEnvVarString() émet des paires
+  `--env UNITY_PASSWORD="valeur"` (src/model/image-environment-factory.ts,
+  src/model/docker.ts, src/model/system/system.ts,
+  src/logic/unity/environment.ts) ; System.run() transmet la commande
+  à `sh -c` : le secret apparaît dans la liste d arguments des
+  processus du runner. SecretRedaction protège les LOGS, pas l argv —
+  deux problèmes différents, aucun ne remplace l autre.
+- Correction appliquée : les identifiants sensibles (UNITY_EMAIL,
+  UNITY_PASSWORD, UNITY_SERIAL, UNITY_LICENSING_SERVER,
+  ANDROID_KEYSTORE_PASS, ANDROID_KEYALIAS_PASS,
+  USYM_UPLOAD_AUTH_TOKEN, PRIVATE_REGISTRY_TOKEN) sont transmis par
+  ENVIRONNEMENT HÉRITÉ — le constructeur Docker émet des références
+  SANS valeur (`--env UNITY_EMAIL`, `--env UNITY_PASSWORD`), les
+  valeurs arrivent au processus docker par son environnement.
+
+### 14.2 CLI corrigé reproductible (dépôt officiel JAMAIS modifié)
+
+- Fork GitHub de game-ci/cli : bloqué en 403 (documenté dans
+  warships/unity/ci/gameci-cli-secure/README.md) — le correctif vit
+  dans NOTRE dépôt : source officielle ÉPINGLÉE au commit git
+  7da0cea2f31799a4cbd79c1d452c254023f4f678 (checkout du workflow de
+  release, intégrité par SHA git) + overlay MINIMAL committé
+  (2 fichiers exacts, assertion git status en CI ; dist/ INTACTE
+  octet par octet, assertion git diff --quiet -- dist/).
+- Construction : warships-cli-release.yml (déclenché par
+  RELEASE-TRIGGER.md, compteur #1) — bun 1.3.13 (1.4.0 casse
+  --compile), bun build src/index.ts --compile --target
+  bun-linux-x64, dist/ recopiée, archive
+  gameci-cli-secure-linux-x64.tar.gz + checksums.txt, release
+  IMMUABLE gameci-cli-secure-v0.1.72w1 (assets : archive,
+  checksums, T013-9-patch.diff, T013-9-secure-env.test.ts),
+  empreinte ANCRÉE DANS GIT par le commit du bot
+  (artifact-checksum.txt + BUILD-INFO.txt, built_from_commit=
+  46bda44aeb5dd23b364c6d0a473fd9df7d1b8a34).
+- sha256 de l archive publiée :
+  49c49df3f4af768e0cae82fc7c92b6ae6fa3769ae8703b50d8b9d35f830fc3a7
+  (identique au fichier ancré dans git — la divergence est FATALE).
+
+### 14.3 Checksum STRICT dans le workflow de compilation
+
+- warships-gameci.yml n accepte AUCUNE installation non vérifiée :
+  l installation passe UNIQUEMENT par verify-gameci-cli.sh
+  (échec FATAL si checksums.txt est inaccessible, si l empreinte
+  attendue est absente — de checksums.txt OU du fichier ancré dans
+  git artifact-checksum.txt —, en cas de divergence ou de mismatch
+  sha256 ; comparaison bit à bit du binaire installé avec celui de
+  l archive vérifiée ; preuve des scripts personal + trap EXIT dans
+  l artefact).
+- L installateur officiel du dépôt game-ci/cli est ÉCARTÉ : il
+  poursuit l installation après un ÉCHEC de checksum (soft-fail,
+  constaté dans son code), et son binaire non corrigé met les
+  identifiants dans la chaîne sh -c.
+- Le job CI « GameCI CLI corrige T-013.9 » vérifie en plus l artefact
+  PUBLIÉ en ligne + une garde anti-staleness (git diff du
+  patched-src entre le commit de build et la tête : un correctif
+  modifié sans republication fait échouer la CI).
+
+### 14.4 Tests automatisés (valeurs 100 % factices, jamais imprimées)
+
+- 5 tests bun (secure-env.test.ts) : UNITY_PASSWORD et UNITY_EMAIL
+  absents de la chaîne Docker générée, présents dans l env hérité,
+  conteneur servi avec les identifiants, System.run spawné avec env —
+  verts en CI.
+- 9 cas du vérificateur (test-verify-gameci-cli.sh) : 1 acceptation
+  (archive correcte + empreinte ancrée concordante) + 8 refus
+  (checksums.txt inaccessible ; empreinte absente de checksums.txt ;
+  checksum incorrect ; empreinte absente du fichier ancré ;
+  divergence checksums.txt/ancré ; binaire absent de l archive ;
+  scripts personal absents ; archive elle-même inaccessible).
+- Historique honnête : le premier run de ces tests a échoué en CI
+  (8 cas écrits pour un total attendu de 9 — le compteur final
+  exigeait 9 réussites) ; corrigé par le commit
+  46bda44aeb5dd23b364c6d0a473fd9df7d1b8a34 (9e cas : archive
+  inaccessible), après quoi le run release a construit et publié le
+  CLI corrigé (runs verts : warships-ci push 42400543237, PR
+  42400546502, release 42400543225, bot commit b12c7b9ccc).
+
+### 14.5 Ce qui ne change PAS
+
+- Scripts personal, build Android et restitution du siège : dist/
+  recopiée INTACTE dans l artefact (assertion git en CI), commande
+  de build inchangée (un seul conteneur : siège Personal +
+  compilation + restitution par trap EXIT).
+- AUCUNE activation, AUCUNE connexion Unity, AUCUN secret réel,
+  AUCUN compte Unity créé ou modifié, 2FA jamais désactivée,
+  BUILD-TRIGGER.md JAMAIS touché (RELEASE-TRIGGER.md, compteur #1,
+  est un bouton DIFFÉRENT : il publie le CLI corrigé, il ne
+  déclenche JAMAIS le build Android).

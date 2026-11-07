@@ -177,3 +177,27 @@ version est donc le checksum sha256 strict de l archive PLUS l
 identité bit à bit du binaire installé, et les options de build
 sont prouvées sur les sources du tag. Aucune activation, aucune
 compilation déclenchée par ces correctifs.
+
+Intégration T-013.9 : 07/11/2026 — sécurisation finale du CLI avant
+toute utilisation des identifiants Unity. Audit indépendant : le CLI
+officiel v0.1.72 construit `--env UNITY_PASSWORD="valeur"` dans la
+chaîne de commande passée à `sh -c` (secret visible dans l argv des
+processus du runner ; SecretRedaction protège les LOGS, pas l argv).
+Correctif : le build utilise désormais un CLI CORRIGÉ, construit en CI
+depuis la source officielle ÉPINGLÉE (game-ci/cli@7da0cea2f31799a4cbd79c1d452c254023f4f678,
+dépôt officiel jamais modifié, fork 403 documenté) + overlay minimal
+committé (identifiants par ENV hérité, références `--env` SANS
+valeur), publié en release IMMUABLE gameci-cli-secure-v0.1.72w1 avec
+empreinte ancrée dans git (artifact-checksum.txt + BUILD-INFO.txt,
+commits du bot). Le workflow de build n accepte QUE les installations
+vérifiées : verify-gameci-cli.sh (checksums.txt inaccessible,
+empreinte absente, divergence, mismatch = FATAL ; binaire installé
+identique bit à bit ; scripts personal + trap EXIT prouvés dans l
+artefact) — l installateur officiel est écarté (il poursuit après un
+échec de checksum, soft-fail). Preuves exécutées en CI : 5 tests bun
+à valeurs factices (secrets hors chaîne Docker, transmission par
+environnement) + 9 cas du vérificateur (1 acceptation + 8 refus) +
+job « Artefact publie VERIFIE » avec garde anti-staleness. Aucune
+activation, aucune connexion Unity, aucun secret réel, aucun compte
+créé ou modifié, BUILD-TRIGGER.md intact (la release du CLI corrige
+est déclenchée par RELEASE-TRIGGER.md, un fichier DIFFÉRENT).
