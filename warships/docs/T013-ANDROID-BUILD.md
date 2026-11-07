@@ -616,13 +616,19 @@ La PR #16 a été vérifiée indépendamment. Corrections apportées :
   PRINCIPAL.
 
 ### 13.2 Audit réel au tag v0.1.72 (commit 7da0cea2, celui de la release)
-- action.yml à la racine du dépôt game-ci/cli : inputs args, version,
-  working-directory. Avec args VIDE, l action n installe QUE le
-  binaire ; version par défaut = le tag du ref (épinglage par
-  uses: game-ci/cli@v0.1.72) ; scripts/install.sh télécharge l
-  archive de la release et vérifie le sha256 contre checksums.txt
+- Installation : l action composite à la racine du dépôt game-ci/cli
+  (inputs args, version, working-directory) a été ÉCARTÉE après test
+  réel : son install.sh racine est commité sans bit exécutable (mode
+  100644 dans l arbre git du tag v0.1.72), le step composite échoue
+  donc en exit 126 — constaté par le run CI du commit 07589340
+  (job « GameCI CLI v0.1.72 », deux runs identiques). L INSTALLATEUR
+  officiel scripts/install.sh (source unique documentée par le dépôt,
+  versionnée par le tag, invoquée par curl ... | bash -s -- VERSION
+  DEST) est utilisé à la place : il télécharge l archive de la
+  release, vérifie le sha256 contre checksums.txt AVANT extraction
   (mismatch = FATAL ; fetch impossible = soft-skip documenté — le
-  job CI T-013.8 fait sa propre vérification STRICTE).
+  job CI T-013.8 fait sa propre vérification STRICTE), extrait et
+  chmod 755 le binaire.
 - src/model/docker.ts : `game-ci build` lance UN SEUL docker run et
   monte SA PROPRE archive (cliDistPath/platforms/ubuntu/steps vers
   /steps, entrypoint.sh vers /entrypoint.sh) : les scripts du
@@ -662,8 +668,10 @@ La PR #16 a été vérifiée indépendamment. Corrections apportées :
   publié.
 
 ### 13.4 Nouvelle architecture (warships-gameci.yml)
-- Installation : uses: game-ci/cli@v0.1.72 avec args VIDE
-  (installation seule, version épinglée par le tag).
+- Installation : curl épinglé sur scripts/install.sh du tag v0.1.72
+  puis bash -s -- v0.1.72 $RUNNER_TEMP/game-ci/bin (installateur
+  officiel ; l action composite racine du dépôt est écartée — exit
+  126 constaté par run CI réel).
 - UNE SEULE commande de build, secrets passés par env (jamais en
   arguments) :
   `game-ci build warships/unity --targetPlatform Android
@@ -682,7 +690,7 @@ La PR #16 a été vérifiée indépendamment. Corrections apportées :
   isolée / build sans buildMethod).
 
 ### 13.5 Tests SANS identifiants réels (job CI dédié, exécuté à chaque push)
-- Installation réelle du CLI v0.1.72 via l action officielle ;
+- Installation réelle du CLI v0.1.72 via l installateur officiel ;
   `game-ci --version` doit rendre 0.1.72.
 - Preuve du checksum PUBLIÉ : téléchargement de l archive et de
   checksums.txt de la release, comparaison sha256 STRICTE (mismatch =
@@ -722,8 +730,24 @@ La PR #16 a été vérifiée indépendamment. Corrections apportées :
   warships/android-build, PR #16) — ce commit déclenche le run rouge
   ATTENDU du workflow de build (vérification des secrets absents,
   arrêt AVANT toute installation CLI, activation et compilation).
-- Le présent commit de statut porte la tête vérifiée : il ne modifie
-  PAS warships/unity/ci/BUILD-TRIGGER.md, donc AUCUNE compilation n est
-  déclenchée ; la CI (données, noyau, couche Unity, GameCI CLI v0.1.72
-  sans activation, actionlint) doit y être intégralement verte.
+- Premier retour RÉEL de la CI sur ce commit : 2 échecs authentiques,
+  tous deux corrigés — (1) le nom d un step du workflow de build
+  contenait « : » non quoté (YAML invalide, actionlint l a rejete :
+  « mapping values are not allowed in this context », ligne 123) ;
+  (2) l action composite game-ci/cli@v0.1.72 échoue en exit 126 :
+  son install.sh racine est commité sans bit exécutable (mode 100644
+  dans l arbre git du tag — vérifié) ; l installation passe donc par
+  l installateur officiel scripts/install.sh épinglé au tag. Chaque
+  échec est resté sans aucune activation ni connexion Unity.
+- Chronologie réelle de l intégration : commit 07589340 (architecture,
+  workflows, validateur, rapport — run rouge ATTENDU du workflow de
+  build : vérification des secrets absents, arrêt AVANT toute
+  installation CLI, activation et compilation) ; commit 69000ecc
+  (statut) dont la CI a révélé les 2 échecs réels corrigés ci-dessus ;
+  présent correctif (YAML du workflow de build + installateur officiel
+  + garde-fous mis à jour) ; le commit de statut final qui suit ne
+  touche PAS warships/unity/ci/BUILD-TRIGGER.md (aucune compilation
+  déclenchée) et porte la tête vérifiée : la CI (données, noyau,
+  couche Unity, GameCI CLI v0.1.72 sans activation, actionlint) doit
+  y être intégralement verte.
 - Aucune fusion, main intacte, PRs #13/#14/#15/#16 ouvertes.

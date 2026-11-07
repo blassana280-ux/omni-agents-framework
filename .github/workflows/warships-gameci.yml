@@ -10,10 +10,15 @@
 #   secrets, l activation ECHOUAIT AVANT la compilation.
 #
 # MIGRATION T-013.8 :
-#   - game-ci/cli@v0.1.72 = action OFFICIELLE a la racine du depot
-#     game-ci/cli. Avec args VIDE elle ne fait QU INSTALLER le binaire,
-#     a la version du TAG (archive de la release + checksums verifies
-#     par son propre script d installation, mismatch = FATAL) ;
+#   - installation par l INSTALLATEUR OFFICIEL du depot game-ci/cli
+#     (scripts/install.sh, source unique documentee par le depot,
+#     versionnee par le tag) : curl epingle sur le tag v0.1.72 puis
+#     bash -s -- v0.1.72. L action composite racine du meme depot est
+#     ECARTEE : son install.sh racine est commite SANS le bit
+#     executable (mode 100644 dans l arbre git du tag v0.1.72), elle
+#     echoue donc en exit 126 (constate par un run CI reel) ;
+#     l installateur verifie le sha256 de l archive contre
+#     checksums.txt AVANT extraction (mismatch = FATAL) ;
 #   - une SEULE commande de build declenche UN SEUL conteneur docker
 #     (src/model/docker.ts : le CLI monte SA PROPRE archive
 #     dist/platforms/ubuntu/steps dans /steps, jamais celle d une
@@ -111,16 +116,24 @@ jobs:
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup 2>/dev/null || true
           df -h /
 
-      - name: Installation de GameCI CLI v0.1.72 (action officielle, version epinglee par le tag)
-        uses: game-ci/cli@v0.1.72
-        with:
-          version: v0.1.72
-          # args VIDE : cette action n installe QUE le binaire de la
-          # release v0.1.72 (checksums verifies par son script) ; la
-          # commande de build est lancee par le step suivant, avec un
-          # env totalement maitrise.
+      - name: Installation de GameCI CLI v0.1.72 (installateur officiel du depot game-ci/cli, epingle au tag)
+        run: |
+          set -e
+          dest="$RUNNER_TEMP/game-ci/bin"
+          mkdir -p "$dest"
+          curl -fsSL "https://raw.githubusercontent.com/game-ci/cli/v0.1.72/scripts/install.sh" \
+            | bash -s -- v0.1.72 "$dest"
+          echo "$dest" >> "$GITHUB_PATH"
+          # L action composite racine du depot game-ci/cli est ECARTEE :
+          # son install.sh racine est commite sans bit executable
+          # (mode 100644 au tag v0.1.72) et echoue en exit 126 (constate
+          # par run CI reel). L installateur scripts/install.sh est la
+          # source unique documentee par le depot lui-meme : il verifie
+          # le sha256 de l archive contre checksums.txt avant
+          # extraction (mismatch = FATAL). La commande de build est
+          # lancee par le step suivant, avec un env totalement maitrise.
 
-      - name: Compilation Unity + APK (un seul conteneur : siege Personal, build, restitution)
+      - name: Compilation Unity + APK (un seul conteneur, siege Personal + build + restitution)
         env:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}

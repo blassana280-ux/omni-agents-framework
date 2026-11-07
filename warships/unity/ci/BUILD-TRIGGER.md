@@ -22,12 +22,13 @@ Dernier build demande : #0 (aucun)
    le declenchement par push est limite a CE fichier — aucune
    compilation inutile lors des modifications sans rapport avec le
    jeu. Le build verifie les secrets, installe GameCI CLI v0.1.72
-   (action officielle, version epinglee par le tag, checksum
-   verifie), puis UNE SEULE commande de build fait tout dans UN
-   SEUL conteneur : siege Personal par identifiants (rendu
-   automatiquement par trap EXIT, meme en cas d echec), compilation
-   (image unityci/editor 2022.3.62f1-android), verification de l APK
-   (taille + sha256), upload en artefact et release brouillon.
+   (installateur officiel du depot game-ci/cli, epingle au tag,
+   checksum sha256 verifie), puis UNE SEULE commande de build fait
+   tout dans UN SEUL conteneur : siege Personal par identifiants
+   (rendu automatiquement par trap EXIT, meme en cas d echec),
+   compilation (image unityci/editor 2022.3.62f1-android),
+   verification de l APK (taille + sha256), upload en artefact et
+   release brouillon.
 5. Une fois le run vert : APK telechargeable via l artefact
    omni-warships-apk ou la release brouillon android-build-N.
 

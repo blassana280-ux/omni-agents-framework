@@ -104,10 +104,16 @@ AVANT la compilation.
 Migration (auditee au tag v0.1.72 du dépôt game-ci/cli, commit 7da0cea2
 = celui de la release) :
 
-- `game-ci/cli@v0.1.72` = action OFFICIELLE à la racine du dépôt
-  game-ci/cli. Avec args VIDE elle n installe QUE le binaire (archive
-  de la release, sha256 vérifié contre checksums.txt, mismatch =
-  FATAL), version épinglée par le tag.
+- Installation : l INSTALLATEUR OFFICIEL du dépôt game-ci/cli
+  (scripts/install.sh, source unique documentée par le dépôt, épinglé
+  au tag : curl sur raw.githubusercontent.com/game-ci/cli/v0.1.72/
+  scripts/install.sh puis bash -s -- v0.1.72). L action composite
+  racine du même dépôt est ÉCARTÉE : son install.sh racine est
+  commité sans bit exécutable (mode 100644 dans l arbre git du tag
+  v0.1.72) et échoue en exit 126 — constaté par un run CI réel puis
+  vérifié dans l arbre git du tag. L installateur vérifie le sha256
+  de l archive contre checksums.txt AVANT extraction (mismatch =
+  FATAL).
 - UNE SEULE commande `game-ci build warships/unity --targetPlatform
   Android --buildMethod OmniWarships.Unity.EditorTools.
   WarshipsBuildScript.BuildAndroid --androidExportType androidPackage

@@ -47,8 +47,11 @@ Vérifie, sans jamais simuler un statut :
      (aucun défi réponse-able en headless, plus de TOTP) ; license-tools
      supprimé du dépôt, AUCUN workflow ne le référence.
   15. T-013.8 — build : la compilation passe par GameCI CLI v0.1.72
-     (game-ci/cli@v0.1.72, action officielle du dépôt game-ci/cli,
-     installation épinglée par le tag) et UNE SEULE commande de build :
+     (installateur officiel scripts/install.sh du dépôt game-ci/cli,
+     épinglé au tag v0.1.72 — l action composite racine de ce dépôt
+     est ÉCARTÉE : son install.sh y est commité sans bit exécutable,
+     mode 100644 dans l arbre git du tag, exit 126 constaté par un
+     run CI réel) et UNE SEULE commande de build :
      le CLI monte SA PROPRE archive de scripts dans /steps du conteneur
      (src/model/docker.ts) — un seul conteneur fait siège Personal (par
      identifiants) + compilation + restitution (trap EXIT armé par
@@ -595,7 +598,8 @@ def check_gameci_workflow_content(text):
                            if ln.strip() and not ln.strip().startswith("#"))
     errs = []
     requis = (
-        "game-ci/cli@v0.1.72",
+        "raw.githubusercontent.com/game-ci/cli/v0.1.72/scripts/install.sh",
+        "-- v0.1.72",
         "game-ci build",
         "OmniWarships.Unity.EditorTools.WarshipsBuildScript.BuildAndroid",
         "--targetPlatform Android",
@@ -609,7 +613,7 @@ def check_gameci_workflow_content(text):
         if req not in noncomment:
             errs.append("warships-gameci.yml : requis absent (T-013.8) : " + req)
     interdits = (
-        "unity-builder", "unity-activate@", "game-ci activate",
+        "unity-builder", "unity-activate@", "game-ci activate", "game-ci/cli@",
         "UNITY_LICENSE", "UNITY_SERIAL", "UNITY_TOTP_KEY",
         "license.unity3d.com", "set -x",
     )
@@ -641,10 +645,9 @@ jobs:
         run: |
           verify_secret UNITY_EMAIL "$MAIL"
           verify_secret UNITY_PASSWORD "$PASS"
-      - name: Installation CLI
-        uses: game-ci/cli@v0.1.72
-        with:
-          version: v0.1.72
+      - name: Installation CLI (installateur officiel, epingle au tag)
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/game-ci/cli/v0.1.72/scripts/install.sh" | bash -s -- v0.1.72 "$RUNNER_TEMP/game-ci/bin"
       - name: Build (un seul conteneur)
         env:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
@@ -660,14 +663,22 @@ jobs:
 BAD_GC_SNIPPETS = [
     ("retour a l action de build v4 (scripts /steps sans chemin personal)",
      GOOD_GC_SNIPPET.replace(
-         "      - name: Installation CLI\n"
-         "        uses: game-ci/cli@v0.1.72\n"
-         "        with:\n"
-         "          version: v0.1.72\n",
+         "      - name: Installation CLI (installateur officiel, epingle au tag)\n"
+         "        run: |\n"
+         "          curl -fsSL \"https://raw.githubusercontent.com/game-ci/cli/v0.1.72/scripts/install.sh\" | bash -s -- v0.1.72 \"$RUNNER_TEMP/game-ci/bin\"\n",
          "      - name: Build v4\n"
          "        uses: game-ci/unity-builder@v4\n"
          "        with:\n"
          "          targetPlatform: Android\n")),
+    ("installation par l action composite racine cassee (install.sh racine commite sans bit executable au tag v0.1.72, exit 126)",
+     GOOD_GC_SNIPPET.replace(
+         "      - name: Installation CLI (installateur officiel, epingle au tag)\n"
+         "        run: |\n"
+         "          curl -fsSL \"https://raw.githubusercontent.com/game-ci/cli/v0.1.72/scripts/install.sh\" | bash -s -- v0.1.72 \"$RUNNER_TEMP/game-ci/bin\"\n",
+         "      - name: Installation CLI\n"
+         "        uses: game-ci/cli@v0.1.72\n"
+         "        with:\n"
+         "          version: v0.1.72\n")),
     ("activation isolee (siege laisse actif, restitution inter-conteneurs non fiable)",
      GOOD_GC_SNIPPET.replace(
          "          game-ci build warships/unity",

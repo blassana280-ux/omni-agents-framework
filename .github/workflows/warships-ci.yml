@@ -96,6 +96,10 @@ jobs:
             echo "::error::warships-gameci.yml ne doit plus utiliser game-ci/unity-builder : ses scripts montes dans /steps du conteneur ne contiennent PAS le chemin personal de la CLI (bug bloquant T-013.7 corrige par T-013.8)"
             exit 1
           fi
+          if echo "$gcnc" | grep -qF 'game-ci/cli@'; then
+            echo "::error::warships-gameci.yml : l action composite game-ci/cli@ est ECARTEE (install.sh racine commite sans bit executable au tag v0.1.72, exit 126 constate par run CI) — utiliser l installateur officiel scripts/install.sh epingle au tag (T-013.8)"
+            exit 1
+          fi
           if echo "$gcnc" | grep -qF 'game-ci activate'; then
             echo "::error::warships-gameci.yml : activation isolee INTERDITE (T-013.8 : siege + compilation + restitution dans le MEME conteneur, une seule commande de build)"
             exit 1
@@ -104,7 +108,8 @@ jobs:
             echo "::error::warships-gameci.yml ne doit plus exiger UNITY_LICENSE (T-013.7 : methode personal par identifiants)"
             exit 1
           fi
-          echo "$gcnc" | grep -qF 'game-ci/cli@v0.1.72'
+          echo "$gcnc" | grep -qF 'raw.githubusercontent.com/game-ci/cli/v0.1.72/scripts/install.sh'
+          echo "$gcnc" | grep -qF -- '-- v0.1.72'
           echo "$gcnc" | grep -qF 'game-ci build'
           echo "$gcnc" | grep -qF 'OmniWarships.Unity.EditorTools.WarshipsBuildScript.BuildAndroid'
           echo "$gcnc" | grep -qF -- '--targetPlatform Android'
@@ -128,12 +133,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Installation reelle du CLI v0.1.72 (action officielle, version epinglee par le tag)
-        uses: game-ci/cli@v0.1.72
-        with:
-          version: v0.1.72
-          # args VIDE : installation UNIQUEMENT (aucune commande lancee
-          # ici, aucun secret, aucune connexion Unity).
+      - name: Installation reelle du CLI v0.1.72 (installateur officiel du depot game-ci/cli, epingle au tag)
+        run: |
+          set -e
+          dest="$RUNNER_TEMP/game-ci/bin"
+          mkdir -p "$dest"
+          curl -fsSL "https://raw.githubusercontent.com/game-ci/cli/v0.1.72/scripts/install.sh" \
+            | bash -s -- v0.1.72 "$dest"
+          echo "$dest" >> "$GITHUB_PATH"
+          # L action composite racine du depot game-ci/cli est ECARTEE :
+          # son install.sh racine est commite sans bit executable
+          # (mode 100644 au tag v0.1.72) et echoue en exit 126 (constate
+          # par le run CI du commit 07589340). L installateur
+          # scripts/install.sh est la source unique documentee par le
+          # depot lui-meme : sha256 de l archive verifie contre
+          # checksums.txt avant extraction (mismatch = FATAL). Aucune
+          # commande lancee ici, aucun secret, aucune connexion Unity.
       - name: Version du binaire installe
         run: |
           set -e
