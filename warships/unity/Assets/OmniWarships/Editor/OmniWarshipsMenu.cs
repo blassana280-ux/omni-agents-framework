@@ -59,12 +59,14 @@ namespace OmniWarships.Unity.EditorTools
         [MenuItem("Omni Warships/2. Creer la scene Bataille")]
         public static void CreateBattleScene()
         {
-            var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
-            // la bataille s'auto-construit au Play via BattleBootstrap ; la scene
-            // n'a besoin d'aucun objet specifique.
-            bool ok = EditorSceneManager.SaveScene(scene, AssetDir + "/Battle.unity");
-            if (ok) Debug.Log("OMNI WARSHIPS : scene sauvegardee " + AssetDir + "/Battle.unity — appuyer sur Play.");
-            else Debug.LogError("OMNI WARSHIPS : scene non sauvegardee (dossier " + AssetDir + " absent ?)");
+            // Chemin PARTAGE avec le systeme de compilation (BattleSceneGuard) :
+            // la scene creee ici est EXACTEMENT celle incluse dans les builds
+            // (BuildPlayerOptions.scenes) et enregistree dans les Build Settings.
+            // Le bootstrap runtime construit la bataille au Play depuis cette scene.
+            if (BattleSceneGuard.RecreateBattleScene())
+            {
+                Debug.Log("OMNI WARSHIPS : scene prete " + BattleSceneGuard.BattleScenePath + " — appuyer sur Play.");
+            }
         }
 
         [MenuItem("Omni Warships/3. Verifier les specs embarquees")]
@@ -85,3 +87,4 @@ namespace OmniWarships.Unity.EditorTools
         }
     }
 }
+

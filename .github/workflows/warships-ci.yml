@@ -3,9 +3,9 @@ name: Omni Warships CI
 on:
   push:
     branches: ['warships/**']
-    paths: ['warships/**', '.github/workflows/warships-ci.yml']
+    paths: ['warships/**', '.github/workflows/warships-ci.yml', '.github/workflows/warships-blender-fbx.yml', '.github/workflows/warships-gameci.yml', '.github/workflows/warships-license.yml']
   pull_request:
-    paths: ['warships/**', '.github/workflows/warships-ci.yml']
+    paths: ['warships/**', '.github/workflows/warships-ci.yml', '.github/workflows/warships-blender-fbx.yml', '.github/workflows/warships-gameci.yml', '.github/workflows/warships-license.yml']
 
 jobs:
   data:
@@ -67,3 +67,211 @@ jobs:
           rc=$?
           echo "$out"
           if [ $rc -ne 0 ]; then msg=$(echo "$out" | tr '\n' '|' | tail -c 900); echo "::error::validate_unity_layer rc=$rc — $msg"; exit $rc; fi
+
+      - name: Licence et build T-013.8 — verification sans activation, build par GameCI CLI v0.1.72
+        run: |
+          set -e
+          lic="$GITHUB_WORKSPACE/.github/workflows/warships-license.yml"
+          gc="$GITHUB_WORKSPACE/.github/workflows/warships-gameci.yml"
+          # T-013.8 — 1) le workflow de licence reste une GARDE DE
+          # VERIFICATION : AUCUNE activation, AUCUN outil npm, AUCUN
+          # navigateur, AUCUN fichier de licence, AUCUN PAT
+          for motif in 'npm ci' 'npm install' 'npm run' 'npx ' 'puppeteer' 'chromium' 'unity-license-activate' 'license.unity3d.com' 'unityci/editor' 'docker run' 'activation.alf' '.ulf' 'ACCESS_TOKEN' 'gh secret set' 'UNITY_TOTP_KEY' 'UNITY_LICENSE'; do
+            if grep -qF "$motif" "$lic"; then
+              echo "::error::warships-license.yml ne doit plus contenir le motif : $motif (T-013.7/T-013.8 : verification SANS activation)"
+              exit 1
+            fi
+          done
+          grep -qF 'verify_secret UNITY_EMAIL' "$lic"
+          grep -qF 'verify_secret UNITY_PASSWORD' "$lic"
+          grep -q 'always()' "$lic"
+          # T-013.8 — 2) le workflow de build compile via GameCI CLI
+          # v0.1.72 en UNE SEULE commande (un seul conteneur : siege
+          # Personal + compilation + restitution). L action de build
+          # v4 est INTERDITE : ses scripts montes dans /steps du
+          # conteneur ECRASENT ceux de l image et ne contiennent PAS
+          # le chemin personal de la CLI (bug bloquant T-013.7).
+          gcnc=$(grep -v '^[[:space:]]*#' "$gc")
+          if echo "$gcnc" | grep -qF 'unity-builder'; then
+            echo "::error::warships-gameci.yml ne doit plus utiliser game-ci/unity-builder : ses scripts montes dans /steps du conteneur ne contiennent PAS le chemin personal de la CLI (bug bloquant T-013.7 corrige par T-013.8)"
+            exit 1
+          fi
+          if echo "$gcnc" | grep -qF 'game-ci/cli@'; then
+            echo "::error::warships-gameci.yml : l action composite game-ci/cli@ est ECARTEE (install.sh racine commite sans bit executable au tag v0.1.72, exit 126 constate par run CI) — utiliser l installateur officiel scripts/install.sh epingle au tag (T-013.8)"
+            exit 1
+          fi
+          if echo "$gcnc" | grep -qF 'game-ci activate'; then
+            echo "::error::warships-gameci.yml : activation isolee INTERDITE (T-013.8 : siege + compilation + restitution dans le MEME conteneur, une seule commande de build)"
+            exit 1
+          fi
+          if grep -qF 'verify_secret UNITY_LICENSE' "$gc"; then
+            echo "::error::warships-gameci.yml ne doit plus exiger UNITY_LICENSE (T-013.7 : methode personal par identifiants)"
+            exit 1
+          fi
+          echo "$gcnc" | grep -qF 'raw.githubusercontent.com/game-ci/cli/v0.1.72/scripts/install.sh'
+          echo "$gcnc" | grep -qF -- '-- v0.1.72'
+          echo "$gcnc" | grep -qF 'game-ci build'
+          echo "$gcnc" | grep -qF 'OmniWarships.Unity.EditorTools.WarshipsBuildScript.BuildAndroid'
+          echo "$gcnc" | grep -qF -- '--targetPlatform Android'
+          grep -qF 'UNITY_EMAIL' "$gc"
+          grep -qF 'UNITY_PASSWORD' "$gc"
+          # T-013.8 — 3) aucun workflow ne reference l ancien dossier npm
+          # d activation (supprime du depot) — motif construit pour ne
+          # pas matcher ce fichier lui-meme
+          lt="license"
+          pat="${lt}-tools"
+          for wf in "$GITHUB_WORKSPACE"/.github/workflows/warships-*.yml; do
+            if grep -qF "$pat" "$wf"; then
+              echo "::error::$wf ne doit plus referencer ${lt}-tools (T-013.7 : dependances npm supprimees)"
+              exit 1
+            fi
+          done
+          echo "T-013.8 OK : licence = verifications sans activation, build = GameCI CLI v0.1.72 en une seule commande (un seul conteneur, action de build v4 INTERDITE), ancien dossier npm absent des workflows."
+
+  gameci-cli:
+    name: GameCI CLI v0.1.72 (installation reelle, sans activation)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Installation reelle du CLI v0.1.72 (installateur officiel du depot game-ci/cli, epingle au tag)
+        run: |
+          set -e
+          dest="$RUNNER_TEMP/game-ci/bin"
+          mkdir -p "$dest"
+          curl -fsSL "https://raw.githubusercontent.com/game-ci/cli/v0.1.72/scripts/install.sh" \
+            | bash -s -- v0.1.72 "$dest"
+          echo "$dest" >> "$GITHUB_PATH"
+          # L action composite racine du depot game-ci/cli est ECARTEE :
+          # son install.sh racine est commite sans bit executable
+          # (mode 100644 au tag v0.1.72) et echoue en exit 126 (constate
+          # par le run CI du commit 07589340). L installateur
+          # scripts/install.sh est la source unique documentee par le
+          # depot lui-meme : sha256 de l archive verifie contre
+          # checksums.txt avant extraction (mismatch = FATAL). Aucune
+          # commande lancee ici, aucun secret, aucune connexion Unity.
+      - name: Preuve d identite du binaire installe (sha256 strict, ce CLI n expose pas --version)
+        run: |
+          set -e
+          # Ce CLI DESACTIVE --version et --help (src/cli.ts au tag
+          # v0.1.72 : .version(false) et .help(false), commente
+          # "Fixes broken _handle in yargs 17.0.0") : game-ci --version
+          # echoue en exit 1 (Unknown argument), constate par le run CI
+          # du commit 9ee95795. La preuve de version est donc le
+          # checksum sha256 STRICT de l archive de la release v0.1.72
+          # PLUS l identite bit a bit du binaire installe avec le
+          # binaire extrait de cette meme archive verifiee.
+          ver="v0.1.72"
+          d="$RUNNER_TEMP/gameci-proof"
+          mkdir -p "$d"
+          cd "$d"
+          curl -sSL --retry 3 -o game-ci-linux-x64.tar.gz "https://github.com/game-ci/cli/releases/download/$ver/game-ci-linux-x64.tar.gz"
+          curl -sSL --retry 3 -o checksums.txt "https://github.com/game-ci/cli/releases/download/$ver/checksums.txt"
+          want=$(grep -F 'game-ci-linux-x64.tar.gz' checksums.txt | head -1 | awk '{print $1}')
+          if [ -z "$want" ]; then
+            echo "::error::empreinte attendue absente de checksums.txt (release $ver)"
+            exit 1
+          fi
+          got=$(sha256sum game-ci-linux-x64.tar.gz | awk '{print $1}')
+          if [ "$want" != "$got" ]; then
+            echo "::error::checksum sha256 MISMATCH (attendu $want, obtenu $got)"
+            exit 1
+          fi
+          echo "Checksum sha256 de l archive VERIFIE (strict, pas de soft-skip) : $got"
+          tar -xzf game-ci-linux-x64.tar.gz
+          inst="$RUNNER_TEMP/game-ci/bin/game-ci"
+          if [ ! -f "$inst" ]; then
+            echo "::error::binaire installe introuvable : $inst"
+            exit 1
+          fi
+          a=$(sha256sum "$inst" | awk '{print $1}')
+          b=$(sha256sum ./game-ci | awk '{print $1}')
+          if [ "$a" != "$b" ]; then
+            echo "::error::le binaire installe ne correspond PAS a l archive verifiee de $ver ($a vs $b)"
+            exit 1
+          fi
+          echo "Identite prouvee : le binaire installe est exactement celui de la release $ver (sha256 $a)."
+      - name: Options reelles de la commande build (sources du tag v0.1.72)
+        run: |
+          set -e
+          # L aide est DESACTIVEE dans ce CLI (.help(false) dans
+          # src/cli.ts au tag v0.1.72) : les options de la commande
+          # build sont prouvees sur les SOURCES du tag epingle
+          # (src/command-options), l identite du binaire installe
+          # etant deja prouvee par le checksum sha256 du step
+          # precedent. Chaque option utilisee par le workflow de
+          # build doit exister dans le code du tag.
+          d="$RUNNER_TEMP/gameci-src"
+          mkdir -p "$d"
+          base="https://raw.githubusercontent.com/game-ci/cli/v0.1.72/src/command-options"
+          curl -sSL --retry 3 -o "$d/unity-options.ts" "$base/unity-options.ts"
+          curl -sSL --retry 3 -o "$d/build-options.ts" "$base/build-options.ts"
+          curl -sSL --retry 3 -o "$d/versioning-options.ts" "$base/versioning-options.ts"
+          curl -sSL --retry 3 -o "$d/android-options.ts" "$base/android-options.ts"
+          grep -qF ".option('targetPlatform'" "$d/unity-options.ts" || { echo "::error::targetPlatform absente des sources du tag"; exit 1; }
+          grep -qF "unityLicensingMethod: {" "$d/unity-options.ts" || { echo "::error::unityLicensingMethod absent des sources du tag"; exit 1; }
+          grep -qF ".option('buildsPath'" "$d/build-options.ts" || { echo "::error::buildsPath absent des sources du tag"; exit 1; }
+          grep -qF ".option('buildMethod'" "$d/build-options.ts" || { echo "::error::buildMethod absent des sources du tag"; exit 1; }
+          grep -qF ".option('versioningStrategy'" "$d/versioning-options.ts" || { echo "::error::versioningStrategy absent des sources du tag"; exit 1; }
+          grep -qF "choices: ['androidPackage', 'androidAppBundle', 'androidStudioProject']" "$d/android-options.ts" || { echo "::error::androidExportType/androidPackage absent des sources du tag"; exit 1; }
+          echo "Options prouvees dans les sources du tag v0.1.72 : targetPlatform, buildMethod, buildsPath, versioningStrategy, androidExportType (androidPackage), unityLicensingMethod (auto = serial, file, floating, personal)."
+      - name: Scripts personal présents dans l archive installée (preuve du conteneur réel)
+        run: |
+          set -e
+          base="$RUNNER_TEMP/game-ci/bin"
+          steps_dir="$base/dist/platforms/ubuntu/steps"
+          if [ ! -d "$steps_dir" ]; then
+            echo "::error::dist/platforms/ubuntu/steps introuvable dans l installation du CLI ($steps_dir)"
+            exit 1
+          fi
+          # Ces scripts sont CEUX que le CLI monte dans /steps du conteneur
+          # (src/model/docker.ts de game-ci/cli) : leur contenu prouve le
+          # chemin personal — pas ceux d une action tierce.
+          grep -q -- '--include-personal' "$steps_dir/activate.sh" || { echo "::error::activate.sh sans chemin personal (--include-personal absent)"; exit 1; }
+          grep -qF 'trap return_license_once EXIT' "$steps_dir/runsteps.sh" || { echo "::error::runsteps.sh sans trap EXIT de restitution"; exit 1; }
+          grep -qF 'Returning personal license seat' "$steps_dir/return_license.sh" || { echo "::error::return_license.sh sans branche personal"; exit 1; }
+          grep -qF '/steps/runsteps.sh' "$base/dist/platforms/ubuntu/entrypoint.sh" || { echo "::error::entrypoint.sh sans runsteps"; exit 1; }
+          echo "Scripts du conteneur prouves : activate.sh (branche personal), runsteps.sh (trap EXIT arme apres l activation), return_license.sh (branche personal), entrypoint.sh (orchestration /steps/runsteps.sh)."
+      - name: Résolution du projet warships/unity (test local, AUCUNE connexion Unity)
+        run: |
+          set -e
+          pv=warships/unity/ProjectSettings/ProjectVersion.txt
+          if [ ! -f "$pv" ]; then
+            echo "::error::$pv introuvable : le projet Unity ne serait pas resolu par engineDetection"
+            exit 1
+          fi
+          grep -q 'm_EditorVersion: 2022.3.62f1' "$pv" || { echo "::error::version d editeur inattendue dans ProjectVersion.txt"; cat "$pv"; exit 1; }
+          bs=warships/unity/Assets/OmniWarships/Editor/WarshipsBuildScript.cs
+          grep -q 'namespace OmniWarships.Unity.EditorTools' "$bs" || { echo "::error::namespace du buildMethod introuvable"; exit 1; }
+          grep -q 'class WarshipsBuildScript' "$bs" || { echo "::error::classe du buildMethod introuvable"; exit 1; }
+          grep -q 'static void BuildAndroid' "$bs" || { echo "::error::methode BuildAndroid introuvable"; exit 1; }
+          echo "Projet resolu : Unity 2022.3.62f1, buildMethod OmniWarships.Unity.EditorTools.WarshipsBuildScript.BuildAndroid present dans le code reel."
+          echo "AUCUNE commande ici ne touche Unity : ce job ne prouve PAS une activation (siege = premier run reel du build)."
+
+  workflows:
+    name: Workflows (actionlint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: actionlint — validation réelle des 4 workflows warships (YAML, expressions, inputs des actions)
+        run: |
+          set -e
+          curl -sSL --retry 3 -o /tmp/download-actionlint.bash \
+            https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash
+          # signature REELLE du script : [[VERSION] DIR] — la version est
+          # obligatoire car le script epingle v1.7.7 defaulte a 1.7.6.
+          bash /tmp/download-actionlint.bash 1.7.7 /tmp
+          /tmp/actionlint --version
+          set +e
+          out=$(/tmp/actionlint -color \
+            .github/workflows/warships-ci.yml \
+            .github/workflows/warships-blender-fbx.yml \
+            .github/workflows/warships-gameci.yml \
+            .github/workflows/warships-license.yml 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          if [ "$rc" -ne 0 ]; then
+            msg=$(echo "$out" | tr '\n' '|' | cut -c1-900)
+            echo "::error::actionlint rc=$rc — $msg"
+            exit $rc
+          fi

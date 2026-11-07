@@ -1,0 +1,100 @@
+# OMNI WARSHIPS T-013.7 — licence Unity : VERIFICATION SANS ACTIVATION.
+# Reconciliation T-013.6/T-013.7 : le flux d acquisition de fichier de
+# licence des T-013.2 a T-013.5 (image Docker -> outil npm + navigateur
+# automatise d avril 2022) est RETIRE pour deux raisons AUDITEES DANS
+# LE CODE SOURCE de game-ci (07/11/2026, scripts d activation de la
+# CLI et du conteneur de build) :
+#   1. Unity a SUPPRIME l activation manuelle (hors-ligne) des licences
+#      Personal : le portail d activation manuelle redirige vers la
+#      nouvelle page et repond que l activation hors-ligne est
+#      reservee aux sieges Enterprise et Industry — un compte gratuit
+#      ne peut PLUS obtenir de fichier de licence manuel ; l ancien
+#      outillage visait une page qui n existe plus ;
+#   2. l activation Personal OFFICIELLE actuelle = methode personal
+#      PAR IDENTIFIANTS : le client de licence Unity, DANS le
+#      conteneur du build, demande un siege avec UNITY_EMAIL +
+#      UNITY_PASSWORD — SANS fichier de licence, SANS navigateur,
+#      SANS Unity Hub. Mesuree par game-ci sur Unity 2022.3.62f3
+#      (siege UnityPersonal assigne par le serveur de licences).
+# REGLES ABSOLUES (T-013.7) :
+#   * CE WORKFLOW NE DECLENCHE AUCUNE ACTIVATION : il verifie
+#     uniquement la presence et la proprete des secrets, sans jamais
+#     les afficher, sans contacter Unity, sans ecrire de fichier de
+#     licence ;
+#   * l activation reelle a lieu UNIQUEMENT dans warships-gameci.yml
+#     (BUILD-TRIGGER.md), dans le MEME conteneur que la compilation —
+#     le siege est rendu automatiquement a la fin du build (retour de
+#     licence arme sur le trap EXIT du conteneur, meme en cas d echec) ;
+#   * 2FA : l activation headless ne peut repondre a AUCUN defi 2FA
+#     ni verification d appareil — le compte Unity utilise DOIT avoir
+#     la 2FA DESACTIVEE (compte dedie au CI recommande, jamais le
+#     compte principal). Le TOTP n est plus utilise (il concernait l
+#     ancien parcours navigateur, retire) ;
+#   * plus AUCUNE dependance npm pour la licence : l ancien outillage
+#     (67 paquets, navigateur de 2022 expose a des identifiants reels)
+#     est supprime du depot — plus de navigateur obselete ;
+#   * plus de PAT ni de stockage de secret via l API : les
+#     identifiants vivent deja dans les secrets du depot, le build les
+#     lit directement ;
+#   * aucun fichier de licence n est produit, publie ou stocke.
+# DOMAINES EXTERNES contactes par CE workflow : AUCUN (verifications
+# locales uniquement). Le build (warships-gameci.yml) contacte :
+# github.com (checkout, action builder), ghcr.io / hub.docker.com
+# (image Unity CI), le serveur de licences Unity (depuis le conteneur),
+# api.github.com (release brouillon).
+name: Warships licence Unity (verification des secrets, aucune activation)
+
+on:
+  push:
+    branches: ['warships/android-build']
+    paths:
+      - 'warships/unity/ci/LICENSE-TRIGGER.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-secrets:
+    name: Verification des secrets (methode personal, aucune activation, aucune connexion Unity)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verification des secrets Unity (jamais affiches, aucune valeur transmise)
+        env:
+          MAIL: ${{ secrets.UNITY_EMAIL }}
+          PASS: ${{ secrets.UNITY_PASSWORD }}
+        run: |
+          set -e
+          verify_secret() {
+            trimmed=$(printf '%s' "$2" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+            if [ -z "$trimmed" ]; then
+              echo "::error::secret $1 absent ou vide — Settings > Secrets and variables > Actions"
+              exit 1
+            fi
+            if [ "$trimmed" != "$2" ]; then
+              echo "::error::secret $1 contient un caractere parasite (espace/retour a la ligne en debut ou fin) — le coller a nouveau sans espaces autour"
+              exit 1
+            fi
+          }
+          verify_secret UNITY_EMAIL "$MAIL"
+          verify_secret UNITY_PASSWORD "$PASS"
+          echo "Secrets UNITY_EMAIL / UNITY_PASSWORD presents et propres (aucune valeur affichee)."
+          echo "Methode T-013.7 : activation Personal PAR IDENTIFIANTS dans le conteneur du build"
+          echo "(warships-gameci.yml, unity-builder v4, methode personal du client de licence Unity) :"
+          echo "  - SANS fichier de licence (Unity a supprime l activation manuelle des licences Personal) ;"
+          echo "  - 2FA du compte Unity DESACTIVEE requise (l activation headless ne peut repondre a aucun defi) ;"
+          echo "  - siege rendu automatiquement par le build (meme conteneur, trap EXIT) ;"
+          echo "  - compte Unity dedie au CI recommande, jamais le compte principal."
+          echo "Ce workflow ne contacte PAS Unity et ne declenche AUCUNE activation :"
+          echo "l activation reelle est declenchee par warships/unity/ci/BUILD-TRIGGER.md."
+
+      - name: Nettoyage du runner (aucun fichier sensible produit par ce workflow)
+        if: always()
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          rm -rf /tmp/alfdir 2>/dev/null || true
+          echo "Nettoyage runner : ce workflow ne produit aucun fichier sensible (verifications uniquement, residu /tmp/alfdir des anciens flux supprime)."
