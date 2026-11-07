@@ -1,0 +1,3 @@
+built_from_commit=46bda44aeb5dd23b364c6d0a473fd9df7d1b8a34
+official_source=game-ci/cli@7da0cea2f31799a4cbd79c1d452c254023f4f678
+release_tag=gameci-cli-secure-v0.1.72w1

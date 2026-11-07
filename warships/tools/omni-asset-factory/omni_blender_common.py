@@ -9,12 +9,11 @@ Fonctions partagees par tous les gen_*_blender.py :
     pont antiderrapant, vitres, caoutchouc, metal, bandes) — ZERO image
     externe, tout genere par nodes ;
   - UV : smart project par objet ;
-  - LOD : decimate 50 % / 25 %, nommage <mesh>_LOD0/1/2 (convention Unity
+  - LOD : decimate 50 % / 25 %, nommage <mesh>_LOD1/2 (convention Unity
     LODGroup) ;
   - export FBX en metres + rapport de production (verts/tris par LOD).
 
-Statut : IMPLEMENTE, NON EXECUTE ici (Blender absent du sandbox).
-S'execute dans Blender >= 3.0 :
+Execution (Blender >= 3.0, teste CI GitHub Actions, licence GPL) :
     blender --background --factory-startup --python gen_destroyer_blender.py -- --out out.fbx
 """
 import math
@@ -275,7 +274,16 @@ def clean_scene():
 
 
 def parse_args_after_dashes():
+    """Arguments apres le -- de la ligne Blender.
+
+    FIX T-013 (audit du 06/11/2026) : l'ancien parseur etait VIDE, donc
+    args.out levait AttributeError et faisait echouer les 7 generateurs
+    des le premier appel reel. --out est desormais declare.
+    """
     import argparse
     if "--" not in sys.argv:
         sys.exit("Erreur : separer les arguments par -- (blender --python script.py -- --out f.fbx)")
-    return argparse.ArgumentParser().parse_known_args(sys.argv[sys.argv.index("--") + 1:])[0]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--out", required=True,
+                        help="chemin du FBX a produire (ex: ws-destroyer-01.fbx)")
+    return parser.parse_known_args(sys.argv[sys.argv.index("--") + 1:])[0]
