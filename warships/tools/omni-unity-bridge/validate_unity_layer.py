@@ -583,6 +583,9 @@ def check_license_lock():
             if key == "":
                 continue
             n += 1
+            if not str(entry.get("version", "")).strip():
+                errs.append("package-lock.json : champ version manquant pour " + key + " (npm ci refuserait l entree)")
+            n += 1
             if not str(entry.get("integrity", "")).startswith("sha512-"):
                 errs.append("package-lock.json : integrite sha512 manquante pour " + key)
             if "registry.npmjs.org" not in str(entry.get("resolved", "")):
