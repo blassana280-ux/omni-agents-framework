@@ -161,3 +161,10 @@ Migration (auditee au tag v0.1.72 du dépôt game-ci/cli, commit 7da0cea2
 - il ne remplace pas la validation manuelle sur appareil ;
 - il n est pas compté comme « compilée » tant que le run n est pas vert
   AVEC une APK vérifiée en sortie (taille + sha256).
+
+Intégration T-013.8 : 07/11/2026 — correctifs issus du premier retour
+CI réel : nom de step YAML (deux-points non quoté, ligne 123) et
+installation par l installateur officiel scripts/install.sh du tag
+v0.1.72 à la place de l action composite racine (exit 126 : install.sh
+racine commité sans bit exécutable). Aucune activation, aucune
+compilation déclenchée par ces correctifs.
