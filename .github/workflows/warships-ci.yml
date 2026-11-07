@@ -72,7 +72,17 @@ jobs:
         run: |
           set -e
           cd warships/unity/ci/license-tools
-          npm ci --ignore-scripts --no-audit --no-fund
+          set +e
+          out=$(npm ci --ignore-scripts --no-audit --no-fund 2>&1)
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            echo "$out" | tail -40
+            msg=$(printf '%s' "$out" | tail -10 | tr '\n' ' ' | cut -c1-800)
+            echo "::error::npm ci rc=$rc — $msg"
+            exit "$rc"
+          fi
+          echo "$out" | tail -6
           grep -q '"version": "0.3.9"' node_modules/unity-license-activate/package.json
           grep -q '"version": "13.7.0"' node_modules/puppeteer/package.json
           if [ -d node_modules/puppeteer/.local-chromium ]; then
