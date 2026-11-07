@@ -714,3 +714,16 @@ La PR #16 a été vérifiée indépendamment. Corrections apportées :
   compte CI dédié + 2FA désactivée = décision explicite de Lassana ;
   le premier run réel du build reste la SEULE preuve d obtention du
   siège.
+
+### 13.7 Intégration (tête réelle GitHub)
+
+- Architecture, workflows, validateur et rapport T-013.8 poussés par le
+  commit 0758934022c43e1adc7fb7bd9eefaaf8b06335c7 (07/11/2026, branche
+  warships/android-build, PR #16) — ce commit déclenche le run rouge
+  ATTENDU du workflow de build (vérification des secrets absents,
+  arrêt AVANT toute installation CLI, activation et compilation).
+- Le présent commit de statut porte la tête vérifiée : il ne modifie
+  PAS warships/unity/ci/BUILD-TRIGGER.md, donc AUCUNE compilation n est
+  déclenchée ; la CI (données, noyau, couche Unity, GameCI CLI v0.1.72
+  sans activation, actionlint) doit y être intégralement verte.
+- Aucune fusion, main intacte, PRs #13/#14/#15/#16 ouvertes.
