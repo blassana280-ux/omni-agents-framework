@@ -803,8 +803,10 @@ La PR #16 a été vérifiée indépendamment. Corrections apportées :
   --compile), bun build src/index.ts --compile --target
   bun-linux-x64, dist/ recopiée, archive
   gameci-cli-secure-linux-x64.tar.gz + checksums.txt, release
-  IMMUABLE gameci-cli-secure-v0.1.72w1 (assets : archive,
-  checksums, T013-9-patch.diff, T013-9-secure-env.test.ts),
+  gameci-cli-secure-v0.1.72w1 (NON immuable selon l API GitHub —
+  immutable: false — la garantie est l empreinte ANCRÉE DANS GIT
+  ci-dessous ; assets : archive, checksums, T013-9-patch.diff,
+  T013-9-secure-env.test.ts),
   empreinte ANCRÉE DANS GIT par le commit du bot
   (artifact-checksum.txt + BUILD-INFO.txt, built_from_commit=
   46bda44aeb5dd23b364c6d0a473fd9df7d1b8a34).
@@ -862,3 +864,68 @@ La PR #16 a été vérifiée indépendamment. Corrections apportées :
   BUILD-TRIGGER.md JAMAIS touché (RELEASE-TRIGGER.md, compteur #1,
   est un bouton DIFFÉRENT : il publie le CLI corrigé, il ne
   déclenche JAMAIS le build Android).
+
+## 15. T-013.10 — finalisation pré-build : BUILD-TRIGGER aligné, honnêteté immutabilité (07/11/2026)
+
+### 15.1 BUILD-TRIGGER.md aligné sur le workflow sécurisé réel
+- Le fichier déclencheur décrivait encore l installation T-013.8
+  (installateur officiel du dépôt game-ci/cli) : réécrit pour
+  T-013.9/T-013.10 — installation UNIQUEMENT par
+  verify-gameci-cli.sh depuis la release gameci-cli-secure-v0.1.72w1,
+  empreinte sha256 ancrée dans git (artifact-checksum.txt), checksum
+  STRICT (tout remplacement de l archive est FATAL), identifiants
+  par ENV hérité (jamais dans l argv du runner).
+- Nouveaux cas d échec documentés pour Lassana : checksum MISMATCH /
+  empreinte divergente → NE PAS relancer le build, republier le CLI
+  corrigé via RELEASE-TRIGGER.md (gameci-cli-secure).
+- Compteur INCHANGÉ : « Dernier build demandé : #0 (aucun) » —
+  aucune compilation voulue ni déclenchée.
+
+### 15.2 Honnêteté sur la non-immuabilité GitHub (correction des docs)
+- Constat (API publique GitHub, 07/11/2026) : l asset archive de la
+  release gameci-cli-secure-v0.1.72w1 porte « immutable: false » —
+  une release GitHub n est PAS immuable (un admin du dépôt peut
+  remplacer ou supprimer l archive).
+- Correction : toute affirmation « release IMMUABLE » retirée des
+  workflows, du validateur et des docs. Protection RÉELLE documentée
+  partout : l empreinte SHA-256 est ANCRÉE DANS GIT
+  (artifact-checksum.txt + BUILD-INFO.txt, commits du bot CI) et
+  verify-gameci-cli.sh est fail-closed — un remplacement de l
+  archive provoque un mismatch FATAL à l installation, et la garde
+  anti-staleness CI échoue si le correctif évolue sans republication.
+  L immuabilité est ENFORCÉE PAR VÉRIFICATION, pas par GitHub.
+
+### 15.3 Vérifications refaites sur la tête réelle (aucune simulation)
+- warships-gameci.yml : installation EXCLUSIVEMENT par
+  verify-gameci-cli.sh + release gameci-cli-secure-v0.1.72w1 +
+  artifact-checksum.txt (aucun installateur officiel, aucun
+  raw.githubusercontent, aucun bash -s --) — prouvé par les greps
+  CI et le validateur.
+- Empreinte : artifact-checksum.txt = 49c49df3f4af768e0cae82fc7c92b6ae6fa3769ae8703b50d8b9d35f830fc3a7
+  (archive 40 859 601 octets, asset publié le 07/11/2026 18:17,
+  jamais mis à jour depuis) ; BUILD-INFO.txt :
+  built_from_commit=46bda44, official_source=game-ci/cli@7da0cea2,
+  release_tag épingle.
+- Scripts Personal + restitution : exigés dans l ARTEFACT par
+  verify-gameci-cli.sh (activate.sh --include-personal, runsteps.sh
+  « trap return_license_once EXIT », return_license.sh « Returning
+  personal license seat », entrypoint.sh /steps/runsteps.sh) et
+  re-vérifiés par le job CI — présents (CI verte).
+
+### 15.4 Preuve d exécution de la garde SANS compilation
+- Le commit d intégration T-013.10 (6f9d5fbf) touche BUILD-TRIGGER.md :
+  le workflow de build s est déclenché et s est ARRÊTÉ à
+  « Verification des secrets » (« secret UNITY_EMAIL absent ou vide »)
+  — run rouge ATTENDU (job 128495942281, run 42403435448), AUCUNE
+  installation CLI, AUCUNE activation, AUCUNE compilation Unity,
+  aucune APK.
+- CI warships-ci sur le même commit : 11/11 checks verts (Données,
+  Noyau C# 34/34, Couche Unity + validateur + self-tests, GameCI CLI
+  x2, actionlint, Blender idempotent).
+
+### 15.5 Statut (honnête)
+- Aucune activation, aucun secret configuré, aucune APK, compteur
+  #0, main intacte, PRs #13/#14/#15/#16 ouvertes. Le premier build
+  Android attend l autorisation explicite de Lassana (secrets
+  UNITY_EMAIL/UNITY_PASSWORD du compte CI dédié 2FA désactivée,
+  puis incrément du compteur BUILD-TRIGGER.md).

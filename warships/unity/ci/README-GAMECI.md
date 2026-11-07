@@ -35,8 +35,12 @@ configurée). Le workflow réel vit sur la branche `warships/android-build`
 2. Ouvrir `warships/unity/ci/BUILD-TRIGGER.md` sur GitHub (navigateur
    mobile), crayon, incrémenter le compteur, commiter sur la branche.
 3. Le job build-android : vérifie les secrets, libère l espace disque,
-   installe GameCI CLI v0.1.72 (action officielle, version épinglée par
-   le tag, checksums vérifiés), puis UNE SEULE commande `game-ci build`
+   installe le CLI CORRIGÉ T-013.9 UNIQUEMENT par verify-gameci-cli.sh
+   depuis la release gameci-cli-secure-v0.1.72w1 (empreinte sha256
+   ancrée dans git, checksum STRICT : tout remplacement de l archive
+   est FATAL — l API GitHub déclare la release non immuable
+   (immutable: false), la garantie est l empreinte ancrée), puis
+   UNE SEULE commande `game-ci build`
    fait tout dans UN SEUL conteneur : siège Personal par identifiants,
    compilation (image unityci/editor 2022.3.62f1-android, buildMethod
    WarshipsBuildScript.BuildAndroid — scène incluse EXPLICITEMENT),
@@ -187,9 +191,12 @@ Correctif : le build utilise désormais un CLI CORRIGÉ, construit en CI
 depuis la source officielle ÉPINGLÉE (game-ci/cli@7da0cea2f31799a4cbd79c1d452c254023f4f678,
 dépôt officiel jamais modifié, fork 403 documenté) + overlay minimal
 committé (identifiants par ENV hérité, références `--env` SANS
-valeur), publié en release IMMUABLE gameci-cli-secure-v0.1.72w1 avec
-empreinte ancrée dans git (artifact-checksum.txt + BUILD-INFO.txt,
-commits du bot). Le workflow de build n accepte QUE les installations
+valeur), publié en release gameci-cli-secure-v0.1.72w1 avec empreinte
+ancrée dans git (artifact-checksum.txt + BUILD-INFO.txt, commits du
+bot) — T-013.10 : l API GitHub déclare cette release NON immuable
+(immutable: false, un admin peut remplacer l archive) ; la garantie
+réelle est l empreinte ancrée dans git : tout remplacement de l
+archive fait échouer l installation (checksum STRICT, fail-closed). Le workflow de build n accepte QUE les installations
 vérifiées : verify-gameci-cli.sh (checksums.txt inaccessible,
 empreinte absente, divergence, mismatch = FATAL ; binaire installé
 identique bit à bit ; scripts personal + trap EXIT prouvés dans l
@@ -201,3 +208,14 @@ job « Artefact publie VERIFIE » avec garde anti-staleness. Aucune
 activation, aucune connexion Unity, aucun secret réel, aucun compte
 créé ou modifié, BUILD-TRIGGER.md intact (la release du CLI corrige
 est déclenchée par RELEASE-TRIGGER.md, un fichier DIFFÉRENT).
+
+Intégration T-013.10 : 07/11/2026 — finalisation pré-build. BUILD-TRIGGER.md
+aligné sur le workflow sécurisé réel (verify-gameci-cli.sh, release
+gameci-cli-secure-v0.1.72w1, empreinte ancrée, nouvelles erreurs
+documentées : checksum MISMATCH, empreinte divergente) ; honnêteté
+sur la non-immuabilité GitHub de la release (API : immutable: false)
+corrigée partout (workflows, validateur, docs) : la protection réelle
+est l empreinte SHA-256 ancrée dans git + le vérificateur fail-closed.
+Garde exécutée à l intégration : run rouge ATTENDU à la vérification
+des secrets (AUCUNE installation CLI, AUCUNE activation, AUCUNE
+compilation Unity) — aucune APK produite, compteur #0 inchangé.
