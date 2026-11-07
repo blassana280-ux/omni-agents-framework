@@ -137,8 +137,11 @@ Migration (auditee au tag v0.1.72 du dépôt game-ci/cli, commit 7da0cea2
   activate`) sont INTERDITES (step T-013.8 de warships-ci.yml,
   check_gameci_workflow du validateur, 4 nouveaux self-tests) ; le
   job « GameCI CLI v0.1.72 (installation réelle, sans activation) »
-  prouve à chaque push : version installée, checksum sha256 strict
-  contre checksums.txt, options réelles de `game-ci build --help`,
+  prouve à chaque push : identité du binaire installé (checksum sha256
+  strict de l archive contre checksums.txt + comparaison bit à bit
+  avec le binaire extrait de cette même archive — ce CLI n expose PAS
+  --version : .version(false) dans son src/cli.ts au tag), options
+  réelles prouvées sur les sources du tag v0.1.72,
   présence des scripts personal (activate.sh/runsteps.sh/
   return_license.sh/entrypoint.sh) dans l archive, résolution du
   projet (ProjectVersion.txt 2022.3.62f1, buildMethod dans le .cs
@@ -162,9 +165,15 @@ Migration (auditee au tag v0.1.72 du dépôt game-ci/cli, commit 7da0cea2
 - il n est pas compté comme « compilée » tant que le run n est pas vert
   AVEC une APK vérifiée en sortie (taille + sha256).
 
-Intégration T-013.8 : 07/11/2026 — correctifs issus du premier retour
-CI réel : nom de step YAML (deux-points non quoté, ligne 123) et
-installation par l installateur officiel scripts/install.sh du tag
-v0.1.72 à la place de l action composite racine (exit 126 : install.sh
-racine commité sans bit exécutable). Aucune activation, aucune
+Intégration T-013.8 : 07/11/2026 — correctifs issus des retours CI
+réels : (1) nom de step YAML (deux-points non quoté, ligne 123) ;
+(2) installation par l installateur officiel scripts/install.sh du
+tag v0.1.72 à la place de l action composite racine (exit 126 :
+install.sh racine commité sans bit exécutable) ; (3) le test
+`game-ci --version` du job CLI échouait en exit 1 : ce CLI DÉSACTIVE
+--version et --help (.version(false) / .help(false) dans src/cli.ts
+au tag, « Fixes broken _handle in yargs 17.0.0 ») — la preuve de
+version est donc le checksum sha256 strict de l archive PLUS l
+identité bit à bit du binaire installé, et les options de build
+sont prouvées sur les sources du tag. Aucune activation, aucune
 compilation déclenchée par ces correctifs.

@@ -149,16 +149,19 @@ jobs:
           # depot lui-meme : sha256 de l archive verifie contre
           # checksums.txt avant extraction (mismatch = FATAL). Aucune
           # commande lancee ici, aucun secret, aucune connexion Unity.
-      - name: Version du binaire installe
+      - name: Preuve d identite du binaire installe (sha256 strict, ce CLI n expose pas --version)
         run: |
           set -e
-          game-ci --version
-          game-ci --version | grep -q '0.1.72'
-      - name: Preuve du checksum publie (sha256 de l archive v0.1.72, mismatch = echec)
-        run: |
-          set -e
+          # Ce CLI DESACTIVE --version et --help (src/cli.ts au tag
+          # v0.1.72 : .version(false) et .help(false), commente
+          # "Fixes broken _handle in yargs 17.0.0") : game-ci --version
+          # echoue en exit 1 (Unknown argument), constate par le run CI
+          # du commit 9ee95795. La preuve de version est donc le
+          # checksum sha256 STRICT de l archive de la release v0.1.72
+          # PLUS l identite bit a bit du binaire installe avec le
+          # binaire extrait de cette meme archive verifiee.
           ver="v0.1.72"
-          d="/tmp/gameci-checksum"
+          d="$RUNNER_TEMP/gameci-proof"
           mkdir -p "$d"
           cd "$d"
           curl -sSL --retry 3 -o game-ci-linux-x64.tar.gz "https://github.com/game-ci/cli/releases/download/$ver/game-ci-linux-x64.tar.gz"
@@ -173,18 +176,44 @@ jobs:
             echo "::error::checksum sha256 MISMATCH (attendu $want, obtenu $got)"
             exit 1
           fi
-          echo "Checksum sha256 VERIFIE (strict, pas de soft-skip) : $got"
-      - name: Aide de la commande build (options reelles du CLI)
+          echo "Checksum sha256 de l archive VERIFIE (strict, pas de soft-skip) : $got"
+          tar -xzf game-ci-linux-x64.tar.gz
+          inst="$RUNNER_TEMP/game-ci/bin/game-ci"
+          if [ ! -f "$inst" ]; then
+            echo "::error::binaire installe introuvable : $inst"
+            exit 1
+          fi
+          a=$(sha256sum "$inst" | awk '{print $1}')
+          b=$(sha256sum ./game-ci | awk '{print $1}')
+          if [ "$a" != "$b" ]; then
+            echo "::error::le binaire installe ne correspond PAS a l archive verifiee de $ver ($a vs $b)"
+            exit 1
+          fi
+          echo "Identite prouvee : le binaire installe est exactement celui de la release $ver (sha256 $a)."
+      - name: Options reelles de la commande build (sources du tag v0.1.72)
         run: |
           set -e
-          game-ci build --help > /tmp/gameci-build-help.txt 2>&1 || true
-          cat /tmp/gameci-build-help.txt
-          for opt in '--targetPlatform' '--buildMethod' '--androidExportType' '--buildsPath' '--versioningStrategy' '--unityLicensingMethod'; do
-            if ! grep -qF -- "$opt" /tmp/gameci-build-help.txt; then
-              echo "::error::option absente de game-ci build --help : $opt"
-              exit 1
-            fi
-          done
+          # L aide est DESACTIVEE dans ce CLI (.help(false) dans
+          # src/cli.ts au tag v0.1.72) : les options de la commande
+          # build sont prouvees sur les SOURCES du tag epingle
+          # (src/command-options), l identite du binaire installe
+          # etant deja prouvee par le checksum sha256 du step
+          # precedent. Chaque option utilisee par le workflow de
+          # build doit exister dans le code du tag.
+          d="$RUNNER_TEMP/gameci-src"
+          mkdir -p "$d"
+          base="https://raw.githubusercontent.com/game-ci/cli/v0.1.72/src/command-options"
+          curl -sSL --retry 3 -o "$d/unity-options.ts" "$base/unity-options.ts"
+          curl -sSL --retry 3 -o "$d/build-options.ts" "$base/build-options.ts"
+          curl -sSL --retry 3 -o "$d/versioning-options.ts" "$base/versioning-options.ts"
+          curl -sSL --retry 3 -o "$d/android-options.ts" "$base/android-options.ts"
+          grep -qF ".option('targetPlatform'" "$d/unity-options.ts" || { echo "::error::targetPlatform absente des sources du tag"; exit 1; }
+          grep -qF "unityLicensingMethod: {" "$d/unity-options.ts" || { echo "::error::unityLicensingMethod absent des sources du tag"; exit 1; }
+          grep -qF ".option('buildsPath'" "$d/build-options.ts" || { echo "::error::buildsPath absent des sources du tag"; exit 1; }
+          grep -qF ".option('buildMethod'" "$d/build-options.ts" || { echo "::error::buildMethod absent des sources du tag"; exit 1; }
+          grep -qF ".option('versioningStrategy'" "$d/versioning-options.ts" || { echo "::error::versioningStrategy absent des sources du tag"; exit 1; }
+          grep -qF "choices: ['androidPackage', 'androidAppBundle', 'androidStudioProject']" "$d/android-options.ts" || { echo "::error::androidExportType/androidPackage absent des sources du tag"; exit 1; }
+          echo "Options prouvees dans les sources du tag v0.1.72 : targetPlatform, buildMethod, buildsPath, versioningStrategy, androidExportType (androidPackage), unityLicensingMethod (auto = serial, file, floating, personal)."
       - name: Scripts personal présents dans l archive installée (preuve du conteneur réel)
         run: |
           set -e

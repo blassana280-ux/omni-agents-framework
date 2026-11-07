@@ -690,14 +690,24 @@ La PR #16 a été vérifiée indépendamment. Corrections apportées :
   isolée / build sans buildMethod).
 
 ### 13.5 Tests SANS identifiants réels (job CI dédié, exécuté à chaque push)
-- Installation réelle du CLI v0.1.72 via l installateur officiel ;
-  `game-ci --version` doit rendre 0.1.72.
-- Preuve du checksum PUBLIÉ : téléchargement de l archive et de
-  checksums.txt de la release, comparaison sha256 STRICTE (mismatch =
-  échec, pas de soft-skip).
-- `game-ci build --help` : présence des options réelles
-  (--targetPlatform, --buildMethod, --androidExportType,
-  --buildsPath, --versioningStrategy, --unityLicensingMethod).
+- Installation réelle du CLI v0.1.72 via l installateur officiel.
+- CORRECTIF (retour CI réel du commit 9ee95795) : ce CLI DÉSACTIVE
+  --version et --help (src/cli.ts au tag v0.1.72 : .version(false) et
+  .help(false), « Fixes broken _handle in yargs 17.0.0 ») — le test
+  `game-ci --version` échouait en exit 1 (Unknown argument). La
+  preuve de version est donc STRUCTURELLE : checksum sha256 STRICT
+  de l archive de la release contre checksums.txt (mismatch = échec,
+  pas de soft-skip) PLUS identité bit à bit du binaire installé avec
+  le binaire extrait de cette même archive vérifiée.
+- Options réelles prouvées sur les SOURCES du tag épinglé
+  (src/command-options/*.ts) : .option('targetPlatform' et
+  unityLicensingMethod (auto : serial, file, floating, personal) dans
+  unity-options.ts ; .option('buildsPath' et .option('buildMethod'
+  dans build-options.ts ; .option('versioningStrategy' (choix None
+  réel) dans versioning-options.ts ; androidExportType avec choices
+  androidPackage/androidAppBundle/androidStudioProject dans
+  android-options.ts — l identité binaire ↔ tag étant déjà prouvée
+  par le checksum.
 - Preuve des scripts du conteneur réel : grep de --include-personal
   (activate.sh), du trap return_license_once EXIT (runsteps.sh), de la
   branche personal (return_license.sh) et de l orchestration
@@ -743,11 +753,17 @@ La PR #16 a été vérifiée indépendamment. Corrections apportées :
   workflows, validateur, rapport — run rouge ATTENDU du workflow de
   build : vérification des secrets absents, arrêt AVANT toute
   installation CLI, activation et compilation) ; commit 69000ecc
-  (statut) dont la CI a révélé les 2 échecs réels corrigés ci-dessus ;
-  présent correctif (YAML du workflow de build + installateur officiel
-  + garde-fous mis à jour) ; le commit de statut final qui suit ne
-  touche PAS warships/unity/ci/BUILD-TRIGGER.md (aucune compilation
-  déclenchée) et porte la tête vérifiée : la CI (données, noyau,
-  couche Unity, GameCI CLI v0.1.72 sans activation, actionlint) doit
-  y être intégralement verte.
+  (statut) dont la CI a révélé 2 échecs réels (YAML deux-points ligne
+  123 ; action composite racine exit 126 : install.sh commité sans
+  bit exécutable) ; commit 3499e07d (correctif des 2 échecs) ; commit
+  9ee95795 (docs seules — ne touche PAS BUILD-TRIGGER.md, aucune
+  compilation déclenchée) dont la CI a révélé un 3e échec réel : le
+  job « GameCI CLI v0.1.72 » testait `game-ci --version`, or ce CLI
+  désactive --version et --help (.version(false)/.help(false) dans
+  src/cli.ts au tag) — exit 1 (Unknown argument). Présent correctif :
+  preuve d identité par checksum sha256 strict + comparaison bit à
+  bit du binaire installé avec l archive vérifiée de la release,
+  options de build prouvées sur les sources du tag, docs mises à
+  jour. Chaque échec est resté sans aucune activation ni connexion
+  Unity.
 - Aucune fusion, main intacte, PRs #13/#14/#15/#16 ouvertes.
