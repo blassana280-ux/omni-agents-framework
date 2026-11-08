@@ -1,0 +1,211 @@
+name: Warships Godot MVP (APK Android ARM64)
+
+# OW-APK-MVP-001 — MVP OMNI WARSHIPS en Godot 4 : APK Android ARM64 reelle,
+# sans licence, sans secret, sans activation. Ne declenche JAMAIS l ancien
+# pipeline Unity (warships-gameci.yml = branche warships/android-build +
+# BUILD-TRIGGER.md uniquement) et ne touche ni main ni les branches historiques.
+
+on:
+  push:
+    branches: ['warships/android-mvp']
+    paths: ['warships/godot-mvp/**', '.github/workflows/warships-godot-mvp.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: "4.7.2"
+  GODOT_RELEASE: "4.7.2-stable"
+  PROJECT_DIR: "warships/godot-mvp"
+  APK_NAME: "omni-warships-mvp.apk"
+  RELEASE_TAG: "godot-mvp-v0.1.0"
+  CLT_ZIP: "commandlinetools-linux-11076708_latest.zip"
+
+jobs:
+  build-android:
+    name: APK Android ARM64 (Godot 4.7.2 — gratuit, sans secret)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: JDK 17 (exigence officielle Godot 4.7)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK 100% epingle (cmdline-tools officiels Google, aucune action tierce)
+        run: |
+          set -e
+          trap 'echo "::error::Echec installation Android SDK (ligne $LINENO) — voir logs de l etape"' ERR
+          export ANDROID_HOME="$RUNNER_TEMP/android-sdk"
+          mkdir -p "$ANDROID_HOME/cmdline-tools"
+          curl -sSL --retry 3 -o /tmp/clt.zip "https://dl.google.com/android/repository/${CLT_ZIP}"
+          unzip -q /tmp/clt.zip -d "$ANDROID_HOME/clt-tmp"
+          mv "$ANDROID_HOME/clt-tmp/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
+          SDKMGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMGR" --sdk_root="$ANDROID_HOME" --licenses > /dev/null 2>&1 || true
+          "$SDKMGR" --sdk_root="$ANDROID_HOME" "platform-tools" "build-tools;35.0.1" "platforms;android-35" > /dev/null
+          ls "$ANDROID_HOME/build-tools"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "SDK Android installe : platform-tools + build-tools 35.0.1 + platforms android-35 (exigences doc Godot 4.7)."
+
+      - name: Godot 4.7.2 stable officiel + templates d export
+        run: |
+          set -e
+          trap 'echo "::error::Echec telechargement/installation Godot (ligne $LINENO) — voir logs de l etape"' ERR
+          mkdir -p "$HOME/godot" "$HOME/.local/share/godot/export_templates/4.7.2.stable"
+          base="https://github.com/godotengine/godot-builds/releases/download/${GODOT_RELEASE}"
+          curl -sSL --retry 3 -o godot.zip "${base}/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          curl -sSL --retry 3 -o templates.tpz "${base}/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          sha256sum godot.zip templates.tpz
+          unzip -q godot.zip -d "$HOME/godot"
+          mv "$HOME/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" "$HOME/godot/godot"
+          chmod +x "$HOME/godot/godot"
+          unzip -q templates.tpz -d /tmp/templates
+          mv /tmp/templates/templates/* "$HOME/.local/share/godot/export_templates/4.7.2.stable/"
+          echo "$HOME/godot" >> "$GITHUB_PATH"
+          "$HOME/godot/godot" --version
+
+      - name: Editor settings headless (JDK/SDK — aucune valeur secrete)
+        run: |
+          set -e
+          trap 'echo "::error::Echec editor settings (ligne $LINENO)"' ERR
+          mkdir -p "$HOME/.config/godot"
+          f="$HOME/.config/godot/editor_settings-4.7.tres"
+          echo '[gd_resource type="EditorSettings" format=3]' > "$f"
+          echo '' >> "$f"
+          echo '[resource]' >> "$f"
+          printf 'export/android/java_sdk_path="%s"\n' "$JAVA_HOME" >> "$f"
+          printf 'export/android/android_sdk_path="%s"\n' "$ANDROID_HOME" >> "$f"
+          cat "$f"
+
+      - name: Import du projet (validation des ressources, echec explicite)
+        run: |
+          set +e
+          out=$(cd "$PROJECT_DIR" && godot --headless --import 2>&1)
+          rc=$?
+          set -e
+          echo "$out" | tail -n 30
+          if [ "$rc" -ne 0 ] || echo "$out" | grep -qiE 'SCRIPT ERROR|Parse Error|Failed loading'; then
+            echo "::error::Echec import (rc=$rc) : $(echo "$out" | tr '\n' '|' | cut -c1-900)"
+            exit 1
+          fi
+
+      - name: Tests headless du noyau (10 tests deterministes)
+        run: |
+          set +e
+          out=$(cd "$PROJECT_DIR" && godot --headless -s tests/test_core.gd 2>&1)
+          rc=$?
+          set -e
+          echo "$out" | tail -n 30
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::Tests noyau rc=$rc : $(echo "$out" | grep -iE 'FAIL|ERROR|SCRIPT' | head -n 6 | tr '\n' '|' | cut -c1-700)"
+            exit 1
+          fi
+          echo "$out" | grep -q "\[TEST\] all passed" || { echo "::error::Marqueur de reussite des tests absent"; exit 1; }
+
+      - name: Cle de signature release ephemere (generee en CI, jamais stockee)
+        run: |
+          set -e
+          trap 'echo "::error::Echec generation cle (ligne $LINENO)"' ERR
+          keytool -genkeypair -keystore "$RUNNER_TEMP/mvp.keystore" -alias warshipsmvp             -keyalg RSA -keysize 2048 -validity 10000             -storepass warships-mvp-ci -keypass warships-mvp-ci             -dname "CN=Omni Warships MVP,O=Omni Warships,C=ML"
+
+      - name: Export APK Android (release, ARM64 uniquement)
+        env:
+          GODOT_ANDROID_KEYSTORE_RELEASE_PATH: ${{ runner.temp }}/mvp.keystore
+          GODOT_ANDROID_KEYSTORE_RELEASE_USER: warshipsmvp
+          GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: warships-mvp-ci
+        run: |
+          set -e
+          mkdir -p "$GITHUB_WORKSPACE/build/android"
+          set +e
+          out=$(cd "$PROJECT_DIR" && godot --headless --export-release "Android" "$GITHUB_WORKSPACE/build/android/$APK_NAME" 2>&1)
+          rc=$?
+          set -e
+          echo "$out" | tail -n 30
+          if [ "$rc" -ne 0 ] || [ ! -s "build/android/$APK_NAME" ]; then
+            echo "::error::Export APK rc=$rc : $(echo "$out" | tr '\n' '|' | cut -c1-900)"
+            exit 1
+          fi
+
+      - name: Verification APK (apkanalyzer, ARM64, manifest, signature)
+        run: |
+          set -euo pipefail
+          apk="build/android/$APK_NAME"
+          analyzer="$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer"
+          apksigner="$ANDROID_HOME/build-tools/35.0.1/apksigner"
+
+          test -s "$apk" || { echo "::error::APK absente ou vide"; exit 1; }
+          test -x "$analyzer" || { echo "::error::apkanalyzer introuvable dans Android SDK Command-Line Tools"; exit 1; }
+          test -x "$apksigner" || { echo "::error::apksigner introuvable"; exit 1; }
+
+          size=$(stat -c%s "$apk")
+          sha=$(sha256sum "$apk" | awk '{print $1}')
+          summary=$("$analyzer" apk summary "$apk")
+          pkg=$("$analyzer" manifest application-id "$apk")
+          min_sdk=$("$analyzer" manifest min-sdk "$apk")
+          target_sdk=$("$analyzer" manifest target-sdk "$apk")
+          files=$("$analyzer" files list "$apk")
+
+          echo "APK summary: $summary"
+          echo "Application ID: $pkg"
+          echo "minSdk: $min_sdk"
+          echo "targetSdk: $target_sdk"
+
+          [ "$pkg" = "ml.bah.omniwarshipsmvp" ] || { echo "::error::Application ID inattendu: $pkg"; exit 1; }
+          [[ "$min_sdk" =~ ^[0-9]+$ ]] || { echo "::error::minSdk non numerique: $min_sdk"; exit 1; }
+          [[ "$target_sdk" =~ ^[0-9]+$ ]] || { echo "::error::targetSdk non numerique: $target_sdk"; exit 1; }
+          [ "$min_sdk" -ge 24 ] || { echo "::error::minSdk trop bas: $min_sdk"; exit 1; }
+          [ "$target_sdk" -ge 24 ] || { echo "::error::targetSdk invalide: $target_sdk"; exit 1; }
+
+          native_libs=$(printf '%s\n' "$files" | grep -E '(^|/)lib/[^/]+/[^/]+\.so$' || true)
+          [ -n "$native_libs" ] || { echo "::error::Aucune bibliotheque native trouvee dans l APK"; exit 1; }
+          printf '%s\n' "$native_libs"
+          printf '%s\n' "$native_libs" | grep -qE '(^|/)lib/arm64-v8a/[^/]+\.so$' || { echo "::error::Bibliotheque arm64-v8a absente"; exit 1; }
+          if printf '%s\n' "$native_libs" | grep -qvE '(^|/)lib/arm64-v8a/[^/]+\.so$'; then
+            echo "::error::ABI native autre que arm64-v8a detectee:"
+            echo "$native_libs"
+            exit 1
+          fi
+
+          unzip -tqq "$apk"
+          "$apksigner" verify --verbose --print-certs "$apk" > "$RUNNER_TEMP/apksigner-verify.txt"
+          cat "$RUNNER_TEMP/apksigner-verify.txt"
+
+          {
+            echo "APK: $APK_NAME"
+            echo "taille_octets: $size"
+            echo "sha256: $sha"
+            echo "application_id: $pkg"
+            echo "minSdk: $min_sdk"
+            echo "targetSdk: $target_sdk"
+            echo "architecture: arm64-v8a uniquement (apkanalyzer files list)"
+            echo "signature: apksigner verify OK"
+            echo "archive: unzip -t OK"
+            echo "branche: $GITHUB_REF_NAME"
+            echo "commit: $GITHUB_SHA"
+          } > build/android/BUILD-INFO.txt
+          cat build/android/BUILD-INFO.txt
+
+      - name: Artefact APK telechargeable
+        uses: actions/upload-artifact@v4
+        with:
+          name: omni-warships-godot-mvp-apk
+          path: |
+            build/android/omni-warships-mvp.apk
+            build/android/BUILD-INFO.txt
+          if-no-files-found: error
+
+      - name: Release GitHub publique (lien de telechargement direct)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          notes=$(cat build/android/BUILD-INFO.txt)
+          gh release delete "$RELEASE_TAG" --yes --cleanup-tag --repo "$GITHUB_REPOSITORY" 2>/dev/null || true
+          gh release create "$RELEASE_TAG" "build/android/$APK_NAME" build/android/BUILD-INFO.txt             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA"             --title "OMNI WARSHIPS MVP 0.1.0 (Godot 4, APK Android ARM64)"             --notes "$notes"
