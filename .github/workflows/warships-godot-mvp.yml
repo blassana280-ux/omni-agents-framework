@@ -133,33 +133,60 @@ jobs:
             exit 1
           fi
 
-      - name: Verification APK (taille, sha256, arm64-v8a, targetSdk — preuves reelles)
+      - name: Verification APK (apkanalyzer, ARM64, manifest, signature)
         run: |
-          set -e
+          set -euo pipefail
           apk="build/android/$APK_NAME"
+          analyzer="$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer"
+          apksigner="$ANDROID_HOME/build-tools/35.0.1/apksigner"
+
+          test -s "$apk" || { echo "::error::APK absente ou vide"; exit 1; }
+          test -x "$analyzer" || { echo "::error::apkanalyzer introuvable dans Android SDK Command-Line Tools"; exit 1; }
+          test -x "$apksigner" || { echo "::error::apksigner introuvable"; exit 1; }
+
           size=$(stat -c%s "$apk")
           sha=$(sha256sum "$apk" | awk '{print $1}')
-          aapt="$ANDROID_HOME/build-tools/35.0.1/aapt"
-          set +e
-          badging=$("$aapt" dump badging "$apk" 2>&1)
-          arc=$?
-          set -e
-          if [ "$arc" -ne 0 ] || [ -z "$badging" ]; then echo "::error::aapt badging rc=$arc : $(echo "$badging" | tr '\n' '|' | cut -c1-700)"; exit 1; fi
-          echo "$badging" | head -n 14
-          echo "$badging" | grep -q "arm64-v8a" || { echo "::error::APK sans librairie native arm64-v8a : $(echo "$badging" | grep -i native-code | tr '\n' '|')"; exit 1; }
-          if echo "$badging" | grep -q "armeabi-v7a"; then echo "::error::APK contient armeabi-v7a (ARM64 attendu uniquement)"; exit 1; fi
-          tgt=$(echo "$badging" | grep -m1 "targetSdkVersion" | grep -oE "targetSdkVersion:'[0-9]+'" | grep -oE "[0-9]+" || true)
-          if [ -z "$tgt" ] || [ "$tgt" -lt 24 ]; then echo "::error::targetSdk absent ou < 24 (installation bloquee par Android 15) : $tgt"; exit 1; fi
-          pkg=$(echo "$badging" | grep -m1 "^package:")
-          sdkline=$(echo "$badging" | grep -m1 "sdkVersion")
+          summary=$("$analyzer" apk summary "$apk")
+          pkg=$("$analyzer" manifest application-id "$apk")
+          min_sdk=$("$analyzer" manifest min-sdk "$apk")
+          target_sdk=$("$analyzer" manifest target-sdk "$apk")
+          files=$("$analyzer" files list "$apk")
+
+          echo "APK summary: $summary"
+          echo "Application ID: $pkg"
+          echo "minSdk: $min_sdk"
+          echo "targetSdk: $target_sdk"
+
+          [ "$pkg" = "ml.bah.omniwarshipsmvp" ] || { echo "::error::Application ID inattendu: $pkg"; exit 1; }
+          [[ "$min_sdk" =~ ^[0-9]+$ ]] || { echo "::error::minSdk non numerique: $min_sdk"; exit 1; }
+          [[ "$target_sdk" =~ ^[0-9]+$ ]] || { echo "::error::targetSdk non numerique: $target_sdk"; exit 1; }
+          [ "$min_sdk" -ge 24 ] || { echo "::error::minSdk trop bas: $min_sdk"; exit 1; }
+          [ "$target_sdk" -ge 24 ] || { echo "::error::targetSdk invalide: $target_sdk"; exit 1; }
+
+          native_libs=$(printf '%s\n' "$files" | grep -E '(^|/)lib/[^/]+/[^/]+\.so$' || true)
+          [ -n "$native_libs" ] || { echo "::error::Aucune bibliotheque native trouvee dans l APK"; exit 1; }
+          printf '%s\n' "$native_libs"
+          printf '%s\n' "$native_libs" | grep -qE '(^|/)lib/arm64-v8a/[^/]+\.so$' || { echo "::error::Bibliotheque arm64-v8a absente"; exit 1; }
+          if printf '%s\n' "$native_libs" | grep -qvE '(^|/)lib/arm64-v8a/[^/]+\.so$'; then
+            echo "::error::ABI native autre que arm64-v8a detectee:"
+            echo "$native_libs"
+            exit 1
+          fi
+
+          unzip -tqq "$apk"
+          "$apksigner" verify --verbose --print-certs "$apk" > "$RUNNER_TEMP/apksigner-verify.txt"
+          cat "$RUNNER_TEMP/apksigner-verify.txt"
+
           {
             echo "APK: $APK_NAME"
             echo "taille_octets: $size"
             echo "sha256: $sha"
-            echo "$pkg"
-            echo "$sdkline"
-            echo "targetSdkVersion: $tgt (>= 24, installation OK Android 15)"
-            echo "architecture: arm64-v8a uniquement (verifie via aapt dump badging)"
+            echo "application_id: $pkg"
+            echo "minSdk: $min_sdk"
+            echo "targetSdk: $target_sdk"
+            echo "architecture: arm64-v8a uniquement (apkanalyzer files list)"
+            echo "signature: apksigner verify OK"
+            echo "archive: unzip -t OK"
             echo "branche: $GITHUB_REF_NAME"
             echo "commit: $GITHUB_SHA"
           } > build/android/BUILD-INFO.txt

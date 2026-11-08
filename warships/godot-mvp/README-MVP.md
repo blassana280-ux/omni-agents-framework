@@ -35,8 +35,7 @@ existant (warships/unity) n est ni modifie ni supprime.
 
 Workflow : .github/workflows/warships-godot-mvp.yml (branche warships/android-mvp).
 Chaque push sur warships/godot-mvp/** produit : import headless, tests,
-export APK ARM64, verification reelle (taille, sha256, aapt dump badging :
-arm64-v8a + targetSdk >= 24), artefact + release godot-mvp-v0.1.0.
+export APK ARM64, verification par apkanalyzer (application ID, minSdk, targetSdk et inventaire des bibliotheques natives ARM64 uniquement), controle de signature par apksigner, verification de l archive ZIP, puis artefact + release godot-mvp-v0.1.0.
 
 ## Installation sur Android (Tecno KN3)
 
