@@ -140,9 +140,13 @@ jobs:
           size=$(stat -c%s "$apk")
           sha=$(sha256sum "$apk" | awk '{print $1}')
           aapt="$ANDROID_HOME/build-tools/35.0.1/aapt"
-          badging=$("$aapt" dump badging "$apk")
+          set +e
+          badging=$("$aapt" dump badging "$apk" 2>&1)
+          arc=$?
+          set -e
+          if [ "$arc" -ne 0 ] || [ -z "$badging" ]; then echo "::error::aapt badging rc=$arc : $(echo "$badging" | tr '\n' '|' | cut -c1-700)"; exit 1; fi
           echo "$badging" | head -n 14
-          echo "$badging" | grep -q "native-code: arm64-v8a" || { echo "::error::APK sans librairie native arm64-v8a"; exit 1; }
+          echo "$badging" | grep -q "arm64-v8a" || { echo "::error::APK sans librairie native arm64-v8a : $(echo "$badging" | grep -i native-code | tr '\n' '|')"; exit 1; }
           if echo "$badging" | grep -q "armeabi-v7a"; then echo "::error::APK contient armeabi-v7a (ARM64 attendu uniquement)"; exit 1; fi
           tgt=$(echo "$badging" | grep -m1 "targetSdkVersion" | grep -oE "targetSdkVersion:'[0-9]+'" | grep -oE "[0-9]+" || true)
           if [ -z "$tgt" ] || [ "$tgt" -lt 24 ]; then echo "::error::targetSdk absent ou < 24 (installation bloquee par Android 15) : $tgt"; exit 1; fi
