@@ -20,6 +20,7 @@ env:
   PROJECT_DIR: "warships/godot-mvp"
   APK_NAME: "omni-warships-mvp.apk"
   RELEASE_TAG: "godot-mvp-v0.1.0"
+  CLT_ZIP: "commandlinetools-linux-11076708_latest.zip"
 
 jobs:
   build-android:
@@ -36,18 +37,27 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Android SDK (setup officiel)
-        uses: android-actions/setup-android@v3
-
-      - name: Paquets SDK exigés par la doc Godot 4.7
+      - name: Android SDK 100% epingle (cmdline-tools officiels Google, aucune action tierce)
         run: |
           set -e
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager "platform-tools" "build-tools;35.0.1" "platforms;android-35" "cmdline-tools;latest"
+          trap 'echo "::error::Echec installation Android SDK (ligne $LINENO) — voir logs de l etape"' ERR
+          export ANDROID_HOME="$RUNNER_TEMP/android-sdk"
+          mkdir -p "$ANDROID_HOME/cmdline-tools"
+          curl -sSL --retry 3 -o /tmp/clt.zip "https://dl.google.com/android/repository/${CLT_ZIP}"
+          unzip -q /tmp/clt.zip -d "$ANDROID_HOME/clt-tmp"
+          mv "$ANDROID_HOME/clt-tmp/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
+          SDKMGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMGR" --sdk_root="$ANDROID_HOME" --licenses > /dev/null 2>&1 || true
+          "$SDKMGR" --sdk_root="$ANDROID_HOME" "platform-tools" "build-tools;35.0.1" "platforms;android-35" > /dev/null
+          ls "$ANDROID_HOME/build-tools"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "SDK Android installe : platform-tools + build-tools 35.0.1 + platforms android-35 (exigences doc Godot 4.7)."
 
       - name: Godot 4.7.2 stable officiel + templates d export
         run: |
           set -e
+          trap 'echo "::error::Echec telechargement/installation Godot (ligne $LINENO) — voir logs de l etape"' ERR
           mkdir -p "$HOME/godot" "$HOME/.local/share/godot/export_templates/4.7.2.stable"
           base="https://github.com/godotengine/godot-builds/releases/download/${GODOT_RELEASE}"
           curl -sSL --retry 3 -o godot.zip "${base}/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
@@ -64,6 +74,7 @@ jobs:
       - name: Editor settings headless (JDK/SDK — aucune valeur secrete)
         run: |
           set -e
+          trap 'echo "::error::Echec editor settings (ligne $LINENO)"' ERR
           mkdir -p "$HOME/.config/godot"
           f="$HOME/.config/godot/editor_settings-4.7.tres"
           echo '[gd_resource type="EditorSettings" format=3]' > "$f"
@@ -104,6 +115,7 @@ jobs:
       - name: Cle de signature release ephemere (generee en CI, jamais stockee)
         run: |
           set -e
+          trap 'echo "::error::Echec generation cle (ligne $LINENO)"' ERR
           keytool -genkeypair -keystore "$RUNNER_TEMP/mvp.keystore" -alias warshipsmvp             -keyalg RSA -keysize 2048 -validity 10000             -storepass warships-mvp-ci -keypass warships-mvp-ci             -dname "CN=Omni Warships MVP,O=Omni Warships,C=ML"
 
       - name: Export APK Android (release, ARM64 uniquement)
