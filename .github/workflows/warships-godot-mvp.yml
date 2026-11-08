@@ -122,9 +122,9 @@ jobs:
           GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: warships-mvp-ci
         run: |
           set -e
-          mkdir -p build/android
+          mkdir -p "$GITHUB_WORKSPACE/build/android"
           set +e
-          out=$(cd "$PROJECT_DIR" && godot --headless --export-release "Android" "../build/android/$APK_NAME" 2>&1)
+          out=$(cd "$PROJECT_DIR" && godot --headless --export-release "Android" "$GITHUB_WORKSPACE/build/android/$APK_NAME" 2>&1)
           rc=$?
           set -e
           echo "$out" | tail -n 30
