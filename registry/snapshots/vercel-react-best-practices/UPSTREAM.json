@@ -1,0 +1,18 @@
+{
+  "source": "vercel-labs/agent-skills",
+  "commit": "1a2c79d4e6c4a2283dc2c614b6538cbe1ed5ca62",
+  "commit_date": "2026-10-27T21:40:02Z",
+  "skill_path": "skills/react-best-practices",
+  "license_spdx": "MIT",
+  "license_evidence": "The individual SKILL.md frontmatter declares license: MIT.",
+  "repository_root_license": "not-found-at-pinned-commit",
+  "snapshot_files": [
+    "SKILL.md",
+    "AGENTS.md"
+  ],
+  "sha256": "47004bbcfb90686bde66784f09e300da201e7957812f5bf523a2f54edffeed5f",
+  "state": "pinned-review-required",
+  "activation": "disabled",
+  "execution": "documentation-only; no scripts or runtime dependencies imported",
+  "note": "The full compiled AGENTS.md guide is included. Individual rules/ files are omitted because the compiled guide contains the expanded guidance; no source script is executed."
+}
