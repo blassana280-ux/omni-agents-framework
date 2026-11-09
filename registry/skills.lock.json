@@ -180,6 +180,12 @@
       "source_id": "addyosmani-agent-skills-performance-optimization",
       "sha256": "d70823dc31fef94b117792b84b03b551613455f8b9c25973a95cb0cac15d323e",
       "state": "pinned"
+    },
+    {
+      "skill_id": "vercel-react-best-practices",
+      "source_id": "vercel-labs-agent-skills-react-best-practices",
+      "sha256": "47004bbcfb90686bde66784f09e300da201e7957812f5bf523a2f54edffeed5f",
+      "state": "pinned"
     }
   ]
 }
