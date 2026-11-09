@@ -12,6 +12,8 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from .skill_resolver import resolve_skills, resolution_to_dict
+
 from .skill_catalog import (
     SkillCatalog,
     SkillCatalogError,
@@ -90,7 +92,7 @@ def _load_snapshot(directory: Path, policy: SkillPolicy) -> Dict[str, bytes]:
 def handle_skill_command(args: Any) -> Optional[int]:
     """Handle catalog/inspect/scan verbs, or return None for legacy search."""
     terms = list(getattr(args, "terms", []) or [])
-    if not terms or terms[0] not in {"catalog", "inspect", "scan"}:
+    if not terms or terms[0] not in {"catalog", "inspect", "scan", "resolve"}:
         return None
 
     action = terms[0]
@@ -99,6 +101,9 @@ def handle_skill_command(args: Any) -> Optional[int]:
         return 2
     if action in {"inspect", "scan"} and len(terms) != 2:
         print(f"usage: omni skills {action} <skill-id>", file=sys.stderr)
+        return 2
+    if action == "resolve" and len(terms) < 2:
+        print("usage: omni skills resolve <task brief>", file=sys.stderr)
         return 2
 
     try:
@@ -114,6 +119,29 @@ def handle_skill_command(args: Any) -> Optional[int]:
                 for source, record in catalog.items()
             ]
             print(json.dumps({"schema_version": 1, "count": len(items), "skills": items}, indent=2, ensure_ascii=False))
+            return 0
+
+        if action == "resolve":
+            if getattr(args, "snapshot_dir", None):
+                print("usage: omni skills resolve <task brief> (does not accept --snapshot-dir)", file=sys.stderr)
+                return 2
+            request = " ".join(terms[1:]).strip()
+            policy = load_skill_policy(root)
+            snapshots = {}
+            for source, record in catalog.items():
+                if record.state not in {"approved", "available", "active"}:
+                    continue
+                if not source.license_spdx or source.license_spdx not in policy.allowed_licenses:
+                    continue
+                snapshot_dir = root / "snapshots" / record.skill_id
+                snapshot = ingest_skill(source, _load_snapshot(snapshot_dir, policy), policy=policy)
+                if snapshot.sha256 != record.sha256:
+                    raise SkillCatalogError(
+                        f"{record.skill_id}: snapshot SHA-256 does not match the pinned lock record"
+                    )
+                snapshots[record.skill_id] = snapshot
+            result = resolve_skills(request, catalog, snapshots, policy=policy)
+            print(json.dumps(resolution_to_dict(result), indent=2, ensure_ascii=False))
             return 0
 
         skill_id = terms[1]
