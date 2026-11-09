@@ -152,6 +152,10 @@ class SkillCatalog:
                 problems.append(f"invalid sha256 for skill_id: {skill_id}")
             if record.state not in LIFECYCLE_STATES:
                 problems.append(f"unsupported state for skill_id: {skill_id}")
+            if record.state in {"approved", "available", "active"} and record.approval is None:
+                problems.append(f"missing human approval for skill_id: {skill_id}")
+            elif record.approval is not None and record.approval.digest != record.sha256:
+                problems.append(f"approval digest mismatch for skill_id: {skill_id}")
         for source in self._sources.values():
             if source.skill_id not in self._records:
                 problems.append(f"missing lock record for skill_id: {source.skill_id}")
@@ -215,7 +219,7 @@ def _parse_source(item: dict, where: str) -> SkillSource:
     repository_url = _required_text(item, "repository_url", where)
     parts = urlsplit(repository_url)
     segments = [part for part in parts.path.split("/") if part]
-    if (parts.scheme != "https" or parts.hostname != "github.com" or parts.username
+    if (parts.scheme != "https" or parts.netloc != "github.com" or parts.username
             or parts.password or parts.query or parts.fragment or len(segments) != 2
             or repository_url.endswith("/") or segments[1].endswith(".git")):
         raise SkillCatalogError(f"{where} repository_url must be a canonical https://github.com/owner/repo URL")
@@ -350,6 +354,8 @@ def ingest_skill(
             file_content = payload
         else:
             raise SkillCatalogError(f"skill file payload must be str or UTF-8 bytes: {path}")
+        if "\x00" in file_content:
+            raise SkillCatalogError(f"skill file contains NUL bytes and is not accepted as text: {path}")
         total_bytes += len(file_content.encode("utf-8"))
         if total_bytes > max_bytes:
             raise SkillCatalogError(f"skill snapshot exceeds {max_bytes} bytes")
@@ -558,7 +564,15 @@ def transition_skill(
             raise SkillCatalogError("evaluation requires a scan report for the current digest")
         if scan_report.blocking:
             raise SkillCatalogError("critical static finding blocks evaluation")
-        if source is None or source.skill_id != record.skill_id or source.source_id != record.source_id:
+        if source is None:
+            raise SkillCatalogError("evaluation requires matching source provenance")
+        source = _parse_source({
+            "source_id": source.source_id, "skill_id": source.skill_id,
+            "repository_url": source.repository_url, "skill_path": source.skill_path,
+            "commit_sha": source.commit_sha, "license_spdx": source.license_spdx,
+            "upstream_identity": source.upstream_identity, "maintainer": source.maintainer,
+        }, "source")
+        if source.skill_id != record.skill_id or source.source_id != record.source_id:
             raise SkillCatalogError("evaluation requires matching source provenance")
         if source.license_spdx not in policy.allowed_licenses:
             raise SkillCatalogError("unknown or disallowed skill license blocks evaluation")
