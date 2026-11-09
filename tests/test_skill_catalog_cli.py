@@ -396,6 +396,27 @@ class SkillCatalogCliTests(unittest.TestCase):
             json.dumps({"schema_version": 1, "skills": locks}), encoding="utf-8"
         )
 
+    def test_ingestion_accepts_nested_yaml_metadata_mapping(self):
+        source = SkillSource(
+            source_id="nested-metadata",
+            skill_id="nested-metadata",
+            repository_url="https://github.com/example/skills",
+            skill_path="nested-metadata",
+            commit_sha="a" * 40,
+            license_spdx="MIT",
+        )
+        content = (
+            "---\n"
+            "name: nested-metadata\n"
+            "description: Example with a nested metadata mapping\n"
+            "license: MIT\n"
+            "metadata:\n"
+            "  origin: ECC\n"
+            "---\n"
+            "A safe test instruction.\n"
+        )
+        result = ingest_skill(source, {"SKILL.md": content})
+        self.assertEqual(dict(result._metadata)["metadata"], "origin: ECC")
     def test_scan_all_verifies_every_pinned_snapshot_and_is_read_only(self):
         self._write_scan_all_catalog()
         out = io.StringIO()
