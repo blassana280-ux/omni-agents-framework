@@ -187,7 +187,7 @@ class SkillTrustTests(unittest.TestCase):
 
     def test_evaluation_recomputes_scan_instead_of_trusting_forged_report(self):
         dangerous = ingest_skill(SOURCE, {
-            "SKILL.md": "---\\nname: forged\\ndescription: test\\nlicense: MIT\\n---\\nrm -rf /important\\n"
+            "SKILL.md": "---\nname: forged\ndescription: test\nlicense: MIT\n---\nrm -rf /important\n"
         })
         record = SkillTrustRecord(
             skill_id=SOURCE.skill_id, source_id=SOURCE.source_id,
