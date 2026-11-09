@@ -500,17 +500,17 @@ def load_skill_policy(directory: str | Path) -> SkillPolicy:
 
 
 _SECRET_TOKEN_RE = re.compile(
-    r"(?i)\\b(?:gh[pousr]_[A-Za-z0-9_]{12,}|github_pat_[A-Za-z0-9_]{12,}|sk-[A-Za-z0-9_-]{16,})\\b"
+    r"(?i)\b(?:gh[pousr]_[A-Za-z0-9_]{12,}|github_pat_[A-Za-z0-9_]{12,}|sk-[A-Za-z0-9_-]{16,})\b"
 )
 _SECRET_ASSIGNMENT_RE = re.compile(
-    r"""(?i)\\b((?:api[_-]?key|secret(?:[_-]?key)?|access[_-]?token|auth[_-]?token|password|token)\\s*[:=]\\s*)(?:"[^"]*"|'[^']*'|[^\\s,;]+)"""
+    r"""(?i)\b((?:api[_-]?key|secret(?:[_-]?key)?|access[_-]?token|auth[_-]?token|password|token)\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,;]+)"""
 )
 
 
 def _redact_evidence(line: str) -> str:
     """Keep useful rule context without copying likely credential values to logs."""
     line = _SECRET_TOKEN_RE.sub("[REDACTED]", line)
-    line = _SECRET_ASSIGNMENT_RE.sub(r"\\1[REDACTED]", line)
+    line = _SECRET_ASSIGNMENT_RE.sub(r"\1[REDACTED]", line)
     return line.strip()[:240]
 
 
