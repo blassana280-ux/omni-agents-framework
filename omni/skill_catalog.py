@@ -499,6 +499,21 @@ def load_skill_policy(directory: str | Path) -> SkillPolicy:
     )
 
 
+_SECRET_TOKEN_RE = re.compile(
+    r"(?i)\\b(?:gh[pousr]_[A-Za-z0-9_]{12,}|github_pat_[A-Za-z0-9_]{12,}|sk-[A-Za-z0-9_-]{16,})\\b"
+)
+_SECRET_ASSIGNMENT_RE = re.compile(
+    r"""(?i)\\b((?:api[_-]?key|secret(?:[_-]?key)?|access[_-]?token|auth[_-]?token|password|token)\\s*[:=]\\s*)(?:"[^"]*"|'[^']*'|[^\\s,;]+)"""
+)
+
+
+def _redact_evidence(line: str) -> str:
+    """Keep useful rule context without copying likely credential values to logs."""
+    line = _SECRET_TOKEN_RE.sub("[REDACTED]", line)
+    line = _SECRET_ASSIGNMENT_RE.sub(r"\\1[REDACTED]", line)
+    return line.strip()[:240]
+
+
 def scan_skill(snapshot: SkillIngestionResult, *, policy: SkillPolicy = SkillPolicy()) -> SkillScanReport:
     """Run documented static patterns over text; never evaluate skill instructions."""
     if not isinstance(snapshot, SkillIngestionResult):
@@ -511,7 +526,7 @@ def scan_skill(snapshot: SkillIngestionResult, *, policy: SkillPolicy = SkillPol
                 if match:
                     findings.append(SkillScanFinding(
                         rule_id=rule_id, severity=severity, path=path,
-                        line_number=line_number, evidence=line.strip()[:240],
+                        line_number=line_number, evidence=_redact_evidence(line),
                     ))
     return SkillScanReport(
         sha256=snapshot.sha256,
