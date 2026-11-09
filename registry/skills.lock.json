@@ -6,6 +6,12 @@
       "source_id": "obra-superpowers-test-driven-development",
       "sha256": "d964e27f1bc7cecbfd08511ec10d79114ba6047a2ef257d5802a6114f74758b2",
       "state": "pinned"
+    },
+    {
+      "skill_id": "superpowers-verification-before-completion",
+      "source_id": "obra-superpowers-verification-before-completion",
+      "sha256": "8a3e006d285f620d6aaed0c33fbbb41b584d6ebc4a5b8f4199e2ef213ee13af9",
+      "state": "pinned"
     }
   ]
 }

@@ -10,6 +10,16 @@
       "license_spdx": "MIT",
       "upstream_identity": "obra/superpowers",
       "maintainer": "Jesse Vincent (obra)"
+    },
+    {
+      "source_id": "obra-superpowers-verification-before-completion",
+      "skill_id": "superpowers-verification-before-completion",
+      "repository_url": "https://github.com/obra/superpowers",
+      "skill_path": "skills/verification-before-completion",
+      "commit_sha": "df2e996a174f49f05aa5d5777ca56fbb0aa972ec",
+      "license_spdx": "MIT",
+      "upstream_identity": "obra/superpowers",
+      "maintainer": "Jesse Vincent (obra)"
     }
   ]
 }
