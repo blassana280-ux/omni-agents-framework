@@ -66,6 +66,30 @@
       "source_id": "mrchaarlie-agent-consent-patterns",
       "sha256": "b76175dec2e5d1f8826c18cdb59fce7ca73037d5b2585b0d0abc94e2951fbbfd",
       "state": "pinned"
+    },
+    {
+      "skill_id": "ecc-agent-eval",
+      "source_id": "affaan-m-ecc-agent-eval",
+      "sha256": "1dcd3d0f3ee95c9d14f131494daaa93f3c49d18b0a0712c58e99eca16aa3141b",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "ecc-agent-security-hardening",
+      "source_id": "affaan-m-ecc-agent-security-hardening",
+      "sha256": "80780f721e3a92a93127dbf098d5e319827d4a84e8d10ec14a6d20131d975db4",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "ecc-agent-architecture-audit",
+      "source_id": "affaan-m-ecc-agent-architecture-audit",
+      "sha256": "a959cf7df7af32fe0a98133dd6b41ddbb922c5825c6f1dcca3e709fe838a5f6a",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "ecc-team-agent-orchestration",
+      "source_id": "affaan-m-ecc-team-agent-orchestration",
+      "sha256": "4a8e4911cebe028cf1b07290461a761434c580bff57c377e9c7b1b5efda2d8cb",
+      "state": "pinned"
     }
   ]
 }
