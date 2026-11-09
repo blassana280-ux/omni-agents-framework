@@ -160,6 +160,36 @@
       "license_spdx": "MIT",
       "upstream_identity": "imMamdouhaboammar/chatgpt-codex-plugin-autopilot",
       "maintainer": "Mamdouh Aboammar"
+    },
+    {
+      "source_id": "nvidia-skills-ethos-orchestrate",
+      "skill_id": "ethos-orchestrate",
+      "repository_url": "https://github.com/NVIDIA/skills",
+      "skill_path": "skills/ethos-orchestrate",
+      "commit_sha": "03ea0b0e3599cfebbdf9b40dd9ed12fa764c9f75",
+      "license_spdx": "Apache-2.0",
+      "upstream_identity": "NVIDIA/skills",
+      "maintainer": "NVIDIA Corporation"
+    },
+    {
+      "source_id": "nvidia-skills-ethos-explore",
+      "skill_id": "ethos-explore",
+      "repository_url": "https://github.com/NVIDIA/skills",
+      "skill_path": "skills/ethos-explore",
+      "commit_sha": "03ea0b0e3599cfebbdf9b40dd9ed12fa764c9f75",
+      "license_spdx": "Apache-2.0",
+      "upstream_identity": "NVIDIA/skills",
+      "maintainer": "NVIDIA Corporation"
+    },
+    {
+      "source_id": "nvidia-skills-ethos-write",
+      "skill_id": "ethos-write",
+      "repository_url": "https://github.com/NVIDIA/skills",
+      "skill_path": "skills/ethos-write",
+      "commit_sha": "03ea0b0e3599cfebbdf9b40dd9ed12fa764c9f75",
+      "license_spdx": "Apache-2.0",
+      "upstream_identity": "NVIDIA/skills",
+      "maintainer": "NVIDIA Corporation"
     }
   ]
 }
