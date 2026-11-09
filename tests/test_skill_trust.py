@@ -173,12 +173,12 @@ class SkillTrustTests(unittest.TestCase):
     def test_scan_redacts_secret_values_from_finding_evidence(self):
         secret = "ghp_0123456789abcdefghijklmnopqrstuvwxyz"
         content = (
-            "---\\nname: leaked-key\\ndescription: test\\nlicense: MIT\\n---\\n"
-            + "API_KEY = '" + secret + "'\\n"
+            "---\nname: leaked-key\ndescription: test\nlicense: MIT\n---\n"
+            + "API_KEY = '" + secret + "'\n"
         )
         snapshot = ingest_skill(SOURCE, {"SKILL.md": content})
         report = scan_skill(snapshot)
-        evidence = "\\n".join(finding.evidence for finding in report.findings)
+        evidence = "\n".join(finding.evidence for finding in report.findings)
         self.assertIn("secret-access", {finding.rule_id for finding in report.findings})
         self.assertNotIn(secret, evidence)
         self.assertIn("[REDACTED]", evidence)
