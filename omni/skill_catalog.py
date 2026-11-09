@@ -334,7 +334,7 @@ def ingest_skill(
     for raw_path, payload in files.items():
         if not isinstance(raw_path, str) or not raw_path or "\x00" in raw_path:
             raise SkillCatalogError("skill file path must be non-empty text without NUL bytes")
-        if raw_path.startswith("/") or "\\" in raw_path:
+        if raw_path.startswith("/") or "\\" in raw_path or re.match(r"^[A-Za-z]:", raw_path):
             raise SkillCatalogError(f"invalid absolute or non-POSIX skill path: {raw_path!r}")
         segments = raw_path.split("/")
         if any(part == ".." for part in segments):
