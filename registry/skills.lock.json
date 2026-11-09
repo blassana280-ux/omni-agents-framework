@@ -114,6 +114,42 @@
       "source_id": "nvidia-skills-ethos-write",
       "sha256": "398a66899099088cfc5d5f46e4070e452af37686a7c584cd49a40f56864a8635",
       "state": "pinned"
+    },
+    {
+      "skill_id": "harness-engineering",
+      "source_id": "muratcankoylan-context-engineering-harness-engineering",
+      "sha256": "d980d34f804d0bec6593a014ad98b876ee29777be9e26634a6caf9d35186785e",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "multi-agent-patterns",
+      "source_id": "muratcankoylan-context-engineering-multi-agent-patterns",
+      "sha256": "4164aecb5ae22f5a4e6bc8e30e2a49026e434892296822f93670700d61ed437d",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "memory-systems",
+      "source_id": "muratcankoylan-context-engineering-memory-systems",
+      "sha256": "9bd4652687fc694b7d65c1a7fd7f33d011eb93ac286a6361b1c2df688f499994",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "self-improvement-loops",
+      "source_id": "muratcankoylan-context-engineering-self-improvement-loops",
+      "sha256": "5bccac8921b477e153d5d45ffa5224ea4bca07c656fab6e4d7cd97506d1e56ee",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "tool-design",
+      "source_id": "muratcankoylan-context-engineering-tool-design",
+      "sha256": "0b50ad5cd5834aa21ac9963a103ddb1e146ae204cfde6fdb0f676004f8ffab23",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "context-compression",
+      "source_id": "muratcankoylan-context-engineering-context-compression",
+      "sha256": "9f2c2a8031953276ac5f3f87a52a00e586775b42bf43dcfa56ee335fc1fba2dc",
+      "state": "pinned"
     }
   ]
 }
