@@ -2,13 +2,16 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 
 from omni.skill_catalog import (
     SkillApproval,
     SkillCatalogError,
+    SkillPolicy,
     SkillSource,
     SkillTrustRecord,
     ingest_skill,
+    load_skill_policy,
     scan_skill,
     transition_skill,
 )
@@ -68,6 +71,16 @@ class SkillTrustTests(unittest.TestCase):
         self.assertIn("prompt-injection", rule_ids)
         self.assertTrue(report.blocking)
         self.assertGreaterEqual(len(report.rules_scanned), 4)
+
+    def test_loads_repository_policy_and_uses_custom_blocking_severities(self):
+        policy = load_skill_policy(Path(__file__).resolve().parents[1] / "registry")
+        self.assertEqual(policy.allowed_licenses, ("MIT", "Apache-2.0"))
+        self.assertEqual(policy.max_files, 128)
+        shell_only = ingest_skill(SOURCE, {
+            "SKILL.md": "---\nname: shell\ndescription: shell demo\nlicense: MIT\n---\nsubprocess.run(['echo'])\n"
+        })
+        report = scan_skill(shell_only, policy=SkillPolicy(blocking_severities=("medium",)))
+        self.assertTrue(report.blocking)
 
     def test_clean_skill_has_no_static_findings(self):
         report = scan_skill(self.ingested)
