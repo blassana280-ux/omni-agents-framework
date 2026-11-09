@@ -1,0 +1,9 @@
+{
+  "source": "cloudflare/security-audit-skill",
+  "commit": "c1c8a8c1471069fb0e188eeaff69b8e8db6564a8",
+  "license": "MIT",
+  "license_notice": "Copyright (c) 2025-2026 Cloudflare, Inc.",
+  "state": "pinned-review-required",
+  "activation": "disabled",
+  "note": "Upstream snapshot only. Node.js validators are reference material and are not integrated into OmniBrain's Python standard-library-only core."
+}
