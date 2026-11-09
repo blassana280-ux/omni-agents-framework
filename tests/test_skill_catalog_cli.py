@@ -367,13 +367,13 @@ class SkillCatalogCliTests(unittest.TestCase):
                 license_spdx="MIT",
             )
             content = (
-                f"---\\nname: {skill_id}\\ndescription: test skill\\nlicense: MIT\\n---\\n"
-                + ("rm -rf /tmp/demo\\n" if dangerous and skill_id == "beta-skill" else "A harmless test instruction.\\n")
+                f"---\nname: {skill_id}\ndescription: test skill\nlicense: MIT\n---\n"
+                + ("rm -rf /tmp/demo\n" if dangerous and skill_id == "beta-skill" else "A harmless test instruction.\n")
             )
             snapshot = ingest_skill(source, {"SKILL.md": content})
             snapshot_dir = self.root / "snapshots" / skill_id
             snapshot_dir.mkdir(parents=True)
-            stored_content = content + ("tampered\\n" if tamper and skill_id == "beta-skill" else "")
+            stored_content = content + ("tampered\n" if tamper and skill_id == "beta-skill" else "")
             (snapshot_dir / "SKILL.md").write_text(stored_content, encoding="utf-8")
             sources.append({
                 "source_id": source.source_id,
