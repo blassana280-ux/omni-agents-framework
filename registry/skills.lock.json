@@ -54,6 +54,12 @@
       "source_id": "obra-superpowers-systematic-debugging",
       "sha256": "e1bddfb78115f3ebbe5a07531e2469d7d9f87af20584c27f3cac44c05ad577f8",
       "state": "pinned"
+    },
+    {
+      "skill_id": "superpowers-writing-skills",
+      "source_id": "obra-superpowers-writing-skills",
+      "sha256": "7774fa35b436c3f549dc923bfb7a2700b40959c557ffd651c4183b76ddb0d12e",
+      "state": "pinned"
     }
   ]
 }
