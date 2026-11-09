@@ -10,7 +10,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from omni.skill_catalog import SkillSource, ingest_skill
+from omni.skill_catalog import SkillCatalog, SkillSource, ingest_skill
 from omni.skill_catalog_cli import handle_skill_command
 
 
@@ -102,6 +102,29 @@ class SkillCatalogCliTests(unittest.TestCase):
             code = handle_skill_command(self.args(["inspect", "missing"]))
         self.assertEqual(code, 1)
         self.assertIn("unknown skill", err.getvalue())
+
+    def test_bundled_superpowers_tdd_snapshot_is_pinned_and_scannable(self):
+        registry = Path(__file__).resolve().parents[1] / "registry"
+        catalog = SkillCatalog.load(registry)
+        skill_id = "superpowers-test-driven-development"
+        entry = catalog.get(skill_id)
+        self.assertIsNotNone(entry)
+        source, trust = entry
+        self.assertEqual(source.repository_url, "https://github.com/obra/superpowers")
+        self.assertEqual(source.skill_path, "skills/test-driven-development")
+        self.assertEqual(source.commit_sha, "df2e996a174f49f05aa5d5777ca56fbb0aa972ec")
+        self.assertEqual(source.license_spdx, "MIT")
+        self.assertEqual(trust.state, "pinned")
+
+        args = SimpleNamespace(terms=["scan", skill_id], registry=None, snapshot_dir=None)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = handle_skill_command(args)
+        self.assertEqual(code, 0)
+        report = json.loads(out.getvalue())
+        self.assertFalse(report["blocking"])
+        self.assertEqual(report["findings"], [])
+        self.assertEqual(report["sha256"], trust.sha256)
 
     def test_scan_rejects_snapshot_symlink(self):
         source = {
