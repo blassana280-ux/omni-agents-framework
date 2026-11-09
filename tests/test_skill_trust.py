@@ -1,6 +1,8 @@
 """Static scan and explicit skill-trust lifecycle tests."""
 from __future__ import annotations
 
+import json
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -137,6 +139,19 @@ class SkillTrustTests(unittest.TestCase):
         revoked = transition_skill(quarantined, "revoked")
         with self.assertRaisesRegex(SkillCatalogError, "transition"):
             transition_skill(revoked, "discovered")
+
+
+    def test_policy_rejects_empty_blocking_severities(self):
+        with tempfile.TemporaryDirectory() as directory:
+            policy_path = Path(directory) / "skill-policy.json"
+            policy_path.write_text(json.dumps({
+                "schema_version": 1,
+                "allowed_licenses": ["MIT"],
+                "blocking_severities": [],
+                "limits": {"max_files": 10, "max_bytes": 1024},
+            }), encoding="utf-8")
+            with self.assertRaisesRegex(SkillCatalogError, "blocking_severities"):
+                load_skill_policy(directory)
 
 
 if __name__ == "__main__":
