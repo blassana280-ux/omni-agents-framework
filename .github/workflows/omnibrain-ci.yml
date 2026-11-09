@@ -40,3 +40,6 @@ jobs:
 
       - name: Verify read-only skills catalog CLI
         run: python -m omni skills catalog
+
+      - name: Run OmniBrain selftest
+        run: python -m omni selftest
