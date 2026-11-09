@@ -100,6 +100,16 @@
       "license_spdx": "MIT",
       "upstream_identity": "obra/superpowers",
       "maintainer": "Jesse Vincent (obra)"
+    },
+    {
+      "source_id": "mrchaarlie-agent-consent-patterns",
+      "skill_id": "agent-consent-patterns",
+      "repository_url": "https://github.com/mrchaarlie/agent-consent-patterns",
+      "skill_path": "plugins/agent-consent-patterns/skills/agent-consent-patterns",
+      "commit_sha": "faaffbcdf804873943169f5c08c0d960ccd3156e",
+      "license_spdx": "MIT",
+      "upstream_identity": "mrchaarlie/agent-consent-patterns",
+      "maintainer": "Charles Wu"
     }
   ]
 }
