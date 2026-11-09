@@ -310,6 +310,29 @@ class SkillCatalogCliTests(unittest.TestCase):
         self.assertEqual(report["findings"], [])
         self.assertEqual(report["sha256"], trust.sha256)
 
+    def test_bundled_superpowers_writing_skills_snapshot_is_pinned_and_scannable(self):
+        registry = Path(__file__).resolve().parents[1] / "registry"
+        catalog = SkillCatalog.load(registry)
+        skill_id = "superpowers-writing-skills"
+        entry = catalog.get(skill_id)
+        self.assertIsNotNone(entry)
+        source, trust = entry
+        self.assertEqual(source.repository_url, "https://github.com/obra/superpowers")
+        self.assertEqual(source.skill_path, "skills/writing-skills")
+        self.assertEqual(source.commit_sha, "df2e996a174f49f05aa5d5777ca56fbb0aa972ec")
+        self.assertEqual(source.license_spdx, "MIT")
+        self.assertEqual(trust.state, "pinned")
+
+        args = SimpleNamespace(terms=["scan", skill_id], registry=None, snapshot_dir=None)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = handle_skill_command(args)
+        self.assertEqual(code, 0)
+        report = json.loads(out.getvalue())
+        self.assertFalse(report["blocking"])
+        self.assertEqual(report["findings"], [])
+        self.assertEqual(report["sha256"], trust.sha256)
+
     def test_scan_rejects_snapshot_symlink(self):
         source = {
             "source_id": "demo", "skill_id": "demo",
