@@ -88,6 +88,14 @@ class SkillTrustTests(unittest.TestCase):
         report = scan_skill(shell_only, policy=SkillPolicy(blocking_severities=("medium",)))
         self.assertTrue(report.blocking)
 
+    def test_scan_rejects_invalid_policy_type(self):
+        with self.assertRaisesRegex(SkillCatalogError, "policy"):
+            scan_skill(self.ingested, policy="not-a-policy")
+
+    def test_transition_rejects_invalid_policy_type(self):
+        with self.assertRaisesRegex(SkillCatalogError, "policy"):
+            transition_skill(self.record, "pinned", policy="not-a-policy")
+
     def test_clean_skill_has_no_static_findings(self):
         report = scan_skill(self.ingested)
         self.assertEqual(report.findings, ())
