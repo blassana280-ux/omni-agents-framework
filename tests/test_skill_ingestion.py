@@ -76,5 +76,13 @@ class SkillIngestionTests(unittest.TestCase):
             ingest_skill(SOURCE, files)
 
 
+    def test_rejects_windows_drive_absolute_paths(self):
+        with self.assertRaisesRegex(SkillCatalogError, "absolute"):
+            ingest_skill(SOURCE, {
+                "SKILL.md": self.files["SKILL.md"],
+                "C:/outside.txt": "must not be accepted",
+            })
+
+
 if __name__ == "__main__":
     unittest.main()
