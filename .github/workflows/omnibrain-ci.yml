@@ -41,5 +41,8 @@ jobs:
       - name: Verify read-only skills catalog CLI
         run: python -m omni skills catalog
 
+      - name: Verify and statically scan every pinned skill snapshot
+        run: python -m omni skills scan all
+
       - name: Run OmniBrain selftest
         run: python -m omni selftest
