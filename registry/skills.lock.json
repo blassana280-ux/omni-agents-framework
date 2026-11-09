@@ -90,6 +90,12 @@
       "source_id": "affaan-m-ecc-team-agent-orchestration",
       "sha256": "4a8e4911cebe028cf1b07290461a761434c580bff57c377e9c7b1b5efda2d8cb",
       "state": "pinned"
+    },
+    {
+      "skill_id": "submission-pack-builder",
+      "source_id": "imma-plugin-autopilot-submission-pack-builder",
+      "sha256": "232aa9c924199a10f515965e1c17613d66201af068362aa0b61752516b0c1ec6",
+      "state": "pinned"
     }
   ]
 }
