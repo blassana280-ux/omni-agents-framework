@@ -111,6 +111,21 @@ class SkillCatalogContractTests(unittest.TestCase):
         with self.assertRaisesRegex(SkillCatalogError, "invalid JSON"):
             SkillCatalog.load(self.root)
 
+    def test_rejects_approved_record_without_human_approval(self):
+        lock = json.loads((self.root / "skills.lock.json").read_text())["skills"][0]
+        lock["state"] = "approved"
+        write_catalog(self.root, skills=[lock])
+        with self.assertRaisesRegex(SkillCatalogError, "human approval"):
+            SkillCatalog.load(self.root)
+
+    def test_rejects_approval_bound_to_another_digest(self):
+        lock = json.loads((self.root / "skills.lock.json").read_text())["skills"][0]
+        lock["state"] = "approved"
+        lock["approval"] = {"approver": "reviewer", "digest": "0" * 64, "reference": "PR-1"}
+        write_catalog(self.root, skills=[lock])
+        with self.assertRaisesRegex(SkillCatalogError, "approval digest"):
+            SkillCatalog.load(self.root)
+
     def test_legacy_registry_without_rich_metadata_remains_loadable(self):
         (self.root / "skills.json").write_text(
             json.dumps({"skills": [{
