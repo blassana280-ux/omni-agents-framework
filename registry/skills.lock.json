@@ -60,6 +60,12 @@
       "source_id": "obra-superpowers-writing-skills",
       "sha256": "7774fa35b436c3f549dc923bfb7a2700b40959c557ffd651c4183b76ddb0d12e",
       "state": "pinned"
+    },
+    {
+      "skill_id": "agent-consent-patterns",
+      "source_id": "mrchaarlie-agent-consent-patterns",
+      "sha256": "b76175dec2e5d1f8826c18cdb59fce7ca73037d5b2585b0d0abc94e2951fbbfd",
+      "state": "pinned"
     }
   ]
 }
