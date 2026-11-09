@@ -150,6 +150,16 @@
       "license_spdx": "MIT",
       "upstream_identity": "affaan-m/ECC",
       "maintainer": "Affaan Mustafa"
+    },
+    {
+      "source_id": "imma-plugin-autopilot-submission-pack-builder",
+      "skill_id": "submission-pack-builder",
+      "repository_url": "https://github.com/imMamdouhaboammar/chatgpt-codex-plugin-autopilot",
+      "skill_path": "skills/submission-pack-builder",
+      "commit_sha": "a01ba2d048db98726e58dcccc19e56b9590d5c06",
+      "license_spdx": "MIT",
+      "upstream_identity": "imMamdouhaboammar/chatgpt-codex-plugin-autopilot",
+      "maintainer": "Mamdouh Aboammar"
     }
   ]
 }
