@@ -96,6 +96,24 @@
       "source_id": "imma-plugin-autopilot-submission-pack-builder",
       "sha256": "232aa9c924199a10f515965e1c17613d66201af068362aa0b61752516b0c1ec6",
       "state": "pinned"
+    },
+    {
+      "skill_id": "ethos-orchestrate",
+      "source_id": "nvidia-skills-ethos-orchestrate",
+      "sha256": "7939d227de1b158cfdfed43ea0be65f4f200a7d8ef7fcf850277954c3ab04ddc",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "ethos-explore",
+      "source_id": "nvidia-skills-ethos-explore",
+      "sha256": "879eb25f5c390c306478d15abe30ca4d528aae1e7129eae7954ef7aa4625bf1b",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "ethos-write",
+      "source_id": "nvidia-skills-ethos-write",
+      "sha256": "eff1a7186ff0b9b700af737fc6330a555fb46fb6235b34e1ce391889a20cf5ab",
+      "state": "pinned"
     }
   ]
 }
