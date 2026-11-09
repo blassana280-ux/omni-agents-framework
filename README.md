@@ -15,7 +15,7 @@ python3 -m omni registry                      # is the network coherent?
 python3 -m omni providers                     # what can actually execute? (truthful PATH probe)
 python3 -m omni plan "Ajoute un endpoint REST et une interface React"
 python3 -m omni run  "Ajoute un endpoint REST" --workspace /tmp/demo
-python3 -m unittest discover -s tests -t .    # 63 tests, no network needed
+python3 -m unittest discover -s tests -t .    # offline unit and integration suite
 ```
 
 ## What really works today
@@ -52,6 +52,33 @@ The provider line is the important one: this repository orchestrates *real* work
 when a real provider is attached. Until then a run ends in `NEEDS_WORK` and says
 so. Nothing here pretends an agent ran.
 
+## External skill catalog and trust controls
+
+The external-skill catalog is separate from the legacy registry/skills.json
+index. Existing skills remain usable through the existing registry API, but are
+not implicitly treated as pinned, scanned, or approved.
+
+Read-only commands:
+
+- `python3 -m omni skills catalog`
+- `python3 -m omni skills inspect <skill-id>`
+- `python3 -m omni skills scan <skill-id> --snapshot-dir /path/to/local/snapshot`
+
+The scan command accepts a local snapshot only: it does not fetch repositories,
+run scripts, launch MCP servers, or change lifecycle state. A snapshot must
+contain a root SKILL.md; the lock file SHA-256 must match its normalized UTF-8
+file set. The default registry/skill-policy.json allows MIT and Apache-2.0,
+caps snapshots at 128 files / 1 MiB, and blocks critical static findings.
+Static pattern checks are heuristic indicators, not a malware certification.
+
+A skill follows the explicit lifecycle:
+
+discovered → pinned → metadata_validated → scanned → evaluated → approved → available → active
+
+The approved transition requires a human approver, a review reference, and the
+exact content digest. Only then can a record become available or active. No
+catalog command can approve, install, activate, or execute a skill.
+
 ## Attaching a real provider
 
 ```bash
@@ -68,7 +95,7 @@ in your environment — never in this repository.
 ## Layout
 
 ```
-registry/            agents.json · skills.json · routing.json · permissions.json
+registry/            legacy registries + skill-sources.json · skills.lock.json · skill-policy.json
 omni/
   models.py          dataclasses for tasks, briefs, results, runs
   registry.py        loading + integrity validation
@@ -81,8 +108,10 @@ omni/
   validation.py      the six gates and the final verdict
   gitops.py          git/PR operations with safety rails
   audit.py           reproducible GitHub account audit
+  skill_catalog.py   pinned provenance, ingestion, static scan, trust lifecycle
+  skill_catalog_cli.py read-only catalog / inspect / scan command handlers
   cli.py             python3 -m omni …
-tests/               63 tests: orchestration, gitops, policy, memory, audit
+tests/               orchestration, catalog, ingestion, trust, CLI and policy tests
 docs/                architecture · GitHub audit · integrations
 OMNIBRAIN.md         the orchestrator's authoritative specification (FR)
 ```
