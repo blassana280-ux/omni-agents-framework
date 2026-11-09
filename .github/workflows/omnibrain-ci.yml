@@ -1,0 +1,42 @@
+name: OmniBrain Core CI
+
+on:
+  push:
+    branches:
+      - omnibrain/skills-catalog-plan-v1
+    paths:
+      - "omni/**"
+      - "tests/**"
+      - "registry/**"
+      - ".github/workflows/omnibrain-ci.yml"
+  pull_request:
+    paths:
+      - "omni/**"
+      - "tests/**"
+      - "registry/**"
+      - ".github/workflows/omnibrain-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  python-311:
+    name: Python 3.11 — offline tests and CLI smoke checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run full unit and integration suite
+        run: python -m unittest discover -s tests -t .
+
+      - name: Validate existing registries
+        run: python -m omni registry
+
+      - name: Verify read-only skills catalog CLI
+        run: python -m omni skills catalog
