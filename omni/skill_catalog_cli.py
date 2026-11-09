@@ -117,6 +117,46 @@ def handle_skill_command(args: Any) -> Optional[int]:
             return 0
 
         skill_id = terms[1]
+        if action == "scan" and skill_id == "all":
+            if getattr(args, "snapshot_dir", None):
+                print("usage: omni skills scan all (does not accept --snapshot-dir)", file=sys.stderr)
+                return 2
+            policy = load_skill_policy(root)
+            reports = []
+            for source, record in catalog.items():
+                snapshot_dir = root / "snapshots" / record.skill_id
+                snapshot = ingest_skill(source, _load_snapshot(snapshot_dir, policy), policy=policy)
+                if snapshot.sha256 != record.sha256:
+                    raise SkillCatalogError(
+                        f"{record.skill_id}: snapshot SHA-256 does not match the pinned lock record"
+                    )
+                report = scan_skill(snapshot, policy=policy)
+                reports.append({
+                    "skill_id": record.skill_id,
+                    "sha256": report.sha256,
+                    "rules_scanned": list(report.rules_scanned),
+                    "blocking": report.blocking,
+                    "findings": [
+                        {
+                            "rule_id": finding.rule_id,
+                            "severity": finding.severity,
+                            "path": finding.path,
+                            "line_number": finding.line_number,
+                            "evidence": finding.evidence,
+                        }
+                        for finding in report.findings
+                    ],
+                })
+            blocking = any(item["blocking"] for item in reports)
+            print(json.dumps({
+                "schema_version": 1,
+                "count": len(reports),
+                "blocking": blocking,
+                "skills": reports,
+                "note": "Static pattern scan only; no findings is not a safety certification.",
+            }, indent=2, ensure_ascii=False))
+            return 1 if blocking else 0
+
         entry = catalog.get(skill_id)
         if entry is None:
             print(f"unknown skill in trust catalog: {skill_id}", file=sys.stderr)
