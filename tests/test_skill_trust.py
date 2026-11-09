@@ -53,6 +53,8 @@ class SkillTrustTests(unittest.TestCase):
 
     def pipeline_to_evaluated(self, source=None, record=None, ingested=None):
         source = source or SOURCE
+        if ingested is None and source != self.ingested.source:
+            ingested = ingest_skill(source, CLEAN_FILES)
         record, report = self.pipeline_to_scanned(record, ingested)
         record = transition_skill(record, "evaluated", source=source, scan_report=report, snapshot=ingested)
         return record, report
@@ -206,6 +208,31 @@ class SkillTrustTests(unittest.TestCase):
             transition_skill(
                 scanned, "evaluated", source=SOURCE,
                 scan_report=forged, snapshot=dangerous,
+            )
+
+
+    def test_evaluation_rejects_license_spoofed_outside_the_ingested_source(self):
+        unlicensed = SkillSource(
+            source_id=SOURCE.source_id, skill_id=SOURCE.skill_id,
+            repository_url=SOURCE.repository_url, skill_path=SOURCE.skill_path,
+            commit_sha=SOURCE.commit_sha, license_spdx=None,
+        )
+        snapshot = ingest_skill(unlicensed, CLEAN_FILES)
+        record = SkillTrustRecord(
+            skill_id=SOURCE.skill_id, source_id=SOURCE.source_id,
+            sha256=snapshot.sha256, state="discovered",
+        )
+        record = transition_skill(record, "pinned")
+        record = transition_skill(record, "metadata_validated")
+        report = scan_skill(snapshot)
+        spoofed = SkillSource(
+            source_id=SOURCE.source_id, skill_id=SOURCE.skill_id,
+            repository_url=SOURCE.repository_url, skill_path=SOURCE.skill_path,
+            commit_sha=SOURCE.commit_sha, license_spdx="MIT",
+        )
+        with self.assertRaisesRegex(SkillCatalogError, "matching source provenance"):
+            transition_skill(
+                record, "scanned", scan_report=report, snapshot=snapshot,
             )
 
 
