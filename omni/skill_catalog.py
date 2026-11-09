@@ -378,6 +378,12 @@ def ingest_skill(
 
 
 def _parse_skill_frontmatter(content: str) -> Dict[str, str]:
+    """Parse required top-level fields and preserve simple nested YAML blocks.
+
+    This deliberately small parser does not execute YAML tags or interpret arbitrary
+    YAML objects. Indented lines are retained as the value of the preceding empty
+    or block-scalar field, such as a metadata mapping.
+    """
     lines = content.splitlines()
     if not lines or lines[0].strip() != "---":
         raise SkillCatalogError("SKILL.md must start with YAML frontmatter")
@@ -387,10 +393,40 @@ def _parse_skill_frontmatter(content: str) -> Dict[str, str]:
         raise SkillCatalogError("SKILL.md frontmatter is missing its closing --- delimiter") from exc
 
     fields: Dict[str, str] = {}
+    block_key = None
+    block_style = None
+    block_lines = []
+
+    def finish_block() -> None:
+        nonlocal block_key, block_style, block_lines
+        if block_key is None:
+            return
+        value = "\n".join(block_lines).strip()
+        if not value:
+            raise SkillCatalogError(f"SKILL.md frontmatter value is empty: {block_key}")
+        if block_style in {">", ">-", ">+"}:
+            value = " ".join(part.strip() for part in block_lines if part.strip())
+        fields[block_key] = value
+        block_key = None
+        block_style = None
+        block_lines = []
+
     for line_number, line in enumerate(lines[1:end], start=2):
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
+
+        prefix = line[: len(line) - len(line.lstrip())]
+        if "\t" in prefix:
+            raise SkillCatalogError(f"unsupported tab indentation in SKILL.md frontmatter at line {line_number}")
+        indent = len(prefix)
+        if block_key is not None and indent > 0:
+            block_lines.append(stripped)
+            continue
+        if indent > 0:
+            raise SkillCatalogError(f"unsupported SKILL.md frontmatter indentation at line {line_number}")
+        finish_block()
+
         if ":" not in line:
             raise SkillCatalogError(f"unsupported SKILL.md frontmatter syntax at line {line_number}")
         key, raw_value = line.split(":", 1)
@@ -404,15 +440,19 @@ def _parse_skill_frontmatter(content: str) -> Dict[str, str]:
             value = value[1:-1]
         elif value.startswith("'") and value.endswith("'") and len(value) >= 2:
             value = value[1:-1].replace("''", "'")
-        if not value:
-            raise SkillCatalogError(f"SKILL.md frontmatter value is empty: {key}")
-        fields[key] = value
 
+        if value in {"", "|", "|-", "|+", ">", ">-", ">+"}:
+            block_key = key
+            block_style = value
+            block_lines = []
+        else:
+            fields[key] = value
+
+    finish_block()
     for required in ("name", "description"):
         if required not in fields:
             raise SkillCatalogError(f"SKILL.md frontmatter requires {required}")
     return fields
-
 
 @dataclass(frozen=True)
 class SkillPolicy:
