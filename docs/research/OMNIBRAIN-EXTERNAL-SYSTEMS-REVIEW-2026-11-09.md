@@ -13,10 +13,17 @@
 | [ECC](https://github.com/affaan-m/ECC) | **Curated snapshots already added to the trust catalog.** | Four MIT-licensed skills were selected; no runtime, scripts, hooks, MCP server, package, or binary was imported. See `docs/skills/ECC-SELECTED-SKILLS.md`. |
 | [Agent Consent Patterns](https://github.com/mrchaarlie/agent-consent-patterns) | **Pinned reference already added to the trust catalog.** | MIT-licensed guidance for scoped grants, action approval, revocation, identity, receipts, and interruption. |
 | [Zuora Coding Agent](https://github.com/zuora/zuora-coding-agent) | **Do not add to OmniBrain core.** | It is focused on Zuora-specific billing APIs and workflows, not a general-purpose agent runtime or reusable orchestration layer. |
-| AgentBroko | **Unverified; hold.** | The exact canonical upstream repository could not be reliably established from the supplied name. Do not guess a repository or fork a similarly named project. |
-| Skill Submission Pack Writer | **Unverified; hold.** | No authoritative upstream repository or specification was established for this exact name. Treat it as a possible workflow idea, not an imported skill. |
+| [AgentBroko ChatGPT plugin](https://chatgpt.com/plugins/plugins_6a99d0b00e28819184ae0cb4675e01a8) | **Keep as an optional media-tool reference; do not import into the core yet.** | The ChatGPT listing describes reusable video, audio, PDF, caption and social-export skills, version 1.4.6, from Broke Innovation. An npm listing also identifies an `agentbroko` 1.4.6 package as MIT, but a canonical source repository and the exact portable skill files were not verified in this review. |
+| [Skill Submission Pack Writer](https://chatgpt.com/plugins?category=developer-tools) | **Treat as a ChatGPT plugin listing, not a portable source skill.** | The directory listing identifies a BEIKE YAN submission-materials plugin. A separate MIT community skill, `submission-pack-builder`, has now been pinned from Plugin Autopilot; it is not the same product. |
 | Qlynk Agent Builder | **Do not add to the core.** | The supplied name does not identify a verified portable open-source runtime in this review. A hosted/no-code builder would not become an OmniBrain execution capability merely by linking it. |
 | 22 Skills | **Out of scope for the agent registry.** | The connected product is a résumé/job-posting match workflow, not a general-purpose agent-skill source. |
+
+
+## AgentBroko and submission preparation: clarified identities
+
+**AgentBroko** is identifiable as a ChatGPT plugin published by Broke Innovation. Its listing describes reusable workflows for video production/editing, audio mixing, captions, PDF handling, thumbnails, and social exports; the listed version is 1.4.6. A package index also lists an `agentbroko` npm package at 1.4.6 under MIT. However, this review did not establish a canonical GitHub source repository or verify the exact package contents. Keep it as an optional multimedia tool reference, not as an imported agent runtime. Do not claim its local FFmpeg/video workflows are available in OmniBrain until the actual source, dependencies and Android/host compatibility are validated.
+
+**Skill Submission Pack Writer** is a ChatGPT Directory plugin listing from BEIKE YAN for writing submission materials. It is not itself the open-source portable skill. The related `submission-pack-builder` from `imMamdouhaboammar/chatgpt-codex-plugin-autopilot` has been added separately as a MIT-licensed, pinned text snapshot with its two supporting reference files. These names and products must not be conflated.
 
 ## Adaptive routing: concepts worth adapting
 
