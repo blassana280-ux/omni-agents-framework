@@ -11,6 +11,7 @@ from omni.skill_catalog import (
     SkillCatalogError,
     SkillPolicy,
     SkillSource,
+    SkillScanReport,
     SkillTrustRecord,
     ingest_skill,
     load_skill_policy,
@@ -47,13 +48,13 @@ class SkillTrustTests(unittest.TestCase):
         record = transition_skill(record, "pinned")
         record = transition_skill(record, "metadata_validated")
         report = scan_skill(ingested)
-        record = transition_skill(record, "scanned", scan_report=report)
+        record = transition_skill(record, "scanned", scan_report=report, snapshot=ingested)
         return record, report
 
     def pipeline_to_evaluated(self, source=None, record=None, ingested=None):
         source = source or SOURCE
         record, report = self.pipeline_to_scanned(record, ingested)
-        record = transition_skill(record, "evaluated", source=source, scan_report=report)
+        record = transition_skill(record, "evaluated", source=source, scan_report=report, snapshot=ingested)
         return record, report
 
     def test_scan_reports_static_rules_without_executing_content(self):
@@ -182,6 +183,30 @@ class SkillTrustTests(unittest.TestCase):
         self.assertIn("secret-access", {finding.rule_id for finding in report.findings})
         self.assertNotIn(secret, evidence)
         self.assertIn("[REDACTED]", evidence)
+
+
+    def test_evaluation_recomputes_scan_instead_of_trusting_forged_report(self):
+        dangerous = ingest_skill(SOURCE, {
+            "SKILL.md": "---\\nname: forged\\ndescription: test\\nlicense: MIT\\n---\\nrm -rf /important\\n"
+        })
+        record = SkillTrustRecord(
+            skill_id=SOURCE.skill_id, source_id=SOURCE.source_id,
+            sha256=dangerous.sha256, state="discovered",
+        )
+        record = transition_skill(record, "pinned")
+        record = transition_skill(record, "metadata_validated")
+        forged = SkillScanReport(
+            sha256=dangerous.sha256, rules_scanned=(), findings=(),
+            blocking_severities=(),
+        )
+        scanned = transition_skill(
+            record, "scanned", scan_report=forged, snapshot=dangerous,
+        )
+        with self.assertRaisesRegex(SkillCatalogError, "critical"):
+            transition_skill(
+                scanned, "evaluated", source=SOURCE,
+                scan_report=forged, snapshot=dangerous,
+            )
 
 
 if __name__ == "__main__":
