@@ -110,6 +110,46 @@
       "license_spdx": "MIT",
       "upstream_identity": "mrchaarlie/agent-consent-patterns",
       "maintainer": "Charles Wu"
+    },
+    {
+      "source_id": "affaan-m-ecc-agent-eval",
+      "skill_id": "ecc-agent-eval",
+      "repository_url": "https://github.com/affaan-m/ECC",
+      "skill_path": "skills/agent-eval",
+      "commit_sha": "d2ef2680594f9a17526a6e1a2e18b3d242c5d17b",
+      "license_spdx": "MIT",
+      "upstream_identity": "affaan-m/ECC",
+      "maintainer": "Affaan Mustafa"
+    },
+    {
+      "source_id": "affaan-m-ecc-agent-security-hardening",
+      "skill_id": "ecc-agent-security-hardening",
+      "repository_url": "https://github.com/affaan-m/ECC",
+      "skill_path": "skills/agent-security-hardening",
+      "commit_sha": "d2ef2680594f9a17526a6e1a2e18b3d242c5d17b",
+      "license_spdx": "MIT",
+      "upstream_identity": "affaan-m/ECC",
+      "maintainer": "Affaan Mustafa"
+    },
+    {
+      "source_id": "affaan-m-ecc-agent-architecture-audit",
+      "skill_id": "ecc-agent-architecture-audit",
+      "repository_url": "https://github.com/affaan-m/ECC",
+      "skill_path": "skills/agent-architecture-audit",
+      "commit_sha": "d2ef2680594f9a17526a6e1a2e18b3d242c5d17b",
+      "license_spdx": "MIT",
+      "upstream_identity": "affaan-m/ECC",
+      "maintainer": "Affaan Mustafa"
+    },
+    {
+      "source_id": "affaan-m-ecc-team-agent-orchestration",
+      "skill_id": "ecc-team-agent-orchestration",
+      "repository_url": "https://github.com/affaan-m/ECC",
+      "skill_path": "skills/team-agent-orchestration",
+      "commit_sha": "d2ef2680594f9a17526a6e1a2e18b3d242c5d17b",
+      "license_spdx": "MIT",
+      "upstream_identity": "affaan-m/ECC",
+      "maintainer": "Affaan Mustafa"
     }
   ]
 }
