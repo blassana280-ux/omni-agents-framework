@@ -23,7 +23,7 @@ catalog and have no approval status unless separately reviewed.
 
 The initial policy caps a snapshot at 128 files and 1 MiB of UTF-8 text. Paths
 must be relative and may not contain parent traversal, absolute prefixes, or
-Windows separators. Duplicate normalized paths and non-UTF-8 content are
+Windows separators and drive-prefixed absolute paths. Duplicate normalized paths and non-UTF-8 content are
 rejected. Only the root `SKILL.md` frontmatter fields `name` and
 `description` are required for metadata identification; unsupported YAML
 features are rejected rather than interpreted loosely.
@@ -33,6 +33,7 @@ features are rejected rather than interpreted loosely.
 The scanner applies transparent text-pattern rules for destructive commands,
 shell execution, network uploads, secret access, and prompt-injection phrases.
 Findings include a rule ID, severity, path, line number, and short evidence.
+Evidence is redacted for common credential formats and secret assignments before it is emitted. Trust-state evaluation re-ingests the supplied snapshot and recomputes the static scan instead of trusting caller-provided finding lists.
 These checks are heuristic indicators only: a clean report is not proof that a
 skill is safe. Rules do not run, import, resolve, or evaluate matched content.
 
