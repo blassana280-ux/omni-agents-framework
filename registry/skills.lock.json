@@ -42,6 +42,12 @@
       "source_id": "obra-superpowers-using-git-worktrees",
       "sha256": "e0ac19a652ce46003d1133d8a207f9cafe43b3d1f520d50b1641746e148f369f",
       "state": "pinned"
+    },
+    {
+      "skill_id": "superpowers-requesting-code-review",
+      "source_id": "obra-superpowers-requesting-code-review",
+      "sha256": "439a6a6058c8ba7bff9610f970fff395fc6126427dc1baa75063b18727e07d4d",
+      "state": "pinned"
     }
   ]
 }
