@@ -152,6 +152,8 @@ class SkillTrustTests(unittest.TestCase):
             }), encoding="utf-8")
             with self.assertRaisesRegex(SkillCatalogError, "blocking_severities"):
                 load_skill_policy(directory)
+        with self.assertRaisesRegex(SkillCatalogError, "blocking_severities"):
+            SkillPolicy(blocking_severities=())
 
 
 if __name__ == "__main__":

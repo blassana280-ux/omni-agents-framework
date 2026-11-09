@@ -427,7 +427,7 @@ class SkillPolicy:
         if not self.allowed_licenses or any(not isinstance(item, str) or not item.strip() for item in self.allowed_licenses):
             raise SkillCatalogError("allowed_licenses must contain non-empty SPDX identifiers")
         allowed_severities = {"low", "medium", "high", "critical"}
-        if any(item not in allowed_severities for item in self.blocking_severities):
+        if not self.blocking_severities or any(item not in allowed_severities for item in self.blocking_severities):
             raise SkillCatalogError("blocking_severities contains an unsupported severity")
         if type(self.max_files) is not int or self.max_files < 1:
             raise SkillCatalogError("max_files must be a positive integer")
@@ -485,7 +485,7 @@ def load_skill_policy(directory: str | Path) -> SkillPolicy:
     limits = value.get("limits", {})
     if not isinstance(licenses, list) or any(not isinstance(x, str) or not x.strip() for x in licenses):
         raise SkillCatalogError("skill-policy.json allowed_licenses must be an array of non-empty strings")
-    if not isinstance(severities, list) or any(x not in {"low", "medium", "high", "critical"} for x in severities):
+    if not isinstance(severities, list) or not severities or any(x not in {"low", "medium", "high", "critical"} for x in severities):
         raise SkillCatalogError("skill-policy.json blocking_severities contains an unsupported severity")
     if not isinstance(limits, dict):
         raise SkillCatalogError("skill-policy.json limits must be an object")
