@@ -112,7 +112,7 @@
     {
       "skill_id": "ethos-write",
       "source_id": "nvidia-skills-ethos-write",
-      "sha256": "eff1a7186ff0b9b700af737fc6330a555fb46fb6235b34e1ce391889a20cf5ab",
+      "sha256": "398a66899099088cfc5d5f46e4070e452af37686a7c584cd49a40f56864a8635",
       "state": "pinned"
     }
   ]
