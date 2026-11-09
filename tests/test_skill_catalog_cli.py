@@ -354,5 +354,85 @@ class SkillCatalogCliTests(unittest.TestCase):
         self.assertIn("symlink", err.getvalue())
 
 
+    def _write_scan_all_catalog(self, *, tamper=False, dangerous=False):
+        sources = []
+        locks = []
+        for skill_id in ("alpha-skill", "beta-skill"):
+            source = SkillSource(
+                source_id=skill_id,
+                skill_id=skill_id,
+                repository_url="https://github.com/example/skills",
+                skill_path=skill_id,
+                commit_sha="a" * 40,
+                license_spdx="MIT",
+            )
+            content = (
+                f"---\\nname: {skill_id}\\ndescription: test skill\\nlicense: MIT\\n---\\n"
+                + ("rm -rf /tmp/demo\\n" if dangerous and skill_id == "beta-skill" else "A harmless test instruction.\\n")
+            )
+            snapshot = ingest_skill(source, {"SKILL.md": content})
+            snapshot_dir = self.root / "snapshots" / skill_id
+            snapshot_dir.mkdir(parents=True)
+            stored_content = content + ("tampered\\n" if tamper and skill_id == "beta-skill" else "")
+            (snapshot_dir / "SKILL.md").write_text(stored_content, encoding="utf-8")
+            sources.append({
+                "source_id": source.source_id,
+                "skill_id": source.skill_id,
+                "repository_url": source.repository_url,
+                "skill_path": source.skill_path,
+                "commit_sha": source.commit_sha,
+                "license_spdx": source.license_spdx,
+            })
+            locks.append({
+                "skill_id": skill_id,
+                "source_id": skill_id,
+                "sha256": snapshot.sha256,
+                "state": "pinned",
+            })
+        (self.root / "skill-sources.json").write_text(
+            json.dumps({"schema_version": 1, "sources": sources}), encoding="utf-8"
+        )
+        (self.root / "skills.lock.json").write_text(
+            json.dumps({"schema_version": 1, "skills": locks}), encoding="utf-8"
+        )
+
+    def test_scan_all_verifies_every_pinned_snapshot_and_is_read_only(self):
+        self._write_scan_all_catalog()
+        out = io.StringIO()
+        with patch("subprocess.run") as run, contextlib.redirect_stdout(out):
+            code = handle_skill_command(self.args(["scan", "all"]))
+        self.assertEqual(code, 0)
+        run.assert_not_called()
+        report = json.loads(out.getvalue())
+        self.assertEqual(report["count"], 2)
+        self.assertFalse(report["blocking"])
+        self.assertEqual(
+            [item["skill_id"] for item in report["skills"]],
+            ["alpha-skill", "beta-skill"],
+        )
+        self.assertTrue(all(item["sha256"] for item in report["skills"]))
+        self.assertTrue(all(item["findings"] == [] for item in report["skills"]))
+
+    def test_scan_all_fails_when_a_snapshot_digest_does_not_match(self):
+        self._write_scan_all_catalog(tamper=True)
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            code = handle_skill_command(self.args(["scan", "all"]))
+        self.assertEqual(code, 1)
+        self.assertIn("beta-skill: snapshot SHA-256 does not match", err.getvalue())
+
+    def test_scan_all_returns_nonzero_for_blocking_findings(self):
+        self._write_scan_all_catalog(dangerous=True)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = handle_skill_command(self.args(["scan", "all"]))
+        self.assertEqual(code, 1)
+        report = json.loads(out.getvalue())
+        self.assertTrue(report["blocking"])
+        beta = next(item for item in report["skills"] if item["skill_id"] == "beta-skill")
+        self.assertTrue(beta["blocking"])
+        self.assertEqual(beta["findings"][0]["rule_id"], "destructive-command")
+
+
 if __name__ == "__main__":
     unittest.main()
