@@ -230,9 +230,13 @@ class SkillTrustTests(unittest.TestCase):
             repository_url=SOURCE.repository_url, skill_path=SOURCE.skill_path,
             commit_sha=SOURCE.commit_sha, license_spdx="MIT",
         )
+        scanned = transition_skill(
+            record, "scanned", scan_report=report, snapshot=snapshot,
+        )
         with self.assertRaisesRegex(SkillCatalogError, "matching source provenance"):
             transition_skill(
-                record, "scanned", scan_report=report, snapshot=snapshot,
+                scanned, "evaluated", source=spoofed,
+                scan_report=report, snapshot=snapshot,
             )
 
 
