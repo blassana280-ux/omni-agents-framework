@@ -20,6 +20,16 @@
       "license_spdx": "MIT",
       "upstream_identity": "obra/superpowers",
       "maintainer": "Jesse Vincent (obra)"
+    },
+    {
+      "source_id": "obra-superpowers-writing-plans",
+      "skill_id": "superpowers-writing-plans",
+      "repository_url": "https://github.com/obra/superpowers",
+      "skill_path": "skills/writing-plans",
+      "commit_sha": "df2e996a174f49f05aa5d5777ca56fbb0aa972ec",
+      "license_spdx": "MIT",
+      "upstream_identity": "obra/superpowers",
+      "maintainer": "Jesse Vincent (obra)"
     }
   ]
 }

@@ -12,6 +12,12 @@
       "source_id": "obra-superpowers-verification-before-completion",
       "sha256": "8a3e006d285f620d6aaed0c33fbbb41b584d6ebc4a5b8f4199e2ef213ee13af9",
       "state": "pinned"
+    },
+    {
+      "skill_id": "superpowers-writing-plans",
+      "source_id": "obra-superpowers-writing-plans",
+      "sha256": "7d6bcd84f2faf6593cbeb69056f0ae8ad26acf88c9d248352862cf55f1b9592b",
+      "state": "pinned"
     }
   ]
 }
