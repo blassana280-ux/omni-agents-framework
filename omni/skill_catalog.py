@@ -164,6 +164,13 @@ class SkillCatalog:
             return None
         return self._sources[record.source_id], record
 
+    def items(self) -> Tuple[Tuple[SkillSource, SkillTrustRecord], ...]:
+        """Return catalog entries in stable skill-ID order."""
+        return tuple(
+            (self._sources[record.source_id], record)
+            for skill_id, record in sorted(self._records.items())
+        )
+
     def __len__(self) -> int:
         return len(self._records)
 
@@ -410,6 +417,17 @@ class SkillPolicy:
     max_files: int = MAX_SKILL_FILES
     max_bytes: int = MAX_SKILL_BYTES
 
+    def __post_init__(self) -> None:
+        if not self.allowed_licenses or any(not isinstance(item, str) or not item.strip() for item in self.allowed_licenses):
+            raise SkillCatalogError("allowed_licenses must contain non-empty SPDX identifiers")
+        allowed_severities = {"low", "medium", "high", "critical"}
+        if any(item not in allowed_severities for item in self.blocking_severities):
+            raise SkillCatalogError("blocking_severities contains an unsupported severity")
+        if type(self.max_files) is not int or self.max_files < 1:
+            raise SkillCatalogError("max_files must be a positive integer")
+        if type(self.max_bytes) is not int or self.max_bytes < 1:
+            raise SkillCatalogError("max_bytes must be a positive integer")
+
 
 @dataclass(frozen=True)
 class SkillScanFinding:
@@ -524,6 +542,9 @@ def transition_skill(
     """Advance one trust state, requiring scan, licence, digest and human approval evidence."""
     if not isinstance(record, SkillTrustRecord):
         raise SkillCatalogError("record must be a SkillTrustRecord")
+    if not isinstance(record.sha256, str) or not _SHA256_RE.fullmatch(record.sha256):
+        raise SkillCatalogError("record must contain a valid SHA-256 digest")
+    record = replace(record, sha256=record.sha256.lower())
     if target_state not in LIFECYCLE_STATES:
         raise SkillCatalogError(f"unsupported target state: {target_state}")
     if target_state not in _ALLOWED_TRANSITIONS.get(record.state, frozenset()):
@@ -544,9 +565,10 @@ def transition_skill(
     elif target_state == "approved":
         if not isinstance(approval, SkillApproval):
             raise SkillCatalogError("approved state requires explicit human approval evidence")
-        if not approval.approver.strip() or not approval.reference.strip():
+        if (not isinstance(approval.approver, str) or not approval.approver.strip()
+                or not isinstance(approval.reference, str) or not approval.reference.strip()):
             raise SkillCatalogError("approval requires a human approver and review reference")
-        if not _SHA256_RE.fullmatch(approval.digest) or approval.digest.lower() != record.sha256:
+        if not isinstance(approval.digest, str) or not _SHA256_RE.fullmatch(approval.digest) or approval.digest.lower() != record.sha256:
             raise SkillCatalogError("approval digest does not match the current skill digest")
         approval = replace(approval, digest=approval.digest.lower())
     elif target_state in {"available", "active"}:
