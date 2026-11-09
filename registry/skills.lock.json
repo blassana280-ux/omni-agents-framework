@@ -1,1 +1,11 @@
-{"schema_version": 1, "skills": []}
+{
+  "schema_version": 1,
+  "skills": [
+    {
+      "skill_id": "superpowers-test-driven-development",
+      "source_id": "obra-superpowers-test-driven-development",
+      "sha256": "d964e27f1bc7cecbfd08511ec10d79114ba6047a2ef257d5802a6114f74758b2",
+      "state": "pinned"
+    }
+  ]
+}

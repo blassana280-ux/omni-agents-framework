@@ -1,1 +1,15 @@
-{"schema_version": 1, "sources": []}
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "source_id": "obra-superpowers-test-driven-development",
+      "skill_id": "superpowers-test-driven-development",
+      "repository_url": "https://github.com/obra/superpowers",
+      "skill_path": "skills/test-driven-development",
+      "commit_sha": "df2e996a174f49f05aa5d5777ca56fbb0aa972ec",
+      "license_spdx": "MIT",
+      "upstream_identity": "obra/superpowers",
+      "maintainer": "Jesse Vincent (obra)"
+    }
+  ]
+}
