@@ -600,9 +600,9 @@ def transition_skill(
             "commit_sha": source.commit_sha, "license_spdx": source.license_spdx,
             "upstream_identity": source.upstream_identity, "maintainer": source.maintainer,
         }, "source")
-        if source.skill_id != record.skill_id or source.source_id != record.source_id:
+        if source != verified_snapshot.source:
             raise SkillCatalogError("evaluation requires matching source provenance")
-        if source.license_spdx not in policy.allowed_licenses:
+        if verified_snapshot.source.license_spdx not in policy.allowed_licenses:
             raise SkillCatalogError("unknown or disallowed skill license blocks evaluation")
     elif target_state == "approved":
         if not isinstance(approval, SkillApproval):
