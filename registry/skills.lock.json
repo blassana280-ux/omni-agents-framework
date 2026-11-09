@@ -48,6 +48,12 @@
       "source_id": "obra-superpowers-requesting-code-review",
       "sha256": "439a6a6058c8ba7bff9610f970fff395fc6126427dc1baa75063b18727e07d4d",
       "state": "pinned"
+    },
+    {
+      "skill_id": "superpowers-systematic-debugging",
+      "source_id": "obra-superpowers-systematic-debugging",
+      "sha256": "e1bddfb78115f3ebbe5a07531e2469d7d9f87af20584c27f3cac44c05ad577f8",
+      "state": "pinned"
     }
   ]
 }

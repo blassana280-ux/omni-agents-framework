@@ -518,6 +518,8 @@ def scan_skill(snapshot: SkillIngestionResult, *, policy: SkillPolicy = SkillPol
     """Run documented static patterns over text; never evaluate skill instructions."""
     if not isinstance(snapshot, SkillIngestionResult):
         raise SkillCatalogError("scan_skill requires a SkillIngestionResult")
+    if not isinstance(policy, SkillPolicy):
+        raise SkillCatalogError("policy must be a SkillPolicy")
     findings = []
     for rule_id, severity, pattern in _STATIC_RULES:
         for path, file_content in snapshot._contents:
@@ -564,6 +566,8 @@ def transition_skill(
     """Advance one trust state, requiring scan, licence, digest and human approval evidence."""
     if not isinstance(record, SkillTrustRecord):
         raise SkillCatalogError("record must be a SkillTrustRecord")
+    if not isinstance(policy, SkillPolicy):
+        raise SkillCatalogError("policy must be a SkillPolicy")
     if not isinstance(record.sha256, str) or not _SHA256_RE.fullmatch(record.sha256):
         raise SkillCatalogError("record must contain a valid SHA-256 digest")
     record = replace(record, sha256=record.sha256.lower())
