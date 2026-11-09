@@ -419,7 +419,7 @@ class SkillPolicy:
     """Conservative policy limits for untrusted skill metadata and static scans."""
 
     allowed_licenses: Tuple[str, ...] = ("MIT", "Apache-2.0")
-    blocking_severities: Tuple[str, ...] = ("critical",)
+    blocking_severities: Tuple[str, ...] = ("high", "critical")
     max_files: int = MAX_SKILL_FILES
     max_bytes: int = MAX_SKILL_BYTES
 
@@ -453,7 +453,7 @@ class SkillScanReport:
     sha256: str
     rules_scanned: Tuple[str, ...]
     findings: Tuple[SkillScanFinding, ...]
-    blocking_severities: Tuple[str, ...] = ("critical",)
+    blocking_severities: Tuple[str, ...] = ("high", "critical")
 
     @property
     def blocking(self) -> bool:

@@ -68,7 +68,7 @@ The scan command accepts a local snapshot only: it does not fetch repositories,
 run scripts, launch MCP servers, or change lifecycle state. A snapshot must
 contain a root SKILL.md; the lock file SHA-256 must match its normalized UTF-8
 file set. The default registry/skill-policy.json allows MIT and Apache-2.0,
-caps snapshots at 128 files / 1 MiB, and blocks critical static findings.
+caps snapshots at 128 files / 1 MiB, and blocks high- and critical-severity static findings.
 Static pattern checks are heuristic indicators, not a malware certification.
 
 A skill follows the explicit lifecycle:
