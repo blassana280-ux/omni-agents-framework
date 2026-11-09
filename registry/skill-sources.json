@@ -30,6 +30,46 @@
       "license_spdx": "MIT",
       "upstream_identity": "obra/superpowers",
       "maintainer": "Jesse Vincent (obra)"
+    },
+    {
+      "source_id": "obra-superpowers-dispatching-parallel-agents",
+      "skill_id": "superpowers-dispatching-parallel-agents",
+      "repository_url": "https://github.com/obra/superpowers",
+      "skill_path": "skills/dispatching-parallel-agents",
+      "commit_sha": "df2e996a174f49f05aa5d5777ca56fbb0aa972ec",
+      "license_spdx": "MIT",
+      "upstream_identity": "obra/superpowers",
+      "maintainer": "Jesse Vincent (obra)"
+    },
+    {
+      "source_id": "obra-superpowers-finishing-a-development-branch",
+      "skill_id": "superpowers-finishing-a-development-branch",
+      "repository_url": "https://github.com/obra/superpowers",
+      "skill_path": "skills/finishing-a-development-branch",
+      "commit_sha": "df2e996a174f49f05aa5d5777ca56fbb0aa972ec",
+      "license_spdx": "MIT",
+      "upstream_identity": "obra/superpowers",
+      "maintainer": "Jesse Vincent (obra)"
+    },
+    {
+      "source_id": "obra-superpowers-receiving-code-review",
+      "skill_id": "superpowers-receiving-code-review",
+      "repository_url": "https://github.com/obra/superpowers",
+      "skill_path": "skills/receiving-code-review",
+      "commit_sha": "df2e996a174f49f05aa5d5777ca56fbb0aa972ec",
+      "license_spdx": "MIT",
+      "upstream_identity": "obra/superpowers",
+      "maintainer": "Jesse Vincent (obra)"
+    },
+    {
+      "source_id": "obra-superpowers-using-git-worktrees",
+      "skill_id": "superpowers-using-git-worktrees",
+      "repository_url": "https://github.com/obra/superpowers",
+      "skill_path": "skills/using-git-worktrees",
+      "commit_sha": "df2e996a174f49f05aa5d5777ca56fbb0aa972ec",
+      "license_spdx": "MIT",
+      "upstream_identity": "obra/superpowers",
+      "maintainer": "Jesse Vincent (obra)"
     }
   ]
 }

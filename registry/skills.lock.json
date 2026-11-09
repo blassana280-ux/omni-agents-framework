@@ -18,6 +18,30 @@
       "source_id": "obra-superpowers-writing-plans",
       "sha256": "7d6bcd84f2faf6593cbeb69056f0ae8ad26acf88c9d248352862cf55f1b9592b",
       "state": "pinned"
+    },
+    {
+      "skill_id": "superpowers-dispatching-parallel-agents",
+      "source_id": "obra-superpowers-dispatching-parallel-agents",
+      "sha256": "66c6623c372c4dff8d64ddf759ad73fe22ed85f1353b38aa67116c8761615e89",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "superpowers-finishing-a-development-branch",
+      "source_id": "obra-superpowers-finishing-a-development-branch",
+      "sha256": "0354b0c1585bf562f9d2a424e6857e647b798f2d26eee7fef8f53e1901b3695d",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "superpowers-receiving-code-review",
+      "source_id": "obra-superpowers-receiving-code-review",
+      "sha256": "2a97da4ab372d0213a00331b25212a78df9b26d40265d683f653c5a2fc94952a",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "superpowers-using-git-worktrees",
+      "source_id": "obra-superpowers-using-git-worktrees",
+      "sha256": "e0ac19a652ce46003d1133d8a207f9cafe43b3d1f520d50b1641746e148f369f",
+      "state": "pinned"
     }
   ]
 }
