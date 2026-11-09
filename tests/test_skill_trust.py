@@ -55,6 +55,7 @@ class SkillTrustTests(unittest.TestCase):
         source = source or SOURCE
         if ingested is None and source != self.ingested.source:
             ingested = ingest_skill(source, CLEAN_FILES)
+        ingested = ingested or self.ingested
         record, report = self.pipeline_to_scanned(record, ingested)
         record = transition_skill(record, "evaluated", source=source, scan_report=report, snapshot=ingested)
         return record, report
