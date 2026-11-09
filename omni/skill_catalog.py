@@ -558,6 +558,7 @@ def transition_skill(
     current_digest: Optional[str] = None,
     source: Optional[SkillSource] = None,
     scan_report: Optional[SkillScanReport] = None,
+    snapshot: Optional[SkillIngestionResult] = None,
     policy: SkillPolicy = SkillPolicy(),
 ) -> SkillTrustRecord:
     """Advance one trust state, requiring scan, licence, digest and human approval evidence."""
@@ -571,13 +572,25 @@ def transition_skill(
     if target_state not in _ALLOWED_TRANSITIONS.get(record.state, frozenset()):
         raise SkillCatalogError(f"invalid lifecycle transition: {record.state} -> {target_state}")
 
-    if target_state == "scanned":
+    verified_report = None
+    if target_state in {"scanned", "evaluated"}:
+        if snapshot is None or not isinstance(snapshot, SkillIngestionResult):
+            raise SkillCatalogError(f"{target_state} state requires the ingested skill snapshot")
+        if snapshot.source.skill_id != record.skill_id or snapshot.source.source_id != record.source_id:
+            raise SkillCatalogError(f"{target_state} state requires matching snapshot provenance")
         if scan_report is None or scan_report.sha256 != record.sha256:
-            raise SkillCatalogError("scanned state requires a scan report for the current digest")
-    elif target_state == "evaluated":
-        if scan_report is None or scan_report.sha256 != record.sha256:
-            raise SkillCatalogError("evaluation requires a scan report for the current digest")
-        if scan_report.blocking:
+            raise SkillCatalogError(f"{target_state} state requires a scan report for the current digest")
+        # Re-ingest and re-scan the supplied bytes. A caller-created report must
+        # never be able to erase findings and bypass the evaluation gate.
+        verified_snapshot = ingest_skill(snapshot.source, snapshot.contents, policy=policy)
+        if verified_snapshot.sha256 != record.sha256:
+            raise SkillCatalogError("snapshot digest does not match the pinned trust record")
+        verified_report = scan_skill(verified_snapshot, policy=policy)
+
+    if target_state == "evaluated":
+        if verified_report is None:
+            raise SkillCatalogError("evaluation requires a verified scan report")
+        if verified_report.blocking:
             raise SkillCatalogError("critical static finding blocks evaluation")
         if source is None:
             raise SkillCatalogError("evaluation requires matching source provenance")
