@@ -46,7 +46,7 @@ modèle.
 ### 2.2 Vagues
 
 Une vague = ensemble de tâches sans dépendance mutuelle, exécuté en parallèle
-réel (`ThreadPoolExecutor`). Les tâches de revue (`code-review`, `testing-qa)
+réel (\`ThreadPoolExecutor\`). Les tâches de revue (\`code-review\`, \`testing-qa\`)
 dépendent de tout le reste : elles tournent dans une vague ultérieure et notent
 un livrable réel, pas une intention. La durée mesurée de chaque vague est
 enregistrée (`wall_s`) — c'est la preuve du parallélisme, pas une affirmation.
