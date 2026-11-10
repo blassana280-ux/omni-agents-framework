@@ -256,5 +256,22 @@ class TestMistralProvider(unittest.TestCase):
                 self.assertFalse(provider.available()[0])
 
 
+    def test_cli_verify_is_local_only(self) -> None:
+        import contextlib
+        import io
+        from omni.cli import main
+
+        output = io.StringIO()
+        with mock.patch.dict(
+            os.environ,
+            {"MISTRAL_API_KEY": "test-secret"},
+            clear=True,
+        ), mock.patch("urllib.request.urlopen") as urlopen, contextlib.redirect_stdout(output):
+            code = main(["providers", "--verify", "mistral"])
+        self.assertEqual(code, 0)
+        self.assertIn("network request: not sent", output.getvalue())
+        urlopen.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
