@@ -7,7 +7,6 @@ alone.
 
 from __future__ import annotations
 
-import json
 from typing import Dict, List
 
 from .memory import redact
@@ -86,18 +85,21 @@ class ValidationEngine:
         )
 
         # ---- secrets ------------------------------------------------------
-        blob = json.dumps(
-            {"summaries": [r.summary for r in latest.values()], "artifacts": [r.artifacts for r in latest.values()]},
-            ensure_ascii=False,
-        )
-        leaked = redact(blob) != blob
+        # Inspect the complete persisted run shape (request, all result fields,
+        # claims, errors, evidence, and metadata) plus the trace events. The
+        # previous check covered only summaries and artifact paths.
+        secret_surface = {
+            "record": record.to_dict(),
+            "trace": trace.events,
+        }
+        leaked = redact(secret_surface) != secret_surface
         findings.append(
             GateFinding(
                 gate="secrets",
                 passed=not leaked,
-                detail="no credential-looking string in deliverables"
+                detail="no credential-looking string in persisted run data"
                 if not leaked
-                else "credential-looking string detected in deliverables",
+                else "credential-looking string detected in persisted run data",
             )
         )
 
