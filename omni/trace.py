@@ -1,16 +1,15 @@
-"""Append-only trace of everything the orchestrator did.
-
-Traceability requirement: every agent selection, tool decision, provider call,
-result, correction and arbitration lands in one JSONL file per run.
-"""
+"""Append-only, secret-redacted trace of orchestrator decisions."""
 
 from __future__ import annotations
 
 import json
+import os
 import time
 import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+from .memory import redact
 
 
 class Trace:
@@ -21,15 +20,22 @@ class Trace:
         self._lock = threading.Lock()
         if self.path:
             self.path.parent.mkdir(parents=True, exist_ok=True)
-            self.path.write_text("", encoding="utf-8")
+            if self.path.is_symlink():
+                raise ValueError("trace path must not be a symbolic link")
+            fd = os.open(self.path, os.O_CREAT | os.O_TRUNC | os.O_WRONLY, 0o600)
+            try:
+                if os.name != "nt":
+                    os.fchmod(fd, 0o600)
+            finally:
+                os.close(fd)
 
     def emit(self, event: str, **fields: Any) -> Dict[str, Any]:
-        record = {
+        record = redact({
             "ts": round(time.time(), 6),
             "run_id": self.run_id,
             "event": event,
             **fields,
-        }
+        })
         with self._lock:
             self.events.append(record)
             if self.path:
