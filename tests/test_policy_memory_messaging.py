@@ -191,6 +191,36 @@ class TestSharedMemory(unittest.TestCase):
         self.assertEqual(stat.S_IMODE(lock_path.stat().st_mode), 0o600)
 
 
+
+    def test_non_finite_expiry_timestamps_are_rejected(self) -> None:
+        for expiry in (float("inf"), float("-inf"), float("nan")):
+            with self.subTest(expiry=expiry):
+                self.path.write_text(
+                    json.dumps({
+                        "entries": {
+                            "run::bad": {
+                                "value": "value",
+                                "owner": "omni-qa",
+                                "run_id": "run-1",
+                                "written_at": time.time(),
+                                "expires_at": expiry,
+                            }
+                        }
+                    }),
+                    encoding="utf-8",
+                )
+                with self.assertRaises(MemoryCorruptionError):
+                    self.memory._load()
+
+    def test_memory_entries_require_complete_schema(self) -> None:
+        self.path.write_text(
+            json.dumps({"entries": {"run::incomplete": {"value": "value"}}}),
+            encoding="utf-8",
+        )
+        with self.assertRaises(MemoryCorruptionError):
+            self.memory._load()
+
+
 class TestMessageBus(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
