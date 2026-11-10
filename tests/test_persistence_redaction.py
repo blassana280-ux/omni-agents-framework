@@ -118,6 +118,20 @@ class PersistenceRedactionTests(unittest.TestCase):
             bus.send(message)
         self.assertEqual(bus.all(), [])
 
+    def test_message_bus_rejects_cross_run_messages_without_persisting(self) -> None:
+        path = self.root / "cross-run.jsonl"
+        bus = MessageBus(path, "run-1", {"omnibrain", "omni-qa"})
+        message = Message(
+            run_id="run-2",
+            sender="omnibrain",
+            recipient="omni-qa",
+            subject="wrong run",
+            body="must not be stored",
+        )
+        with self.assertRaises(ValueError):
+            bus.send(message)
+        self.assertEqual(path.read_text(encoding="utf-8"), "")
+
     def test_message_bus_redacts_legacy_data_when_read(self) -> None:
         path = self.root / "legacy-bus.jsonl"
         path.write_text(
