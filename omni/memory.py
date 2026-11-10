@@ -21,27 +21,30 @@ from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional
 
 SECRET_PATTERNS = [
-    re.compile(r"\\bghp_[A-Za-z0-9]{20,}\\b"),
-    re.compile(r"\\bgithub_pat_[A-Za-z0-9_]{20,}\\b"),
-    re.compile(r"\\bsk-[A-Za-z0-9\\-_]{16,}\\b"),
-    re.compile(r"\\bAKIA[0-9A-Z]{16}\\b"),
-    re.compile(r"\\bxox[baprs]-[A-Za-z0-9\\-]{10,}\\b"),
+    re.compile(r"\bghp_[A-Za-z0-9]{20,}\b"),
+    re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b"),
+    re.compile(r"\bsk-[A-Za-z0-9\-_]{16,}\b"),
+    re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
+    re.compile(r"\bxox[baprs]-[A-Za-z0-9\-]{10,}\b"),
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S),
-    re.compile(r"(?i)\\b(api[_-]?key|secret|token|password)\\s*[:=]\\s*[\"']?[^\\s\"']{8,}"),
+    re.compile(r"(?i)\b(api[_-]?key|secret|token|password)\s*[:=]\s*["']?[^\s"']{8,}"),
 ]
 
 
 def redact(value: Any) -> Any:
-    """Recursively redact credential-looking strings."""
+    """Recursively redact credential-looking strings, including mapping keys."""
     if isinstance(value, str):
         out = value
         for pattern in SECRET_PATTERNS:
             out = pattern.sub("[REDACTED]", out)
         return out
     if isinstance(value, dict):
-        return {k: redact(v) for k, v in value.items()}
+        return {
+            redact(key) if isinstance(key, str) else key: redact(item)
+            for key, item in value.items()
+        }
     if isinstance(value, list):
-        return [redact(v) for v in value]
+        return [redact(item) for item in value]
     return value
 
 
@@ -112,18 +115,18 @@ class SharedMemory:
 
                     lock_file.seek(0, os.SEEK_END)
                     if lock_file.tell() == 0:
-                        lock_file.write(b"\\0")
+                        lock_file.write(b"x")
                         lock_file.flush()
                     lock_file.seek(0)
                     try:
                         msvcrt.locking(lock_file.fileno(), msvcrt.LK_LOCK, 1)
-                        try:
-                            yield
-                        finally:
-                            lock_file.seek(0)
-                            msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
                     except OSError as exc:
                         raise MemoryStorageError(f"cannot lock memory store: {exc}") from exc
+                    try:
+                        yield
+                    finally:
+                        lock_file.seek(0)
+                        msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
                 else:
                     try:
                         import fcntl
@@ -133,12 +136,12 @@ class SharedMemory:
                     try:
                         os.chmod(self._lock_path, 0o600)
                         fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
-                        try:
-                            yield
-                        finally:
-                            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
                     except OSError as exc:
                         raise MemoryStorageError(f"cannot lock memory store: {exc}") from exc
+                    try:
+                        yield
+                    finally:
+                        fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
     # ------------------------------------------------------------- plumbing
     def _load(self) -> Dict[str, Any]:
@@ -206,8 +209,8 @@ class SharedMemory:
         if not isinstance(owner, str) or not owner:
             raise ValueError("owner must be a non-empty string")
         address = f"{scope}::{key}"
-        if redact(address) != address:
-            raise ValueError("memory scope/key must not contain credential-like data")
+        if redact(address) != address or redact(owner) != owner:
+            raise ValueError("memory address/owner must not contain credential-like data")
 
     # ---------------------------------------------------------------- write
     def write(
@@ -227,12 +230,13 @@ class SharedMemory:
             raise ValueError("ttl_s must be a positive integer or None")
 
         full_key = self._key(scope, key)
+        now = time.time()
         entry = {
             "value": redact(value),
             "owner": owner,
             "run_id": self.run_id,
-            "written_at": time.time(),
-            "expires_at": time.time() + ttl_s if ttl_s is not None else None,
+            "written_at": now,
+            "expires_at": now + ttl_s if ttl_s is not None else None,
         }
         with self._exclusive_lock():
             data = self._load()
