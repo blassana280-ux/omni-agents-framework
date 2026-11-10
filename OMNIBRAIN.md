@@ -125,8 +125,18 @@ humaine explicite, même pour un agent autorisé.
 - Les TTL doivent être des entiers strictement positifs. Les adresses mémoire
   ne peuvent pas contenir de chaînes ressemblant à des identifiants secrets.
 - **Bus d'agents** (`omni/messaging.py`) : boîte aux lettres JSONL par run ;
-  expéditeur et destinataire doivent être des agents déclarés ; aucun transport
-  réseau implicite.
+  expéditeur et destinataire doivent être des agents déclarés ; sujet, corps et
+  payload sont rédigés avant l'écriture et à la lecture ; les écritures d'un
+  même bus sont sérialisées entre threads ; fichier limité à POSIX `0600`.
+- **Traces** (`omni/trace.py`) : les champs sont rédigés avant d'entrer en
+  mémoire ou dans le JSONL ; le fichier est créé avec des permissions POSIX
+  `0600`.
+- **État de run** (`omni/orchestrator.py`) : le snapshot JSON complet est
+  rédigé, écrit dans un fichier temporaire privé, synchronisé puis remplacé
+  atomiquement.
+- Le gate `secrets` inspecte la demande, les résultats complets (preuves,
+  claims, erreurs, résumés, artefacts) et les événements de trace ; il bloque
+  tout contenu ressemblant à un identifiant secret.
 
 ## 5 bis. Réparation des overlays du compte
 
