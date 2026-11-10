@@ -84,7 +84,9 @@ class MessageBus:
 
     def all(self) -> List[Dict[str, Any]]:
         out: List[Dict[str, Any]] = []
-        for line in self.path.read_text(encoding="utf-8").splitlines():
+        with self._lock:
+            lines = self.path.read_text(encoding="utf-8").splitlines()
+        for line in lines:
             line = line.strip()
             if not line:
                 continue
