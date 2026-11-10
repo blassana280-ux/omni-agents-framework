@@ -14,6 +14,8 @@ from .memory import redact
 
 class Trace:
     def __init__(self, run_id: str, path: Optional[Path] = None) -> None:
+        if not isinstance(run_id, str) or not run_id or redact(run_id) != run_id:
+            raise ValueError("run_id must be a non-empty string without credential-like data")
         self.run_id = run_id
         self.path = Path(path) if path else None
         self.events: List[Dict[str, Any]] = []
