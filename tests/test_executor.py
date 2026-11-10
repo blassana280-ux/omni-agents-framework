@@ -207,7 +207,19 @@ class TestMistralProvider(unittest.TestCase):
         import io
         import json
 
-        payload = {"choices": [{"message": {"content": "Mistral answered"}}]}
+        payload = {
+            "id": "req-paid-test",
+            "model": "mistral-small-latest",
+            "choices": [{
+                "message": {"content": json.dumps({
+                    "summary": "Mistral answered",
+                    "evidence": ["response generated"],
+                    "met_criteria": ["tests_run"],
+                    "artifacts": [],
+                    "claims": {},
+                })}
+            }],
+        }
         response = io.BytesIO(json.dumps(payload).encode("utf-8"))
         with mock.patch.dict(
             os.environ,
@@ -230,6 +242,7 @@ class TestMistralProvider(unittest.TestCase):
         sent = json.loads(request.data.decode("utf-8"))
         self.assertEqual(sent["model"], "mistral-small-latest")
         self.assertEqual(sent["messages"][0]["content"], make_brief().to_text())
+        self.assertEqual(sent["response_format"], {"type": "json_object"})
         self.assertNotIn("test-secret", str(vars(result)))
 
     @unittest.skipIf(os.name == "nt", "POSIX file permissions are not available")

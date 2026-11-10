@@ -26,7 +26,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Protocol, Sequence, Tuple
 
@@ -172,10 +172,10 @@ class SubprocessProvider:
 
 @dataclass
 class MistralProvider:
-    """Native Mistral Chat Completions provider; inference is opt-in per environment."""
+    """Native Mistral Chat Completions provider with an explicit paid-inference gate."""
 
     name: str = "mistral"
-    api_key: str = ""
+    api_key: str = field(default="", repr=False)
     api_key_file: Optional[Path] = None
     model: str = "mistral-small-latest"
     allow_paid: bool = False
@@ -189,23 +189,36 @@ class MistralProvider:
         return cls(
             api_key=os.environ.get("MISTRAL_API_KEY", "").strip(),
             api_key_file=Path(key_file).expanduser() if key_file else None,
-            model=os.environ.get("MISTRAL_MODEL", "mistral-small-latest").strip(),
+            model=os.environ.get(
+                "OMNI_MISTRAL_MODEL",
+                os.environ.get("MISTRAL_MODEL", "mistral-small-latest"),
+            ).strip(),
             allow_paid=os.environ.get("OMNI_MISTRAL_ALLOW_PAID", "") == "1",
         )
 
     def _load_key(self) -> Tuple[str, str]:
         if self.api_key_file is not None:
-            path = self.api_key_file
+            fd = -1
             try:
-                if path.is_symlink() or not path.is_file():
-                    return "", "MISTRAL_API_KEY_FILE must point to a regular, non-symlink file"
-                mode = stat.S_IMODE(path.stat().st_mode)
-                if os.name != "nt" and mode & 0o077:
+                flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+                fd = os.open(str(self.api_key_file), flags)
+                info = os.fstat(fd)
+                if not stat.S_ISREG(info.st_mode):
+                    return "", "MISTRAL_API_KEY_FILE must be a regular file"
+                if os.name != "nt" and stat.S_IMODE(info.st_mode) & 0o077:
                     return "", "MISTRAL_API_KEY_FILE permissions are too broad; use chmod 600"
-                key = path.read_text(encoding="utf-8").strip()
+                with os.fdopen(fd, "r", encoding="utf-8") as handle:
+                    fd = -1
+                    key = handle.read(8193).strip()
+                if not key or len(key) > 8192:
+                    return "", "MISTRAL_API_KEY_FILE is empty or too large"
+                return key, "MISTRAL_API_KEY_FILE"
             except (OSError, UnicodeError):
-                return "", "MISTRAL_API_KEY_FILE could not be read"
-            return (key, "MISTRAL_API_KEY_FILE") if key else ("", "MISTRAL_API_KEY_FILE is empty")
+                return "", "MISTRAL_API_KEY_FILE is missing, unreadable, or not private"
+            finally:
+                if fd >= 0:
+                    os.close(fd)
+
         key = self.api_key.strip()
         return (key, "MISTRAL_API_KEY") if key else ("", "set MISTRAL_API_KEY_FILE or MISTRAL_API_KEY")
 
@@ -213,36 +226,81 @@ class MistralProvider:
         key, source = self._load_key()
         if not key:
             return False, source
-        gate = "paid inference explicitly enabled" if self.allow_paid else "paid inference locked (no API request will be sent)"
+        gate = (
+            "paid inference explicitly enabled"
+            if self.allow_paid
+            else "paid inference locked (no API request will be sent)"
+        )
         return True, f"credential configured via {source}; {gate}"
 
+    @staticmethod
+    def _content_text(content: object) -> str:
+        if isinstance(content, str):
+            return content.strip()
+        if isinstance(content, list):
+            return "\n".join(
+                item.get("text", "")
+                for item in content
+                if isinstance(item, dict) and isinstance(item.get("text"), str)
+            ).strip()
+        return ""
+
+    @staticmethod
+    def _clean(value: object, secret: str) -> object:
+        if isinstance(value, str):
+            return redact(value.replace(secret, "[REDACTED]"))
+        if isinstance(value, list):
+            return [MistralProvider._clean(item, secret) for item in value]
+        if isinstance(value, dict):
+            return {
+                MistralProvider._clean(key, secret): MistralProvider._clean(item, secret)
+                for key, item in value.items()
+            }
+        return value
+
     def execute(self, brief: Brief, workdir: Optional[Path] = None) -> ProviderResult:
+        started = time.time()
         key, source = self._load_key()
         if not key:
             return ProviderResult(
                 status="failed",
                 executed=False,
-                provider="mistral",
+                provider=self.name,
                 error=redact(source),
             )
         if not self.allow_paid:
             return ProviderResult(
                 status="pending_human",
-                summary="Mistral is configured, but paid inference is locked. Set OMNI_MISTRAL_ALLOW_PAID=1 only for a run you explicitly authorize.",
+                summary=(
+                    "Mistral is configured, but paid inference is locked. "
+                    "Set OMNI_MISTRAL_ALLOW_PAID=1 only for a run you explicitly authorize."
+                ),
                 evidence=[f"credential_source={source}", "network_request=not_sent"],
                 executed=False,
-                provider="mistral",
+                provider=self.name,
             )
 
-        request_body = json.dumps({
+        system_prompt = (
+            "You are a specialist agent in OmniBrain. Return only a JSON object with keys: "
+            "summary (string), evidence (array of strings), met_criteria (array of exact acceptance "
+            "criterion strings actually satisfied), artifacts (array of strings), and claims (object). "
+            "Never claim code was changed, a command was run, a test passed, or an external tool was used "
+            "unless the supplied context contains verifiable evidence. If a criterion requires an action "
+            "you cannot perform, do not mark it as met; explain the limitation in summary."
+        )
+        request_body = {
             "model": self.model,
-            "messages": [{"role": "user", "content": brief.to_text()}],
-            "max_tokens": self.max_tokens,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": brief.to_text()},
+            ],
+            "response_format": {"type": "json_object"},
             "temperature": 0.2,
-        }).encode("utf-8")
+            "max_tokens": self.max_tokens,
+        }
         request = urllib.request.Request(
             self.endpoint,
-            data=request_body,
+            data=json.dumps(request_body).encode("utf-8"),
             headers={
                 "Authorization": f"Bearer {key}",
                 "Content-Type": "application/json",
@@ -250,47 +308,96 @@ class MistralProvider:
             },
             method="POST",
         )
-        started = time.time()
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
-                raw = response.read(2 * 1024 * 1024)
+                raw = response.read(2 * 1024 * 1024 + 1)
+            if len(raw) > 2 * 1024 * 1024:
+                raise ValueError("Mistral response exceeded 2 MiB")
             payload = json.loads(raw.decode("utf-8"))
-            message = payload["choices"][0]["message"]
-            answer = message.get("content", "")
-            if isinstance(answer, list):
-                answer = "\n".join(
-                    str(part.get("text", ""))
-                    for part in answer
-                    if isinstance(part, dict) and part.get("type") == "text"
-                )
-            if not isinstance(answer, str) or not answer.strip():
-                raise ValueError("Mistral returned no text content")
-            clean = redact(answer).replace(key, "[REDACTED]")
+            if not isinstance(payload, dict):
+                raise ValueError("Mistral response payload is not an object")
+            choices = payload.get("choices") or []
+            if not choices or not isinstance(choices[0], dict):
+                raise ValueError("Mistral response has no completion choice")
+            message = choices[0].get("message", {})
+            if not isinstance(message, dict):
+                raise ValueError("Mistral response message is invalid")
+            content = self._content_text(message.get("content"))
+            parsed = json.loads(content) if content else None
+            if not isinstance(parsed, dict):
+                raise ValueError("Mistral response content is not a JSON object")
+
+            summary = parsed.get("summary", "")
+            evidence = parsed.get("evidence", [])
+            met = parsed.get("met_criteria", [])
+            artifacts = parsed.get("artifacts", [])
+            claims = parsed.get("claims", {})
+            if not isinstance(summary, str) or not summary.strip():
+                raise ValueError("Mistral summary is missing")
+            if not isinstance(evidence, list) or not all(isinstance(x, str) for x in evidence):
+                raise ValueError("Mistral evidence must be an array of strings")
+            if not isinstance(met, list) or not all(isinstance(x, str) for x in met):
+                raise ValueError("Mistral met_criteria must be an array of strings")
+            if not isinstance(artifacts, list) or not all(isinstance(x, str) for x in artifacts):
+                raise ValueError("Mistral artifacts must be an array of strings")
+            if not isinstance(claims, dict):
+                raise ValueError("Mistral claims must be an object")
+
+            proof = [
+                f"mistral_request_id={payload.get('id', 'unreported')}",
+                f"model={payload.get('model', self.model)}",
+            ]
+            usage = payload.get("usage")
+            if isinstance(usage, dict):
+                for key_name in ("prompt_tokens", "completion_tokens", "total_tokens"):
+                    count = usage.get(key_name)
+                    if isinstance(count, int) and not isinstance(count, bool):
+                        proof.append(f"{key_name}={count}")
+            proof.extend(evidence)
+            clean = lambda value: self._clean(value, key)
+            allowed = set(brief.acceptance_criteria)
+            clean_summary = clean(summary.strip())
+            clean_content = clean(content)
             return ProviderResult(
                 status="ok",
-                summary=clean[:4000],
-                evidence=[f"endpoint={self.endpoint}", f"model={self.model}"],
+                summary=clean_summary[:4000],
+                evidence=clean(proof),
+                artifacts=clean(artifacts),
+                met_criteria=[item for item in met if item in allowed],
+                claims=clean(claims),
                 executed=True,
-                provider="mistral",
-                stdout=clean,
+                provider=self.name,
+                stdout=clean_content,
                 duration_s=time.time() - started,
             )
         except urllib.error.HTTPError as exc:
+            reason = {
+                401: "authentication failed",
+                403: "access denied",
+                429: "rate limit or quota reached",
+            }.get(exc.code, "request rejected")
             return ProviderResult(
                 status="failed",
                 executed=False,
-                provider="mistral",
-                error=redact(f"Mistral API returned HTTP {exc.code}"),
+                provider=self.name,
+                error=f"Mistral API HTTP {exc.code}: {reason}",
                 duration_s=time.time() - started,
             )
-        except (urllib.error.URLError, TimeoutError, OSError, ValueError, KeyError, IndexError, TypeError, UnicodeError) as exc:
-            detail = "Mistral request failed" if not isinstance(exc, ValueError) else "Mistral response was invalid"
-            safe = redact(f"{detail}: {type(exc).__name__}").replace(key, "[REDACTED]")
+        except (urllib.error.URLError, TimeoutError, OSError):
             return ProviderResult(
                 status="failed",
                 executed=False,
-                provider="mistral",
-                error=safe,
+                provider=self.name,
+                error="Mistral API connection failed or timed out",
+                duration_s=time.time() - started,
+            )
+        except (UnicodeError, json.JSONDecodeError, ValueError, KeyError, IndexError, TypeError, AttributeError):
+            return ProviderResult(
+                status="incomplete",
+                executed=True,
+                provider=self.name,
+                error="Mistral response did not satisfy the expected JSON contract",
+                evidence=[f"model={self.model}"],
                 duration_s=time.time() - started,
             )
 
