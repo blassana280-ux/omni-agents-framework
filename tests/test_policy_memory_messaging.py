@@ -93,6 +93,7 @@ class TestSharedMemory(unittest.TestCase):
             "key": "sk-proj-abcdefghijklmnop12345",
             "aws": "AKIAABCDEFGHIJKLMNOP",
             "note": "api_key=super-secret-value",
+            "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ": "secret in a mapping key",
         }
         self.memory.write("run", "leak", raw, owner="omni-backend")
         stored = self.path.read_text(encoding="utf-8")
@@ -100,6 +101,7 @@ class TestSharedMemory(unittest.TestCase):
             "ghp_abcdefghijklmnopqrstuvwx1234",
             "sk-proj-abcdefghijklmnop12345",
             "AKIAABCDEFGHIJKLMNOP",
+            "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ",
         ):
             self.assertNotIn(secret, stored)
         self.assertEqual(redact("sk-proj-abcdefghijklmnop12345"), "[REDACTED]")
