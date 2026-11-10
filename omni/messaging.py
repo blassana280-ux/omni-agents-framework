@@ -43,6 +43,8 @@ class UnknownAgent(LookupError):
 class MessageBus:
     """Run-scoped JSONL mailbox with thread-safe, redacted persistence."""
 
+    ALLOWED_KINDS = frozenset({"info", "question", "answer", "correction", "arbitration"})
+
     def __init__(self, path: str | Path, run_id: str, known_agents: Set[str]) -> None:
         self.path = Path(path)
         self.run_id = run_id
@@ -68,6 +70,8 @@ class MessageBus:
         self._validate(message.recipient, "recipient")
         if message.run_id != self.run_id:
             raise ValueError("message run_id does not match the bus run")
+        if message.kind not in self.ALLOWED_KINDS:
+            raise ValueError(f"unsupported message kind: {message.kind!r}")
 
         # Redact the object itself so callers cannot accidentally reuse an
         # unsanitized message after it has crossed the persistence boundary.
