@@ -16,12 +16,16 @@ provider, implement :class:`Provider` in your own (non-committed) module.
 
 from __future__ import annotations
 
+import json
 import os
 import shlex
 import shutil
+import stat
 import subprocess
 import tempfile
 import time
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Protocol, Sequence, Tuple
@@ -167,6 +171,130 @@ class SubprocessProvider:
 
 
 @dataclass
+class MistralProvider:
+    """Native Mistral Chat Completions provider; inference is opt-in per environment."""
+
+    api_key: str = ""
+    api_key_file: Optional[Path] = None
+    model: str = "mistral-small-latest"
+    allow_paid: bool = False
+    timeout: int = 120
+    max_tokens: int = 1024
+    endpoint: str = "https://api.mistral.ai/v1/chat/completions"
+
+    @classmethod
+    def from_env(cls) -> "MistralProvider":
+        key_file = os.environ.get("MISTRAL_API_KEY_FILE", "").strip()
+        return cls(
+            api_key=os.environ.get("MISTRAL_API_KEY", "").strip(),
+            api_key_file=Path(key_file).expanduser() if key_file else None,
+            model=os.environ.get("MISTRAL_MODEL", "mistral-small-latest").strip(),
+            allow_paid=os.environ.get("OMNI_MISTRAL_ALLOW_PAID", "") == "1",
+        )
+
+    def _load_key(self) -> Tuple[str, str]:
+        if self.api_key_file is not None:
+            path = self.api_key_file
+            try:
+                if path.is_symlink() or not path.is_file():
+                    return "", "MISTRAL_API_KEY_FILE must point to a regular, non-symlink file"
+                mode = stat.S_IMODE(path.stat().st_mode)
+                if os.name != "nt" and mode & 0o077:
+                    return "", "MISTRAL_API_KEY_FILE permissions are too broad; use chmod 600"
+                key = path.read_text(encoding="utf-8").strip()
+            except (OSError, UnicodeError):
+                return "", "MISTRAL_API_KEY_FILE could not be read"
+            return (key, "MISTRAL_API_KEY_FILE") if key else ("", "MISTRAL_API_KEY_FILE is empty")
+        key = self.api_key.strip()
+        return (key, "MISTRAL_API_KEY") if key else ("", "set MISTRAL_API_KEY_FILE or MISTRAL_API_KEY")
+
+    def available(self) -> Tuple[bool, str]:
+        key, source = self._load_key()
+        if not key:
+            return False, source
+        gate = "paid inference explicitly enabled" if self.allow_paid else "paid inference locked (no API request will be sent)"
+        return True, f"credential configured via {source}; {gate}"
+
+    def execute(self, brief: Brief, workdir: Optional[Path] = None) -> ProviderResult:
+        key, source = self._load_key()
+        if not key:
+            return ProviderResult(
+                status="failed",
+                executed=False,
+                provider="mistral",
+                error=redact(source),
+            )
+        if not self.allow_paid:
+            return ProviderResult(
+                status="pending_human",
+                summary="Mistral is configured, but paid inference is locked. Set OMNI_MISTRAL_ALLOW_PAID=1 only for a run you explicitly authorize.",
+                evidence=[f"credential_source={source}", "network_request=not_sent"],
+                executed=False,
+                provider="mistral",
+            )
+
+        request_body = json.dumps({
+            "model": self.model,
+            "messages": [{"role": "user", "content": brief.to_text()}],
+            "max_tokens": self.max_tokens,
+            "temperature": 0.2,
+        }).encode("utf-8")
+        request = urllib.request.Request(
+            self.endpoint,
+            data=request_body,
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            method="POST",
+        )
+        started = time.time()
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                raw = response.read(2 * 1024 * 1024)
+            payload = json.loads(raw.decode("utf-8"))
+            message = payload["choices"][0]["message"]
+            answer = message.get("content", "")
+            if isinstance(answer, list):
+                answer = "\n".join(
+                    str(part.get("text", ""))
+                    for part in answer
+                    if isinstance(part, dict) and part.get("type") == "text"
+                )
+            if not isinstance(answer, str) or not answer.strip():
+                raise ValueError("Mistral returned no text content")
+            clean = redact(answer).replace(key, "[REDACTED]")
+            return ProviderResult(
+                status="ok",
+                summary=clean[:4000],
+                evidence=[f"endpoint={self.endpoint}", f"model={self.model}"],
+                executed=True,
+                provider="mistral",
+                stdout=clean,
+                duration_s=time.time() - started,
+            )
+        except urllib.error.HTTPError as exc:
+            return ProviderResult(
+                status="failed",
+                executed=False,
+                provider="mistral",
+                error=redact(f"Mistral API returned HTTP {exc.code}"),
+                duration_s=time.time() - started,
+            )
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError, KeyError, IndexError, TypeError, UnicodeError) as exc:
+            detail = "Mistral request failed" if not isinstance(exc, ValueError) else "Mistral response was invalid"
+            safe = redact(f"{detail}: {type(exc).__name__}").replace(key, "[REDACTED]")
+            return ProviderResult(
+                status="failed",
+                executed=False,
+                provider="mistral",
+                error=safe,
+                duration_s=time.time() - started,
+            )
+
+
+@dataclass
 class ManualProvider:
     """Explicit no-op: hands the brief to a human and says so."""
 
@@ -198,7 +326,12 @@ def detect_clis() -> List[Dict[str, object]]:
 
 
 def provider_from_env() -> Tuple[Provider, str]:
-    """Build the configured provider, defaulting to an honest manual hand-off."""
+    """Build the explicitly selected provider, defaulting to an honest manual hand-off."""
+    selected = os.environ.get("OMNI_PROVIDER", "").strip().lower()
+    if selected == "mistral":
+        provider = MistralProvider.from_env()
+        ok, detail = provider.available()
+        return provider, detail if ok else f"Mistral not ready ({detail})"
     cmd = os.environ.get("OMNI_PROVIDER_CMD", "").strip()
     if not cmd:
         return ManualProvider(), "OMNI_PROVIDER_CMD is not set"
