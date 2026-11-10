@@ -27,7 +27,7 @@ SECRET_PATTERNS = [
     re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
     re.compile(r"\bxox[baprs]-[A-Za-z0-9\-]{10,}\b"),
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S),
-    re.compile(r"(?i)\b(api[_-]?key|secret|token|password)\s*[:=]\s*["']?[^\s"']{8,}"),
+    re.compile(r"""(?i)\b(api[_-]?key|secret|token|password)\s*[:=]\s*["']?[^\s"']{8,}"""),
 ]
 
 
