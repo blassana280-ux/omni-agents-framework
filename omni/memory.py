@@ -148,9 +148,9 @@ class SharedMemory:
         try:
             raw = self.path.read_text(encoding="utf-8")
         except FileNotFoundError:
+            return {"entries": {}}
         except UnicodeDecodeError as exc:
             raise MemoryCorruptionError("memory store is not valid UTF-8") from exc
-            return {"entries": {}}
         except OSError as exc:
             raise MemoryStorageError(f"cannot read memory store: {exc}") from exc
 
@@ -167,9 +167,10 @@ class SharedMemory:
             if not isinstance(key, str) or not isinstance(entry, dict) or "value" not in entry:
                 raise MemoryCorruptionError("memory store contains a malformed entry")
             expires_at = entry.get("expires_at")
-            if expires_at is not None and (isinstance(expires_at, bool) or not isinstance(expires_at, (int, float))):
+            if expires_at is not None and (
+                isinstance(expires_at, bool) or not isinstance(expires_at, (int, float))
+            ):
                 raise MemoryCorruptionError("memory entry contains an invalid expiry timestamp")
-            raise MemoryCorruptionError("memory store contains a malformed entry")
         return data
 
     def _store(self, data: Dict[str, Any]) -> None:
