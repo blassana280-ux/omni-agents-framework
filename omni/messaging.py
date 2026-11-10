@@ -46,6 +46,8 @@ class MessageBus:
     ALLOWED_KINDS = frozenset({"info", "question", "answer", "correction", "arbitration"})
 
     def __init__(self, path: str | Path, run_id: str, known_agents: Set[str]) -> None:
+        if not isinstance(run_id, str) or not run_id or redact(run_id) != run_id:
+            raise ValueError("run_id must be a non-empty string without credential-like data")
         self.path = Path(path)
         self.run_id = run_id
         self.known_agents = set(known_agents)
