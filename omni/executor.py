@@ -174,6 +174,7 @@ class SubprocessProvider:
 class MistralProvider:
     """Native Mistral Chat Completions provider; inference is opt-in per environment."""
 
+    name: str = "mistral"
     api_key: str = ""
     api_key_file: Optional[Path] = None
     model: str = "mistral-small-latest"
