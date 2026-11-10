@@ -2,15 +2,32 @@
 
 from __future__ import annotations
 
+import json
+import multiprocessing
+import os
+import stat
 import tempfile
 import time
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from tests.helpers import load_registry
-from omni.memory import MemoryDenied, SharedMemory, redact
+from omni.memory import MemoryCorruptionError, MemoryDenied, SharedMemory, redact
 from omni.messaging import Message, MessageBus, UnknownAgent
 from omni.policy import Policy, PolicyDenied
+
+
+def _memory_process_writer(path: str, worker: int, writes: int) -> None:
+    """Top-level target so the test also works with multiprocessing spawn."""
+    memory = SharedMemory(path, f"process-{worker}", writable_shared=["omnibrain"])
+    for index in range(writes):
+        memory.write(
+            "shared",
+            f"process-{worker}-{index}",
+            {"worker": worker, "index": index},
+            owner="omnibrain",
+        )
 
 
 class TestPolicy(unittest.TestCase):
@@ -79,7 +96,11 @@ class TestSharedMemory(unittest.TestCase):
         }
         self.memory.write("run", "leak", raw, owner="omni-backend")
         stored = self.path.read_text(encoding="utf-8")
-        for secret in ("ghp_abcdefghijklmnopqrstuvwx1234", "sk-proj-abcdefghijklmnop12345", "AKIAABCDEFGHIJKLMNOP"):
+        for secret in (
+            "ghp_abcdefghijklmnopqrstuvwx1234",
+            "sk-proj-abcdefghijklmnop12345",
+            "AKIAABCDEFGHIJKLMNOP",
+        ):
             self.assertNotIn(secret, stored)
         self.assertEqual(redact("sk-proj-abcdefghijklmnop12345"), "[REDACTED]")
 
@@ -99,6 +120,73 @@ class TestSharedMemory(unittest.TestCase):
         hits = self.memory.search("n+1")
         self.assertEqual(len(hits), 1)
         self.assertEqual(hits[0]["owner"], "omni-debugger")
+
+    def test_concurrent_thread_writes_are_not_lost(self) -> None:
+        def write_batch(worker: int) -> None:
+            memory = SharedMemory(
+                self.path,
+                f"thread-{worker}",
+                writable_shared=["omnibrain"],
+            )
+            for index in range(12):
+                memory.write(
+                    "shared",
+                    f"thread-{worker}-{index}",
+                    {"worker": worker, "index": index},
+                    owner="omnibrain",
+                )
+
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            list(pool.map(write_batch, range(8)))
+
+        entries = json.loads(self.path.read_text(encoding="utf-8"))["entries"]
+        self.assertEqual(len(entries), 8 * 12)
+
+    def test_concurrent_process_writes_are_not_lost(self) -> None:
+        context = multiprocessing.get_context("spawn")
+        processes = [
+            context.Process(target=_memory_process_writer, args=(str(self.path), worker, 5))
+            for worker in range(3)
+        ]
+        for process in processes:
+            process.start()
+        for process in processes:
+            process.join(timeout=20)
+
+        still_running = [process for process in processes if process.is_alive()]
+        for process in still_running:
+            process.terminate()
+            process.join(timeout=5)
+        self.assertFalse(still_running, "memory writer process deadlocked")
+        self.assertEqual([process.exitcode for process in processes], [0, 0, 0])
+
+        entries = json.loads(self.path.read_text(encoding="utf-8"))["entries"]
+        self.assertEqual(len(entries), 3 * 5)
+
+    def test_corrupt_store_fails_closed_without_overwrite(self) -> None:
+        self.path.write_text('{"entries": ', encoding="utf-8")
+        original = self.path.read_text(encoding="utf-8")
+
+        with self.assertRaises(MemoryCorruptionError):
+            self.memory.write("shared", "plan", {"x": 1}, owner="omnibrain")
+
+        self.assertEqual(self.path.read_text(encoding="utf-8"), original)
+
+    def test_invalid_ttl_is_rejected(self) -> None:
+        for ttl in (0, -1, True):
+            with self.subTest(ttl=ttl):
+                with self.assertRaises(ValueError):
+                    self.memory.write("run", "bad-ttl", "value", owner="omni-qa", ttl_s=ttl)
+
+    def test_memory_addresses_cannot_contain_credentials(self) -> None:
+        with self.assertRaises(ValueError):
+            self.memory.write("run", "api_key=super-secret-value", "value", owner="omni-qa")
+
+    @unittest.skipIf(os.name == "nt", "POSIX file permission mode is not available on Windows")
+    def test_memory_and_lock_files_are_private(self) -> None:
+        self.assertEqual(stat.S_IMODE(self.path.stat().st_mode), 0o600)
+        lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+        self.assertEqual(stat.S_IMODE(lock_path.stat().st_mode), 0o600)
 
 
 class TestMessageBus(unittest.TestCase):
