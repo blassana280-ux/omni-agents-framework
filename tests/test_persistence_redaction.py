@@ -104,6 +104,20 @@ class PersistenceRedactionTests(unittest.TestCase):
         self.assertEqual(bus.inbox("omni-qa")[0]["subject"], "[REDACTED]")
         self.assertEqual(message.body, "[REDACTED]")
 
+    def test_message_bus_rejects_unrecognized_kinds(self) -> None:
+        bus = MessageBus(self.root / "invalid-kind.jsonl", "run-1", {"omnibrain", "omni-qa"})
+        message = Message(
+            run_id="run-1",
+            sender="omnibrain",
+            recipient="omni-qa",
+            subject="subject",
+            body="body",
+            kind="not-a-supported-kind",
+        )
+        with self.assertRaises(ValueError):
+            bus.send(message)
+        self.assertEqual(bus.all(), [])
+
     def test_message_bus_redacts_legacy_data_when_read(self) -> None:
         path = self.root / "legacy-bus.jsonl"
         path.write_text(
