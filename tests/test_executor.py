@@ -230,7 +230,7 @@ class TestMistralProvider(unittest.TestCase):
         sent = json.loads(request.data.decode("utf-8"))
         self.assertEqual(sent["model"], "mistral-small-latest")
         self.assertEqual(sent["messages"][0]["content"], make_brief().to_text())
-        self.assertNotIn("test-secret", str(result.to_dict()))
+        self.assertNotIn("test-secret", str(vars(result)))
 
     @unittest.skipIf(os.name == "nt", "POSIX file permissions are not available")
     def test_private_key_file_is_accepted_and_insecure_key_file_is_rejected(self) -> None:
