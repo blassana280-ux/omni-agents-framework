@@ -188,5 +188,73 @@ class TestProviderDetection(unittest.TestCase):
         self.assertEqual(available, [p["command"] for p in probes if p["available"]])
 
 
+class TestMistralProvider(unittest.TestCase):
+    def test_mistral_is_selected_but_paid_inference_is_locked_by_default(self) -> None:
+        with mock.patch.dict(
+            os.environ,
+            {"OMNI_PROVIDER": "mistral", "MISTRAL_API_KEY": "test-secret"},
+            clear=True,
+        ), mock.patch("urllib.request.urlopen") as urlopen:
+            provider, _ = provider_from_env()
+            self.assertEqual(provider.name, "mistral")
+            self.assertTrue(provider.available()[0])
+            result = provider.execute(make_brief())
+        self.assertEqual(result.status, "pending_human")
+        self.assertFalse(result.executed)
+        urlopen.assert_not_called()
+
+    def test_paid_opt_in_sends_real_chat_completion_request(self) -> None:
+        import io
+        import json
+
+        payload = {"choices": [{"message": {"content": "Mistral answered"}}]}
+        response = io.BytesIO(json.dumps(payload).encode("utf-8"))
+        with mock.patch.dict(
+            os.environ,
+            {
+                "OMNI_PROVIDER": "mistral",
+                "MISTRAL_API_KEY": "test-secret",
+                "OMNI_MISTRAL_ALLOW_PAID": "1",
+            },
+            clear=True,
+        ), mock.patch("urllib.request.urlopen", return_value=response) as urlopen:
+            provider, _ = provider_from_env()
+            result = provider.execute(make_brief())
+
+        self.assertTrue(result.executed)
+        self.assertEqual(result.status, "ok")
+        self.assertEqual(result.summary, "Mistral answered")
+        request = urlopen.call_args.args[0]
+        self.assertEqual(request.full_url, "https://api.mistral.ai/v1/chat/completions")
+        self.assertEqual(request.get_header("Authorization"), "Bearer test-secret")
+        sent = json.loads(request.data.decode("utf-8"))
+        self.assertEqual(sent["model"], "mistral-small-latest")
+        self.assertEqual(sent["messages"][0]["content"], make_brief().to_text())
+        self.assertNotIn("test-secret", str(result.to_dict()))
+
+    @unittest.skipIf(os.name == "nt", "POSIX file permissions are not available")
+    def test_private_key_file_is_accepted_and_insecure_key_file_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            key_file = Path(tmp) / "mistral.key"
+            key_file.write_text("file-secret\n", encoding="utf-8")
+            key_file.chmod(0o600)
+            with mock.patch.dict(
+                os.environ,
+                {"OMNI_PROVIDER": "mistral", "MISTRAL_API_KEY_FILE": str(key_file)},
+                clear=True,
+            ):
+                provider, _ = provider_from_env()
+                self.assertTrue(provider.available()[0])
+
+            key_file.chmod(0o644)
+            with mock.patch.dict(
+                os.environ,
+                {"OMNI_PROVIDER": "mistral", "MISTRAL_API_KEY_FILE": str(key_file)},
+                clear=True,
+            ):
+                provider, _ = provider_from_env()
+                self.assertFalse(provider.available()[0])
+
+
 if __name__ == "__main__":
     unittest.main()
