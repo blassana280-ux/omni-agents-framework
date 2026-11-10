@@ -138,3 +138,21 @@ OMNIBRAIN.md         the orchestrator's authoritative specification (FR)
 ## License
 
 Apache-2.0 (see `LICENSE`).
+
+
+## Mistral API provider (explicit opt-in)
+
+Configure a private key file outside the repository, then opt in:
+
+```bash
+chmod 600 /secure/path/mistral.key
+export MISTRAL_API_KEY_FILE=/secure/path/mistral.key
+export OMNI_PROVIDER=mistral
+export OMNI_MISTRAL_MODEL=mistral-small-latest
+python3 -m omni providers --verify mistral
+python3 -m omni run "..."
+```
+
+`providers --verify mistral` checks only the local file, its regular-file status and POSIX permissions; it sends no network request and causes no inference charge. A normal `omni run` sends one API inference request per assigned task and may incur Mistral charges. No automatic HTTP retries are made. The provider uses the fixed official endpoint, JSON mode, a bounded response size, a timeout, and a strict response contract. API errors never echo response bodies or credentials. The model can reason over its brief but does not gain shell, GitHub, browser, or other tools merely by being connected.
+
+The key file must be a regular file with POSIX mode `0600` or stricter. Symlink key paths are rejected where the platform supports `O_NOFOLLOW`. Never put the key in the repository, prompt, issue, or chat.

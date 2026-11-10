@@ -164,3 +164,8 @@ testée (`tests/test_overlays.py`). L'application exige un accès en écriture ;
 - Il ne modifie pas la protection de branche sans le scope GitHub
   `Administration` (vérifié : le token actuel ne l'a pas).
 - Il ne fusionne pas de PR de lui-même.
+
+
+## 7. Provider Mistral
+
+`MistralAPIProvider` (`omni/executor.py`) utilise l'API officielle Chat Completions, sans SDK tiers. La sélection est explicite via `OMNI_PROVIDER=mistral`. La clé est lue depuis `MISTRAL_API_KEY_FILE`, fichier régulier privé en mode POSIX `0600` ou plus strict ; aucun secret n'est versionné. `python3 -m omni providers --verify mistral` vérifie uniquement la configuration locale et n'envoie aucune requête. Chaque `omni run` peut déclencher une inférence facturable ; aucun retry HTTP automatique n'est effectué. Le modèle reçoit le brief et produit une réponse JSON contrôlée, mais ne reçoit pas automatiquement d'outils shell, GitHub ou navigateur.

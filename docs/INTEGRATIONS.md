@@ -93,3 +93,15 @@ Commande d'application dès que l'accès en écriture est accordé :
 python3 -m omni overlays --account blassana280-ux            # plan (lecture seule)
 python3 -m omni overlays --account blassana280-ux --apply    # 1 branche + 1 PR par dépôt
 ```
+
+
+## 6. Provider Mistral (ajout)
+
+- **Code intégré** : `MistralAPIProvider` dans `omni/executor.py`, sans SDK tiers.
+- **Endpoint** : `POST https://api.mistral.ai/v1/chat/completions`, format JSON.
+- **Sélection** : explicite uniquement via `OMNI_PROVIDER=mistral` ; aucun basculement automatique vers une inférence potentiellement payante.
+- **Secret** : `MISTRAL_API_KEY_FILE` doit désigner un fichier régulier privé (POSIX `0600` ou plus restrictif). Le chemin symbolique est refusé quand `O_NOFOLLOW` est disponible. Aucun secret n'est stocké dans Git.
+- **Vérification locale** : `python3 -m omni providers --verify mistral` inspecte le fichier sans envoyer de requête.
+- **Inférence** : chaque tâche affectée à Mistral peut générer un appel facturable. Pas de retry HTTP automatique. La réponse est contrainte en JSON et contrôlée avant ingestion.
+- **Limite fonctionnelle** : le provider donne au modèle la capacité de raisonner et de produire du texte à partir du brief ; il ne lui fournit pas automatiquement des outils d'exécution, de navigation ou GitHub. Une tâche exigeant ces outils doit rester non satisfaite tant qu'un adaptateur d'outils réel n'est pas ajouté.
+- **Tests** : couverture offline par mocks ; aucun appel API live ni dépense n'est déclenché par la CI.

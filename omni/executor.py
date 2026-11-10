@@ -10,18 +10,21 @@ secrets::
     OMNI_PROVIDER_CMD='claude -p {prompt}'        # any local agent CLI
     OMNI_PROVIDER_NAME=claude
 
-Nothing in this module talks to a network API by itself. If you want an API
-provider, implement :class:`Provider` in your own (non-committed) module.
+The optional Mistral provider makes one explicit Chat Completions API request per task. It reads credentials from a private key file and never verifies configuration by sending a request.
 """
 
 from __future__ import annotations
 
+import json
 import os
 import shlex
+import stat
 import shutil
 import subprocess
 import tempfile
 import time
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Protocol, Sequence, Tuple
@@ -167,6 +170,172 @@ class SubprocessProvider:
 
 
 @dataclass
+class MistralAPIProvider:
+    """Mistral Chat Completions provider backed by a private key file."""
+
+    model: str = "mistral-small-latest"
+    timeout: int = 120
+    max_tokens: int = 2048
+    name: str = "mistral"
+    endpoint: str = "https://api.mistral.ai/v1/chat/completions"
+
+    def _read_api_key(self) -> str:
+        configured = os.environ.get("MISTRAL_API_KEY_FILE", "").strip()
+        if not configured:
+            raise ValueError("MISTRAL_API_KEY_FILE is not set")
+        path = Path(configured).expanduser()
+        fd = os.open(str(path), os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode):
+                raise ValueError("Mistral key path must be a regular file")
+            if os.name != "nt" and stat.S_IMODE(info.st_mode) & 0o077:
+                raise ValueError("Mistral key file permissions must be 0600 or stricter")
+            with os.fdopen(fd, "r", encoding="utf-8") as handle:
+                fd = -1
+                key = handle.read(8193).strip()
+            if not key or len(key) > 8192:
+                raise ValueError("Mistral key file is empty or too large")
+            return key
+        finally:
+            if fd >= 0:
+                os.close(fd)
+
+    def available(self) -> Tuple[bool, str]:
+        try:
+            self._read_api_key()
+        except (OSError, UnicodeError, ValueError):
+            return False, "Mistral key file is missing, unreadable, or not private"
+        return True, "private Mistral key file is ready; no API request was sent"
+
+    @staticmethod
+    def _content_text(content: object) -> str:
+        if isinstance(content, str):
+            return content.strip()
+        if isinstance(content, list):
+            parts = [
+                item.get("text", "")
+                for item in content
+                if isinstance(item, dict) and isinstance(item.get("text"), str)
+            ]
+            return "\n".join(parts).strip()
+        return ""
+
+    def execute(self, brief: Brief, workdir: Optional[Path] = None) -> ProviderResult:
+        started = time.time()
+        try:
+            api_key = self._read_api_key()
+        except (OSError, UnicodeError, ValueError):
+            return ProviderResult(
+                status="failed", executed=False, provider=self.name,
+                error="Mistral is not configured with a readable private key file",
+            )
+
+        system_prompt = (
+            "You are a specialist agent in the OmniBrain orchestration system. "
+            "Return only one JSON object with keys: summary (string), evidence (array of strings), "
+            "met_criteria (array of exact acceptance-criterion strings actually satisfied by this response), "
+            "artifacts (array of strings), and claims (object). "
+            "Never claim that code was changed, a command was run, a test passed, or an external tool "
+            "was used unless the supplied context contains verifiable evidence. If a criterion requires "
+            "an action you cannot perform, do not mark it as met and explain the limitation in summary."
+        )
+        body = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": brief.to_text()},
+            ],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.2,
+            "max_tokens": self.max_tokens,
+        }
+        request = urllib.request.Request(
+            self.endpoint,
+            data=json.dumps(body).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                raw = response.read(2 * 1024 * 1024 + 1)
+            if len(raw) > 2 * 1024 * 1024:
+                raise ValueError("response too large")
+            payload = json.loads(raw.decode("utf-8"))
+            if not isinstance(payload, dict):
+                raise ValueError("response payload is not an object")
+            choices = payload.get("choices") or []
+            message = choices[0].get("message", {}) if choices else {}
+            content = self._content_text(message.get("content"))
+            parsed = json.loads(content) if content else None
+            if not isinstance(parsed, dict):
+                raise ValueError("response is not a JSON object")
+
+            summary = parsed.get("summary", "")
+            if not isinstance(summary, str) or not summary.strip():
+                raise ValueError("response summary is missing")
+            allowed = set(brief.acceptance_criteria)
+            met = parsed.get("met_criteria", [])
+            evidence = parsed.get("evidence", [])
+            artifacts = parsed.get("artifacts", [])
+            claims = parsed.get("claims", {})
+            if not isinstance(met, list) or not all(isinstance(x, str) for x in met):
+                raise ValueError("met_criteria must be an array of strings")
+            if not isinstance(evidence, list) or not all(isinstance(x, str) for x in evidence):
+                raise ValueError("evidence must be an array of strings")
+            if not isinstance(artifacts, list) or not all(isinstance(x, str) for x in artifacts):
+                raise ValueError("artifacts must be an array of strings")
+            if not isinstance(claims, dict):
+                raise ValueError("claims must be an object")
+
+            proof = [
+                f"mistral_request_id={payload.get('id', 'unreported')}",
+                f"model={payload.get('model', self.model)}",
+            ]
+            proof.extend(evidence)
+            return ProviderResult(
+                status="ok",
+                summary=redact(summary.strip())[:4000],
+                evidence=redact(proof),
+                artifacts=redact(artifacts),
+                met_criteria=[item for item in met if item in allowed],
+                claims=redact(claims),
+                executed=True,
+                provider=self.name,
+                stdout=redact(content),
+                duration_s=time.time() - started,
+            )
+        except urllib.error.HTTPError as exc:
+            reason = {
+                401: "authentication failed",
+                403: "access denied",
+                429: "rate limit or quota reached",
+            }.get(exc.code, "request rejected")
+            return ProviderResult(
+                status="failed", executed=False, provider=self.name,
+                error=f"Mistral API HTTP {exc.code}: {reason}",
+                duration_s=time.time() - started,
+            )
+        except (urllib.error.URLError, TimeoutError):
+            return ProviderResult(
+                status="failed", executed=False, provider=self.name,
+                error="Mistral API connection failed or timed out",
+                duration_s=time.time() - started,
+            )
+        except (UnicodeError, json.JSONDecodeError, ValueError, KeyError, IndexError, TypeError, AttributeError):
+            return ProviderResult(
+                status="incomplete", executed=True, provider=self.name,
+                error="Mistral response did not satisfy the expected JSON contract",
+                evidence=[f"model={self.model}"],
+                duration_s=time.time() - started,
+            )
+
+
+@dataclass
 class ManualProvider:
     """Explicit no-op: hands the brief to a human and says so."""
 
@@ -198,7 +367,12 @@ def detect_clis() -> List[Dict[str, object]]:
 
 
 def provider_from_env() -> Tuple[Provider, str]:
-    """Build the configured provider, defaulting to an honest manual hand-off."""
+    """Build the explicitly selected provider, otherwise an honest manual hand-off."""
+    selected = os.environ.get("OMNI_PROVIDER", "").strip().lower()
+    if selected == "mistral":
+        provider = MistralAPIProvider(model=os.environ.get("OMNI_MISTRAL_MODEL", "mistral-small-latest"))
+        ok, detail = provider.available()
+        return (provider, detail) if ok else (ManualProvider(), f"Mistral selected but unavailable ({detail})")
     cmd = os.environ.get("OMNI_PROVIDER_CMD", "").strip()
     if not cmd:
         return ManualProvider(), "OMNI_PROVIDER_CMD is not set"
