@@ -241,7 +241,7 @@ class TestMistralProvider(unittest.TestCase):
         self.assertEqual(request.get_header("Authorization"), "Bearer test-secret")
         sent = json.loads(request.data.decode("utf-8"))
         self.assertEqual(sent["model"], "mistral-small-latest")
-        self.assertEqual(sent["messages"][0]["content"], make_brief().to_text())
+        self.assertEqual(sent["messages"][1]["content"], make_brief().to_text())
         self.assertEqual(sent["response_format"], {"type": "json_object"})
         self.assertNotIn("test-secret", str(vars(result)))
 
