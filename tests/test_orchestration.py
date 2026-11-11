@@ -123,17 +123,21 @@ class TestFailureRecovery(OrchestrationBase):
         self.assertTrue(all(r.status == "failed" for r in record.results))
         self.assertTrue(any(f.gate == "completeness" and not f.passed for f in record.findings))
 
-    def test_provider_exception_does_not_kill_the_run(self) -> None:
+    def test_provider_exception_is_recorded_as_unknown_and_stops_recovery(self) -> None:
         def boom(brief):
             raise RuntimeError("provider crashed")
 
-        record = self.orchestrator(ScriptedProvider(script={"omni-backend": boom})).run(SIMPLE)
+        provider = ScriptedProvider(script={"omni-backend": boom})
+        record = self.orchestrator(provider, retries=2, correction_rounds=2).run(SIMPLE)
         crashed = [r for r in record.results if "provider crashed" in (r.error or "")]
         self.assertTrue(crashed, "the provider exception was not recorded")
-        self.assertFalse(any(r.executed for r in crashed))
-        # the run survives and recovers through the fallback agent
-        self.assertIn("reassign", [e["event"] for e in record.trace])
-        self.assertEqual(record.verdict, "READY")
+        self.assertEqual(crashed[0].status, "effect_unknown")
+        self.assertFalse(crashed[0].executed)
+        self.assertEqual(len([c for c in provider.calls if c["task"] == "t1-backend-api"]), 1)
+        events = [e["event"] for e in record.trace]
+        self.assertNotIn("retry", events)
+        self.assertNotIn("reassign", events)
+        self.assertEqual(record.verdict, "NEEDS_WORK")
 
 
     def test_provider_crash_after_start_is_not_retried_or_reassigned(self) -> None:
