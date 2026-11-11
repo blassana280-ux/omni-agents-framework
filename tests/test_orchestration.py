@@ -136,6 +136,36 @@ class TestFailureRecovery(OrchestrationBase):
         self.assertEqual(record.verdict, "READY")
 
 
+class TestUnknownExecutionOutcome(OrchestrationBase):
+    def test_unknown_outcome_is_never_retried_reassigned_or_corrected(self) -> None:
+        provider = ScriptedProvider(script={
+            "omni-backend": [
+                ProviderResult(
+                    status="effect_unknown",
+                    summary="The provider timed out after execution may have begun.",
+                    evidence=["execution_started=true", "completion=unknown"],
+                    executed=True,
+                    provider="scripted-double",
+                    error="timeout; side effects may have occurred",
+                )
+            ]
+        })
+        record = self.orchestrator(provider, retries=2, correction_rounds=2).run(SIMPLE)
+
+        task_results = [result for result in record.results if result.task_id == "t1-backend-api"]
+        self.assertEqual(len(task_results), 1)
+        self.assertEqual(task_results[0].status, "effect_unknown")
+        self.assertTrue(task_results[0].executed)
+        self.assertEqual(len(provider.calls), 1)
+        events = [event["event"] for event in record.trace]
+        self.assertNotIn("retry", events)
+        self.assertNotIn("reassign", events)
+        self.assertFalse(record.corrections)
+        self.assertEqual(record.verdict, "NEEDS_WORK")
+        completeness = next(item for item in record.findings if item.gate == "completeness")
+        self.assertFalse(completeness.passed)
+
+
 class TestArbitration(OrchestrationBase):
     """Scenario 6 — contradictory results are arbitrated, or flagged."""
 
