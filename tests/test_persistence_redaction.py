@@ -7,10 +7,11 @@ import os
 import stat
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from tests.helpers import load_registry
-from omni.memory import SharedMemory, redact
+from omni.memory import MemoryStorageError, SharedMemory, redact
 from omni.messaging import Message, MessageBus
 from omni.models import Assignment, Brief, Classification, Plan, Result, RunRecord, Task
 from omni.orchestrator import Orchestrator
@@ -321,6 +322,51 @@ class PersistenceRedactionTests(unittest.TestCase):
             memory.get("run-legacy", "facts"),
             {"nested": {"[REDACTED]": ["[REDACTED]"]}},
         )
+
+
+    @unittest.skipIf(os.name == "nt", "POSIX symlink no-follow behavior is not available on Windows")
+    def test_memory_rejects_symlink_if_precheck_misses_race(self) -> None:
+        target = self.root / "memory-target.json"
+        original = '{"entries": {}}'
+        target.write_text(original, encoding="utf-8")
+        link = self.root / "memory-link.json"
+        link.symlink_to(target)
+
+        with mock.patch.object(Path, "is_symlink", return_value=False):
+            with self.assertRaises(MemoryStorageError):
+                SharedMemory(link, "run-symlink")
+
+        self.assertEqual(target.read_text(encoding="utf-8"), original)
+
+
+    @unittest.skipIf(os.name == "nt", "POSIX symlink no-follow behavior is not available on Windows")
+    def test_message_bus_rejects_symlink_if_precheck_misses_race(self) -> None:
+        target = self.root / "bus-target.jsonl"
+        original = "keep-target-content\\n"
+        target.write_text(original, encoding="utf-8")
+        link = self.root / "bus-link.jsonl"
+        link.symlink_to(target)
+
+        with mock.patch.object(Path, "is_symlink", return_value=False):
+            with self.assertRaises(OSError):
+                MessageBus(link, "run-symlink", {"omnibrain"})
+
+        self.assertEqual(target.read_text(encoding="utf-8"), original)
+
+
+    @unittest.skipIf(os.name == "nt", "POSIX symlink no-follow behavior is not available on Windows")
+    def test_trace_rejects_symlink_if_precheck_misses_race(self) -> None:
+        target = self.root / "trace-target.jsonl"
+        original = "keep-target-content\\n"
+        target.write_text(original, encoding="utf-8")
+        link = self.root / "trace-link.jsonl"
+        link.symlink_to(target)
+
+        with mock.patch.object(Path, "is_symlink", return_value=False):
+            with self.assertRaises(OSError):
+                Trace("run-symlink", link)
+
+        self.assertEqual(target.read_text(encoding="utf-8"), original)
 
 
 if __name__ == "__main__":
