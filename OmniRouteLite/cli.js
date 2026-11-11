@@ -12,6 +12,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { readProviderKey, resolveProviderKey, storeProviderKey, isSafeProviderEndpoint } = require('./provider-keys');
 
 const cfgPath = path.join(__dirname, process.env.OMNILITE_CONFIG || 'config.json');
 const examplePath = path.join(__dirname, 'config.example.json');
@@ -26,41 +27,74 @@ function findProvider(cfg, name) {
   return (cfg.providers || []).find(p => String(p.name).toLowerCase() === String(name).toLowerCase()) || null;
 }
 function fingerprint(key) { return crypto.createHash('sha256').update(key).digest('hex').slice(0, 12); }
-function readKeyFile(rel) {
-  try { return fs.readFileSync(path.resolve(__dirname, rel), 'utf8').trim(); } catch { return ''; }
-}
-// Résolution identique à server.js : env > fichier > valeur en clair (déconseillée).
+// Résolution centralisée avec refus du path traversal, des liens symboliques
+// et des permissions trop larges sur le fichier de secret.
 function resolveKey(p) {
-  if (p.apiKeyEnv && process.env[p.apiKeyEnv]) return process.env[p.apiKeyEnv].trim();
-  if (p.apiKeyFile) { const k = readKeyFile(p.apiKeyFile); if (k) return k; }
-  return (p.apiKey || '').trim();
+  return resolveProviderKey(p, __dirname, process.env);
 }
 function keySource(p) {
   if (p.apiKeyEnv && process.env[p.apiKeyEnv]) return 'env:' + p.apiKeyEnv;
-  if (p.apiKeyFile && readKeyFile(p.apiKeyFile)) return 'file:' + p.apiKeyFile;
+  if (p.apiKeyFile) {
+    try {
+      return readProviderKey(__dirname, p.name) ? 'file:' + p.apiKeyFile : null;
+    } catch {
+      return null;
+    }
+  }
   if (p.apiKey) return 'inline (déconseillé — migrez via --connect)';
   return null;
 }
 function readSecretStdin() {
   return new Promise((resolve, reject) => {
-    const isTTY = process.stdin.isTTY;
+    const isTTY = Boolean(process.stdin.isTTY && typeof process.stdin.setRawMode === 'function');
     let buf = '';
-    if (isTTY) process.stdout.write('Collez la clé API puis Entrée : ');
+    let finished = false;
+    if (isTTY) {
+      process.stdout.write('Collez la clé API (saisie masquée) puis Entrée : ');
+      process.stdin.setRawMode(true);
+    }
     process.stdin.setEncoding('utf8');
-    const done = () => { cleanup(); resolve(buf.trim()); };
-    const onData = c => { buf += c; if (isTTY && c.includes('\n')) done(); };
-    const onEnd = () => done();
-    const onErr = e => { cleanup(); reject(e); };
-    function cleanup() {
+    const cleanup = () => {
       process.stdin.removeListener('data', onData);
       process.stdin.removeListener('end', onEnd);
       process.stdin.removeListener('error', onErr);
-    }
+      if (isTTY) {
+        process.stdin.setRawMode(false);
+        process.stdout.write('\\n');
+      }
+    };
+    const done = value => {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      resolve(value.trim());
+    };
+    const fail = error => {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      reject(error);
+    };
+    const onData = chunk => {
+      if (!isTTY) {
+        buf += chunk;
+        return;
+      }
+      for (const char of chunk) {
+        if (char === '\\r' || char === '\\n') return done(buf);
+        if (char === '\\u0003') return fail(new Error('saisie annulée'));
+        if (char === '\\u007f' || char === '\\b') buf = buf.slice(0, -1);
+        else if (char >= ' ') buf += char;
+      }
+    };
+    const onEnd = () => done(buf);
+    const onErr = error => fail(error);
     process.stdin.on('data', onData);
     process.stdin.on('end', onEnd);
     process.stdin.on('error', onErr);
   });
 }
+
 async function cmdList() {
   const cfg = loadCfg();
   console.log('Providers (config: ' + (fs.existsSync(cfgPath) ? 'config.json' : 'config.example.json') + ') :');
@@ -83,11 +117,13 @@ async function cmdConnect(name, keyFileArg) {
   else if (process.env.MISTRAL_API_KEY_FILE) { key = fs.readFileSync(path.resolve(process.env.MISTRAL_API_KEY_FILE), 'utf8').trim(); src = 'MISTRAL_API_KEY_FILE'; }
   else { key = await readSecretStdin(); src = 'saisie stdin'; }
   if (!key || /\s/.test(key)) { console.error('Clé invalide (vide ou contenant des espaces). Aucune écriture effectuée.'); process.exit(1); }
-  const dir = path.join(__dirname, 'secrets');
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-  const keyFile = path.join(dir, p.name + '.key');
-  fs.writeFileSync(keyFile, key + '\n', { mode: 0o600 });
-  fs.chmodSync(keyFile, 0o600);
+  let keyFile;
+  try {
+    keyFile = storeProviderKey(__dirname, p.name, key);
+  } catch (error) {
+    console.error('Stockage refusé : ' + String(error.message || error));
+    process.exit(1);
+  }
   const rel = 'secrets/' + p.name + '.key';
   delete p.apiKey;
   p.apiKeyFile = rel;
@@ -104,11 +140,14 @@ async function cmdVerify(name) {
   const cfg = loadCfg();
   const p = findProvider(cfg, name);
   if (!p) { console.error('Provider "' + name + '" introuvable.'); process.exit(1); }
+  const base = String(p.baseUrl || '').replace(/\\/$/, '');
+  if (!base || !isSafeProviderEndpoint(base)) {
+    console.error('Endpoint refusé : une URL HTTPS valide sans identifiants, query string ou fragment est obligatoire.');
+    process.exit(1);
+  }
   const key = resolveKey(p);
   const src = keySource(p);
-  if (!key) { console.log('PREPARE (aucune clé enregistrée pour ' + name + ') — lancez --connect ' + name + ' d abord.'); process.exit(1); }
-  const base = String(p.baseUrl || '').replace(/\/$/, '');
-  if (!base) { console.error('baseUrl manquante pour ' + name + '.'); process.exit(1); }
+  if (!key) { console.log('PREPARE (aucune clé sûre enregistrée pour ' + name + ') — lancez --connect ' + name + ' d abord.'); process.exit(1); }
   const url = base + '/v1/models';
   console.log('Vérification (gratuite, aucune inférence) : GET ' + url + ' — clé via ' + src + ', sha256:' + fingerprint(key));
   const ctrl = new AbortController();
