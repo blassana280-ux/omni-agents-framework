@@ -169,7 +169,27 @@ class Router:
                 acceptance_criteria=task.acceptance_criteria,
                 allowed_tools=self.policy.allowed_tools(agent_id),
                 boundaries=agent.boundaries,
-                context={"request": request, "specialty": task.specialty},
+                context={
+                    "request": request,
+                    "specialty": task.specialty,
+                    "agent_profile": {
+                        "id": agent.id,
+                        "title": agent.title,
+                        "brief_template": agent.brief_template,
+                        "provenance": agent.provenance,
+                        "skill_references": [
+                            {
+                                "id": skill.id,
+                                "title": skill.title,
+                                "source": skill.source,
+                                "verification": skill.verification,
+                                "notes": skill.notes,
+                            }
+                            for skill_id in agent.skills
+                            if (skill := self.registry.skills.get(skill_id)) is not None
+                        ],
+                    },
+                },
             )
             assignments.append(Assignment(task=task, agent_id=agent_id, wave=wave_of[task.id], brief=brief))
 
