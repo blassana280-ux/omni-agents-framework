@@ -29,6 +29,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from urllib.parse import urlsplit
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Protocol, Sequence, Tuple
@@ -264,6 +265,27 @@ class MistralProvider:
 
     def execute(self, brief: Brief, workdir: Optional[Path] = None) -> ProviderResult:
         started = time.time()
+        try:
+            endpoint = urlsplit(self.endpoint)
+            endpoint_is_safe = (
+                endpoint.scheme == "https"
+                and bool(endpoint.hostname)
+                and endpoint.username is None
+                and endpoint.password is None
+                and not endpoint.query
+                and not endpoint.fragment
+            )
+        except (TypeError, ValueError):
+            endpoint_is_safe = False
+        if not endpoint_is_safe:
+            return ProviderResult(
+                status="failed",
+                executed=False,
+                provider=self.name,
+                error="Mistral endpoint must be HTTPS and contain no embedded credentials, query, or fragment",
+                duration_s=time.time() - started,
+            )
+
         key, source = self._load_key()
         if not key:
             return ProviderResult(
