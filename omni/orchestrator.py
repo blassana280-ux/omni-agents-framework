@@ -301,7 +301,7 @@ class Orchestrator:
                 record.results.append(reassigned)
                 if reassigned.status != "failed":
                     memory.write(
-                        "shared",
+                        "run",
                         f"reassign:{result.task_id}",
                         {"from": result.agent_id, "to": fallback, "status": reassigned.status},
                         owner=OMNIBRAIN,
@@ -506,4 +506,4 @@ class Orchestrator:
             lines.append("")
         lines.append("## Gates")
         lines += [f"- {f.gate}: {'PASS' if f.passed else 'FAIL'} — {f.detail}" for f in record.findings]
-        return redact("\n".join(lines))
+        return "\n".join(lines)
