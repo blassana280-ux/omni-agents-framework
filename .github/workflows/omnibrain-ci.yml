@@ -8,13 +8,20 @@ on:
       - "omni/**"
       - "tests/**"
       - "registry/**"
+      - "docs/**"
+      - "README.md"
+      - "OMNIBRAIN.md"
       - ".github/workflows/omnibrain-ci.yml"
   pull_request:
     paths:
       - "omni/**"
       - "tests/**"
       - "registry/**"
+      - "docs/**"
+      - "README.md"
+      - "OMNIBRAIN.md"
       - ".github/workflows/omnibrain-ci.yml"
+      - ".github/workflows/omnibrain-mistral-secret-verify.yml"
 
 permissions:
   contents: read
@@ -25,10 +32,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
