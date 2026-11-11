@@ -148,7 +148,7 @@ async function cmdVerify(name) {
   const cfg = loadCfg();
   const p = findProvider(cfg, name);
   if (!p) { console.error('Provider "' + name + '" introuvable.'); process.exit(1); }
-  const base = String(p.baseUrl || '').replace(/\\/$/, '');
+  const base = String(p.baseUrl || '').replace(/\/$/, '');
   if (!base || !isSafeProviderEndpoint(base)) {
     console.error('Endpoint refusé : une URL HTTPS valide sans identifiants, query string ou fragment est obligatoire.');
     process.exit(1);
