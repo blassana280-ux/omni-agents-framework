@@ -9,6 +9,7 @@ const {
   storeProviderKey,
   readProviderKey,
   resolveProviderKey,
+  isSafeProviderEndpoint,
 } = require('./provider-keys');
 
 function temporaryRoot(t) {
@@ -62,6 +63,21 @@ test('refuses to read a symlink or group/world-readable key file', t => {
   fs.writeFileSync(keyPath, 'secret', { mode: 0o644 });
   if (process.platform !== 'win32') fs.chmodSync(keyPath, 0o644);
   assert.throws(() => readProviderKey(root, 'mistral'));
+});
+
+test('provider endpoints require HTTPS and reject embedded credentials or URL modifiers', () => {
+  assert.equal(isSafeProviderEndpoint('https://api.mistral.ai'), true);
+  assert.equal(isSafeProviderEndpoint('https://api.mistral.ai/v1'), true);
+  for (const endpoint of [
+    'http://api.mistral.ai',
+    'https://user:password@api.mistral.ai',
+    'https://api.mistral.ai?redirect=http://attacker.invalid',
+    'https://api.mistral.ai#fragment',
+    'not a url',
+    '',
+  ]) {
+    assert.equal(isSafeProviderEndpoint(endpoint), false, endpoint);
+  }
 });
 
 test('environment key takes precedence and invalid file paths never fall back to inline secrets', () => {
