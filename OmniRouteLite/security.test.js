@@ -65,6 +65,30 @@ test('refuses to read a symlink or group/world-readable key file', t => {
   assert.throws(() => readProviderKey(root, 'mistral'));
 });
 
+test('gateway refuses insecure provider endpoints before any network request', async () => {
+  const { callProvider } = require('./server');
+  const originalFetch = global.fetch;
+  let calls = 0;
+  global.fetch = async () => {
+    calls += 1;
+    throw new Error('unexpected network call');
+  };
+  try {
+    await assert.rejects(
+      callProvider({
+        name: 'mistral',
+        type: 'openai',
+        baseUrl: 'http://api.mistral.ai',
+        apiKey: 'must-not-be-sent',
+      }, { model: 'mistral-small-latest', messages: [] }),
+      /HTTPS/,
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
+  assert.equal(calls, 0);
+});
+
 test('provider endpoints require HTTPS and reject embedded credentials or URL modifiers', () => {
   assert.equal(isSafeProviderEndpoint('https://api.mistral.ai'), true);
   assert.equal(isSafeProviderEndpoint('https://api.mistral.ai/v1'), true);
