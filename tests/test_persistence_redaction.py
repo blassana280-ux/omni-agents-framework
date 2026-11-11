@@ -215,5 +215,16 @@ class PersistenceRedactionTests(unittest.TestCase):
         self.assertEqual(stat.S_IMODE(trace_path.stat().st_mode), 0o600)
 
 
+
+    def test_run_identifiers_cannot_contain_credentials(self) -> None:
+        secret_run_id = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234"
+        with self.assertRaises(ValueError):
+            MessageBus(self.root / "secret-run.jsonl", secret_run_id, {"omnibrain"})
+        with self.assertRaises(ValueError):
+            Trace(secret_run_id, self.root / "secret-trace.jsonl")
+        self.assertFalse((self.root / "secret-run.jsonl").exists())
+        self.assertFalse((self.root / "secret-trace.jsonl").exists())
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -11,6 +11,7 @@ Design constraints:
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import tempfile
@@ -163,12 +164,32 @@ class SharedMemory:
 
         if not isinstance(data, dict) or not isinstance(data.get("entries"), dict):
             raise MemoryCorruptionError("memory store must be an object with an entries object")
+        required_fields = {"value", "owner", "run_id", "written_at", "expires_at"}
         for key, entry in data["entries"].items():
-            if not isinstance(key, str) or not isinstance(entry, dict) or "value" not in entry:
+            if (
+                not isinstance(key, str)
+                or not isinstance(entry, dict)
+                or not required_fields.issubset(entry)
+                or not isinstance(entry.get("owner"), str)
+                or not entry["owner"]
+                or not isinstance(entry.get("run_id"), str)
+                or not entry["run_id"]
+            ):
                 raise MemoryCorruptionError("memory store contains a malformed entry")
-            expires_at = entry.get("expires_at")
+
+            written_at = entry["written_at"]
+            if (
+                isinstance(written_at, bool)
+                or not isinstance(written_at, (int, float))
+                or not math.isfinite(written_at)
+            ):
+                raise MemoryCorruptionError("memory entry contains an invalid written timestamp")
+
+            expires_at = entry["expires_at"]
             if expires_at is not None and (
-                isinstance(expires_at, bool) or not isinstance(expires_at, (int, float))
+                isinstance(expires_at, bool)
+                or not isinstance(expires_at, (int, float))
+                or not math.isfinite(expires_at)
             ):
                 raise MemoryCorruptionError("memory entry contains an invalid expiry timestamp")
         return data
