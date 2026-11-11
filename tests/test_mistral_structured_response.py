@@ -61,9 +61,15 @@ class TestMistralStructuredResponse(unittest.TestCase):
             result = provider.execute(brief)
 
         self.assertTrue(result.executed)
-        self.assertEqual(result.status, "ok")
+        self.assertEqual(result.status, "incomplete")
         self.assertEqual(result.summary, "Structured answer with [REDACTED]")
-        self.assertEqual(result.met_criteria, ["criterion_one"])
+        self.assertEqual(result.met_criteria, [])
+        self.assertEqual(result.claims["verification"], "unverified_model_output")
+        self.assertEqual(
+            result.claims["model_reported_criteria"],
+            ["criterion_one", "invented_criterion"],
+        )
+        self.assertEqual(result.claims["model_evidence"], ["The supplied brief was processed"])
         self.assertNotIn(secret, str(result.to_dict()))
         self.assertIn("mistral_request_id=req-contract-123", result.evidence)
         self.assertTrue(any("total_tokens=46" in item for item in result.evidence))
@@ -103,7 +109,10 @@ class TestMistralStructuredResponse(unittest.TestCase):
         ):
             result = MistralProvider.from_env().execute(brief)
 
-        self.assertEqual(result.met_criteria, ["[REDACTED]"])
+        self.assertEqual(result.status, "incomplete")
+        self.assertEqual(result.met_criteria, [])
+        self.assertEqual(result.claims["verification"], "unverified_model_output")
+        self.assertEqual(result.claims["model_reported_criteria"], ["[REDACTED]"])
         self.assertNotIn(secret, str(result.to_dict()))
 
 
@@ -137,7 +146,7 @@ class TestMistralStructuredResponse(unittest.TestCase):
         ) as send:
             result = MistralProvider.from_env().execute(brief)
 
-        self.assertEqual(result.status, "ok")
+        self.assertEqual(result.status, "incomplete")
         request = send.call_args.args[0]
         body = json.loads(request.data.decode("utf-8"))
         user_prompt = body["messages"][1]["content"]
