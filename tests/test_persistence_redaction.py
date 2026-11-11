@@ -369,5 +369,61 @@ class PersistenceRedactionTests(unittest.TestCase):
         self.assertEqual(target.read_text(encoding="utf-8"), original)
 
 
+
+    @unittest.skipIf(os.name == "nt", "POSIX symlink no-follow behavior is not available on Windows")
+    def test_memory_refuses_symlink_replacement_during_reads(self) -> None:
+        path = self.root / "replace-memory.json"
+        memory = SharedMemory(path, "run-replace")
+        target = self.root / "memory-read-target.json"
+        original = '{"entries": {}}'
+        target.write_text(original, encoding="utf-8")
+        path.unlink()
+        path.symlink_to(target)
+
+        with self.assertRaises(MemoryStorageError):
+            memory.get("run", "anything")
+
+        self.assertEqual(target.read_text(encoding="utf-8"), original)
+
+
+    @unittest.skipIf(os.name == "nt", "POSIX symlink no-follow behavior is not available on Windows")
+    def test_message_bus_refuses_symlink_replacement_during_send(self) -> None:
+        path = self.root / "replace-bus.jsonl"
+        bus = MessageBus(path, "run-replace", {"omnibrain", "omni-qa"})
+        target = self.root / "bus-write-target.jsonl"
+        original = "keep-target-content\\n"
+        target.write_text(original, encoding="utf-8")
+        path.unlink()
+        path.symlink_to(target)
+
+        with self.assertRaises(OSError):
+            bus.send(Message(
+                run_id="run-replace",
+                sender="omnibrain",
+                recipient="omni-qa",
+                subject="subject",
+                body="body",
+            ))
+
+        self.assertEqual(target.read_text(encoding="utf-8"), original)
+
+
+    @unittest.skipIf(os.name == "nt", "POSIX symlink no-follow behavior is not available on Windows")
+    def test_trace_refuses_symlink_replacement_without_retaining_failed_event(self) -> None:
+        path = self.root / "replace-trace.jsonl"
+        trace = Trace("run-replace", path)
+        target = self.root / "trace-write-target.jsonl"
+        original = "keep-target-content\\n"
+        target.write_text(original, encoding="utf-8")
+        path.unlink()
+        path.symlink_to(target)
+
+        with self.assertRaises(OSError):
+            trace.emit("must-not-be-stored")
+
+        self.assertEqual(target.read_text(encoding="utf-8"), original)
+        self.assertEqual(trace.events, [])
+
+
 if __name__ == "__main__":
     unittest.main()

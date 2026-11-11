@@ -48,7 +48,6 @@ class Trace:
         safe_record = json.loads(serialized)
         line = json.dumps(safe_record, ensure_ascii=False) + "\n"
         with self._lock:
-            self.events.append(safe_record)
             if self.path:
                 fd = _open_private_regular_file(
                     self.path,
@@ -58,6 +57,7 @@ class Trace:
                 with os.fdopen(fd, "a", encoding="utf-8") as fh:
                     fh.write(line)
                     fh.flush()
+            self.events.append(safe_record)
         return safe_record
 
     # ------------------------------------------------------------ queries
