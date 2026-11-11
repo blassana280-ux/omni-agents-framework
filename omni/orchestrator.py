@@ -254,6 +254,15 @@ class Orchestrator:
     ) -> None:
         by_task = {a.task.id: a for a in wave}
         for result in list(results):
+            if result.provider == "mistral":
+                trace.emit(
+                    "retry_suppressed",
+                    task=result.task_id,
+                    provider=result.provider,
+                    status=result.status,
+                    reason="Mistral calls are one-attempt-per-run; the operator must start a new run",
+                )
+                continue
             if result.status not in ("failed",):
                 continue
             assignment = by_task[result.task_id]
@@ -337,6 +346,15 @@ class Orchestrator:
                 task = assignment.task
                 result = latest.get(task.id)
                 if result is None or result.status in ("failed", "effect_unknown"):
+                    continue
+                if result.provider == "mistral":
+                    trace.emit(
+                        "correction_suppressed",
+                        task=task.id,
+                        provider=result.provider,
+                        status=result.status,
+                        reason="Mistral calls are one-attempt-per-run; the operator must start a new run",
+                    )
                     continue
                 unmet = [c for c in task.acceptance_criteria if c not in result.met_criteria]
                 if result.status != "ok" or unmet:
