@@ -16,7 +16,7 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
-from .memory import redact
+from .memory import _open_private_regular_file, redact
 
 
 @dataclass
@@ -54,13 +54,12 @@ class MessageBus:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if self.path.is_symlink():
             raise ValueError("message bus path must not be a symbolic link")
-        flags = os.O_CREAT | os.O_APPEND | os.O_WRONLY
-        fd = os.open(self.path, flags, 0o600)
-        try:
-            if os.name != "nt":
-                os.fchmod(fd, 0o600)
-        finally:
-            os.close(fd)
+        fd = _open_private_regular_file(
+            self.path,
+            os.O_CREAT | os.O_APPEND | os.O_WRONLY,
+            0o600,
+        )
+        os.close(fd)
         self._lock = threading.Lock()
 
     def _validate(self, agent_id: str, role: str) -> None:
@@ -83,7 +82,8 @@ class MessageBus:
         message.ts = message.ts or time.time()
         line = json.dumps(message.to_dict(), ensure_ascii=False) + "\n"
         with self._lock:
-            with self.path.open("a", encoding="utf-8") as fh:
+            fd = _open_private_regular_file(self.path, os.O_APPEND | os.O_WRONLY, 0o600)
+            with os.fdopen(fd, "a", encoding="utf-8") as fh:
                 fh.write(line)
                 fh.flush()
         return message
@@ -91,7 +91,9 @@ class MessageBus:
     def all(self) -> List[Dict[str, Any]]:
         out: List[Dict[str, Any]] = []
         with self._lock:
-            lines = self.path.read_text(encoding="utf-8").splitlines()
+            fd = _open_private_regular_file(self.path, os.O_RDONLY, 0o600)
+            with os.fdopen(fd, "r", encoding="utf-8") as fh:
+                lines = fh.read().splitlines()
         for line in lines:
             line = line.strip()
             if not line:
