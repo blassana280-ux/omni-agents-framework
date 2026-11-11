@@ -289,7 +289,7 @@ class TestMistralStructuredResponse(unittest.TestCase):
             result = MistralProvider.from_env().execute(brief)
 
         self.assertEqual(result.status, "effect_unknown")
-        self.assertTrue(result.executed)
+        self.assertFalse(result.executed)
         self.assertIn("network_request=attempted", result.evidence)
         self.assertIn("provider_effect=unknown", result.evidence)
         self.assertIn("automatic_retry=blocked", result.evidence)
