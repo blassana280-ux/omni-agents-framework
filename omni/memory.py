@@ -98,7 +98,10 @@ class SharedMemory:
                 self._store({"entries": {}})
             elif os.name != "nt":
                 os.chmod(self.path, 0o600)
-            self._load()  # validate existing state before accepting writes
+            data = self._load()  # validate existing state before accepting writes
+            sanitized = redact(data)
+            if sanitized != data:
+                self._store(sanitized)  # migrate legacy entries under the same lock
 
     @contextmanager
     def _exclusive_lock(self) -> Iterator[None]:
