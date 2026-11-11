@@ -42,7 +42,7 @@ an intention.
 | Branch-protection **apply** | **blocked** | needs `Administration: write`; the CLI prints the exact `gh api` call to run |
 | Account-wide `AGENTS.md` repair (`omni overlays`) | **plan works, apply blocked** | live plan: 10 `restore+overlay` + 28 `refresh` on 41 repos (`docs/OVERLAYS-PLAN.md`, with sha256 of each planned file); `--apply` → `blocked: cannot create blob (write access missing)` |
 | Write pipeline itself | **works** | commit `76b281f8cb` created through `omni.overlays.apply` on the one writable repo, throwaway branch deleted afterwards |
-| AI agent **execution** | **not configured** | no agent CLI found on PATH; `OMNI_PROVIDER_CMD` unset → briefs are handed to a human (`pending_human`, `executed=False`) |
+| AI provider **code** | **integrated; credential not provisioned here** | native Mistral provider is available, but paid inference remains locked until `OMNI_MISTRAL_ALLOW_PAID=1`; without credentials the provider remains unavailable |
 
 Two limits are environmental, not architectural: this session's GitHub token can
 write to **one** repository only (see `docs/INTEGRATIONS.md` §4), and no AI CLI is
@@ -102,6 +102,24 @@ deliverable is redacted before display. These controls are heuristic secret
 pattern checks, not a substitute for keeping credentials out of prompts and
 provider output. Credentials stay in your environment — never in this repository.
 
+## Native Mistral API provider
+
+OmniBrain can use Mistral directly without installing an agent CLI or adding an SDK dependency. Select it explicitly:
+
+```bash
+export OMNI_PROVIDER=mistral
+export MISTRAL_API_KEY_FILE="$HOME/.config/omnibrain/mistral.key"
+chmod 600 "$MISTRAL_API_KEY_FILE"
+python3 -m omni providers --verify mistral   # local check only; no network request
+python3 -m omni run "…"                       # remains pending_human by default
+```
+
+The key file must be a regular, non-symlink file and, on POSIX, must not grant group/other permissions. For CI or hosted execution, `MISTRAL_API_KEY` may be supplied as a protected environment secret; the private file takes precedence. Never commit either credential.
+
+Paid inference is locked by default. Only for a run you explicitly authorize, set `OMNI_MISTRAL_ALLOW_PAID=1` in that command's environment; remove it afterwards. Each request is capped at 1,024 output tokens by default and uses `MISTRAL_MODEL` (default `mistral-small-latest`). The verification command never contacts Mistral. No API key, GitHub Actions secret, or payment setting is provisioned by this repository change.
+
+The provider uses Mistral's official `POST /v1/chat/completions` endpoint with Bearer authentication and JSON-mode structured output. It filters model-reported criteria against the task's declared criteria, redacts the exact credential as well as known secret patterns, and records request/model/token usage metadata. These criteria remain model-reported, not an independent proof that external tools or tests ran. HTTP retries are disabled. See the [Mistral API reference](https://docs.mistral.ai/api).
+
 ## Layout
 
 ```
@@ -111,7 +129,7 @@ omni/
   registry.py        loading + integrity validation
   routing.py         classification, agent selection, squad + wave planning
   orchestrator.py    waves, failures, corrections, arbitration, assembly
-  executor.py        SubprocessProvider (real) · ManualProvider (honest no-op)
+  executor.py        SubprocessProvider · MistralProvider (paid inference gated) · ManualProvider
   policy.py          tool grants, deny paths, dangerous-action confirmation
   memory.py          namespaced shared memory, redaction, TTL
   messaging.py       run-scoped agent mailbox
