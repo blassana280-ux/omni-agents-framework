@@ -164,3 +164,8 @@ testée (`tests/test_overlays.py`). L'application exige un accès en écriture ;
 - Il ne modifie pas la protection de branche sans le scope GitHub
   `Administration` (vérifié : le token actuel ne l'a pas).
 - Il ne fusionne pas de PR de lui-même.
+
+
+## 7. Provider Mistral
+
+`MistralProvider` utilise l'API officielle Chat Completions sans SDK tiers. La sélection est explicite (`OMNI_PROVIDER=mistral`) et l'inférence payante reste verrouillée par défaut (`OMNI_MISTRAL_ALLOW_PAID=1` doit être défini explicitement pour le run autorisé). La clé vient de `MISTRAL_API_KEY_FILE` privé, ou d'une variable d'environnement protégée pour un environnement hébergé ; le fichier est prioritaire et doit être régulier, sans lien symbolique et en mode POSIX `0600` ou plus strict. `providers --verify mistral` est local et n'envoie aucune requête. Les réponses sont structurées en JSON, les critères sont filtrés contre ceux du brief, les clés exactes sont rédigées, et aucun retry HTTP n'est effectué. Les critères restent des déclarations du modèle, pas une preuve indépendante d'exécution d'outils ou de tests. Le provider n'ajoute aucun outil shell/GitHub/navigateur.
