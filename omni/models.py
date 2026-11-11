@@ -166,7 +166,7 @@ class Plan:
 # --------------------------------------------------------------------------- #
 @dataclass
 class ProviderResult:
-    status: str = "failed"  # ok | failed | incomplete | pending_human
+    status: str = "failed"  # ok | failed | incomplete | pending_human | effect_unknown
     summary: str = ""
     evidence: List[str] = field(default_factory=list)
     artifacts: List[str] = field(default_factory=list)
