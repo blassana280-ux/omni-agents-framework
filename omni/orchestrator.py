@@ -260,7 +260,7 @@ class Orchestrator:
                     task=result.task_id,
                     provider=result.provider,
                     status=result.status,
-                    reason="Mistral calls are one-attempt-per-run; the operator must start a new run",
+                    reason="Mistral task calls are not repeated within the same run; inspect the outcome before starting a new run",
                 )
                 continue
             if result.status not in ("failed",):
