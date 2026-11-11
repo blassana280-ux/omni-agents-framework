@@ -104,5 +104,6 @@ python3 -m omni overlays --account blassana280-ux --apply    # 1 branche + 1 PR 
 - **Vérification** : `python3 -m omni providers --verify mistral` ne fait qu'une vérification locale, sans réseau.
 - **Réponse** : JSON structuré ; preuves, critères, claims et artefacts du modèle conservés comme déclarations non vérifiées ; `met_criteria` et artefacts effectifs vides ; statut `incomplete` ; secret exact et motifs connus rédigés ; modèle, identifiant de requête et tokens suivis ; aucun retry HTTP.
 - **Limite** : un run Mistral seul ne peut pas obtenir `READY`. Une validation indépendante ou humaine doit attester le travail. Le provider n'exécute pas de commandes, n'utilise pas GitHub et ne navigue pas sans adaptateur d'outils réel.
-- **Relances** : les sorties `unverified_model_output` sont exclues des tours de correction automatiques ; une vérification indépendante est requise sans répétition facturable automatique.
+- **Relances** : tout résultat Mistral `failed` ou `incomplete` est exclu des retries, des réaffectations de fallback et des corrections automatiques ; une nouvelle tentative exige un nouveau run lancé par l'opérateur.
+- **Endpoint** : HTTPS obligatoire ; identifiants intégrés, query strings et fragments refusés avant chargement de la clé et envoi réseau.
 - **Tests** : tous les appels réseau sont mockés en CI ; aucune clé ni inférence payante n'est nécessaire.
