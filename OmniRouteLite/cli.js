@@ -33,7 +33,7 @@ function resolveKey(p) {
   return resolveProviderKey(p, __dirname, process.env);
 }
 function keySource(p) {
-  if (p.apiKeyEnv && process.env[p.apiKeyEnv]) return 'env:' + p.apiKeyEnv;
+  if (p.apiKeyEnv && process.env[p.apiKeyEnv] && process.env[p.apiKeyEnv].trim()) return 'env:' + p.apiKeyEnv;
   if (p.apiKeyFile) {
     try {
       return readProviderKey(__dirname, p.name) ? 'file:' + p.apiKeyFile : null;
@@ -43,6 +43,14 @@ function keySource(p) {
   }
   if (p.apiKey) return 'inline (déconseillé — migrez via --connect)';
   return null;
+}
+function readImportedKeyFile(filePath) {
+  const resolved = path.resolve(filePath);
+  const info = fs.lstatSync(resolved);
+  if (info.isSymbolicLink() || !info.isFile()) {
+    throw new Error('imported key source must be a regular non-symlink file');
+  }
+  return fs.readFileSync(resolved, 'utf8').trim();
 }
 function readSecretStdin() {
   return new Promise((resolve, reject) => {
@@ -81,7 +89,7 @@ function readSecretStdin() {
         return;
       }
       for (const char of chunk) {
-        if (char === '\r' || char === '\\n') return done(buf);
+        if (char === '\r' || char === '\n') return done(buf);
         if (char === '\u0003') return fail(new Error('saisie annulée'));
         if (char === '\u007f' || char === '\b') buf = buf.slice(0, -1);
         else if (char >= ' ') buf += char;
@@ -112,9 +120,9 @@ async function cmdConnect(name, keyFileArg) {
   if (!p) { console.error('Provider "' + name + '" introuvable. Connus : ' + (cfg.providers || []).map(x => x.name).join(', ')); process.exit(1); }
   let key = '';
   let src = '';
-  if (keyFileArg) { key = fs.readFileSync(path.resolve(keyFileArg), 'utf8').trim(); src = 'fichier fourni ' + keyFileArg; }
+  if (keyFileArg) { key = readImportedKeyFile(keyFileArg); src = 'fichier fourni ' + keyFileArg; }
   else if (p.apiKeyEnv && process.env[p.apiKeyEnv]) { key = process.env[p.apiKeyEnv].trim(); src = 'variable d environnement ' + p.apiKeyEnv; }
-  else if (process.env.MISTRAL_API_KEY_FILE) { key = fs.readFileSync(path.resolve(process.env.MISTRAL_API_KEY_FILE), 'utf8').trim(); src = 'MISTRAL_API_KEY_FILE'; }
+  else if (process.env.MISTRAL_API_KEY_FILE) { key = readImportedKeyFile(process.env.MISTRAL_API_KEY_FILE); src = 'MISTRAL_API_KEY_FILE'; }
   else { key = await readSecretStdin(); src = 'saisie stdin'; }
   if (!key || /\s/.test(key)) { console.error('Clé invalide (vide ou contenant des espaces). Aucune écriture effectuée.'); process.exit(1); }
   let keyFile;
