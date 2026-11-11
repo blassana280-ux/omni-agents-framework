@@ -60,7 +60,7 @@ function readSecretStdin() {
       process.stdin.removeListener('error', onErr);
       if (isTTY) {
         process.stdin.setRawMode(false);
-        process.stdout.write('\\n');
+        process.stdout.write('\n');
       }
     };
     const done = value => {
@@ -81,9 +81,9 @@ function readSecretStdin() {
         return;
       }
       for (const char of chunk) {
-        if (char === '\\r' || char === '\\n') return done(buf);
-        if (char === '\\u0003') return fail(new Error('saisie annulée'));
-        if (char === '\\u007f' || char === '\\b') buf = buf.slice(0, -1);
+        if (char === '\r' || char === '\\n') return done(buf);
+        if (char === '\u0003') return fail(new Error('saisie annulée'));
+        if (char === '\u007f' || char === '\b') buf = buf.slice(0, -1);
         else if (char >= ' ') buf += char;
       }
     };
