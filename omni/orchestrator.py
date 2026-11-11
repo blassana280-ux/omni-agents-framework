@@ -221,8 +221,9 @@ class Orchestrator:
             provider_result = self.provider.execute(brief, self.workspace)
         except Exception as exc:  # a provider crash must not kill the run
             provider_result = ProviderResult(
-                status="failed",
-                error=f"{type(exc).__name__}: {exc}",
+                status="effect_unknown",
+                error=redact(f"{type(exc).__name__}: {exc}"),
+                evidence=["provider_invocation_started=true", "completion=unknown", "automatic_retry=blocked"],
                 provider=getattr(self.provider, "name", "unknown"),
                 executed=False,
                 duration_s=time.time() - started,
