@@ -292,7 +292,7 @@ class MistralProvider:
             "model": self.model,
             "messages": [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": brief.to_text()},
+                {"role": "user", "content": self._clean(brief.to_text(), key)},
             ],
             "response_format": {"type": "json_object"},
             "temperature": 0.2,
