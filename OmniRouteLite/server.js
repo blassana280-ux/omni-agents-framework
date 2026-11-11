@@ -5,17 +5,11 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const core = require('./core.js');
+const { resolveProviderKey, isSafeProviderEndpoint } = require('./provider-keys');
 
 // ---- clés API sécurisées (ADR-SEC-KEYS) ----
-// Résolution : apiKeyEnv (variable d'environnement) > apiKeyFile (fichier local chmod 600)
-// > apiKey en clair (hérité, déconseillé). La clé n'est jamais affichée ni journalisée.
-function readApiKeyFile(rel) {
-  try { return fs.readFileSync(path.resolve(__dirname, rel), 'utf8').trim(); } catch { return ''; }
-}
-function resolveApiKey(p) {
-  if (p.apiKeyEnv && process.env[p.apiKeyEnv]) return process.env[p.apiKeyEnv].trim();
-  if (p.apiKeyFile) { const k = readApiKeyFile(p.apiKeyFile); if (k) return k; }
-  return (p.apiKey || '').trim();
+function resolveApiKey(provider) {
+  return resolveProviderKey(provider, __dirname, process.env);
 }
 
 const cfgPath = path.join(__dirname, process.env.OMNILITE_CONFIG || 'config.json');
@@ -55,7 +49,11 @@ function authorized(req) {
 
 // ---- provider call (OpenAI-compatible or Anthropic) ----
 async function callProvider(p, body, timeoutMs) {
+  if (!isSafeProviderEndpoint(p.baseUrl)) {
+    throw new Error('provider endpoint must be HTTPS without embedded credentials, query, or fragment');
+  }
   const key = resolveApiKey(p);
+  if (!key) throw new Error('provider credential is unavailable or unsafe');
   const out = {
     name: p.name,
     url: p.type === 'anthropic' ? `${p.baseUrl}/v1/messages` : `${p.baseUrl}/v1/chat/completions`,
