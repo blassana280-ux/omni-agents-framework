@@ -338,6 +338,14 @@ class Orchestrator:
                 result = latest.get(task.id)
                 if result is None or result.status == "failed":
                     continue
+                if result.claims.get("verification") == "unverified_model_output":
+                    trace.emit(
+                        "correction_skipped",
+                        task=task.id,
+                        agent=result.agent_id,
+                        reason="independent_verification_required",
+                    )
+                    continue
                 unmet = [c for c in task.acceptance_criteria if c not in result.met_criteria]
                 if result.status != "ok" or unmet:
                     pending.append((task, assignment, unmet))
