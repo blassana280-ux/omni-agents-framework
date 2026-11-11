@@ -339,7 +339,7 @@ class CapabilityLedger:
             raise CapabilityError(f"outcome must be 'ok' or 'error', got '{outcome}'")
         entry = {
             "ts": round(time.time(), 3),
-            "capability": cap_id,
+            "capability": redact(cap_id),
             "outcome": outcome,
             "summary": redact(summary),
             "evidence": [redact(e) for e in (evidence or [])],
