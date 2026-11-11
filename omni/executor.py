@@ -90,6 +90,7 @@ class SubprocessProvider:
 
         workdir = Path(workdir or Path.cwd())
         workdir.mkdir(parents=True, exist_ok=True)
+        safe_brief = redact(brief.to_text())
         fd, brief_path = tempfile.mkstemp(
             prefix=".omni-brief-",
             suffix=".md",
@@ -103,10 +104,10 @@ class SubprocessProvider:
                 open_fd = None
                 if os.name != "nt":
                     os.fchmod(fh.fileno(), 0o600)
-                fh.write(brief.to_text())
+                fh.write(safe_brief)
                 fh.flush()
 
-            prompt = brief.to_text()
+            prompt = safe_brief
             argv = [
                 str(part).replace("{prompt}", prompt).replace("{brief_file}", str(brief_file))
                 for part in self.command
