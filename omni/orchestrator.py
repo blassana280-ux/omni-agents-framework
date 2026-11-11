@@ -336,7 +336,7 @@ class Orchestrator:
             for assignment in plan.assignments:
                 task = assignment.task
                 result = latest.get(task.id)
-                if result is None or result.status == "failed":
+                if result is None or result.status in ("failed", "effect_unknown"):
                     continue
                 unmet = [c for c in task.acceptance_criteria if c not in result.met_criteria]
                 if result.status != "ok" or unmet:
