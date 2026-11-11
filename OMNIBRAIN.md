@@ -47,8 +47,10 @@ modèle.
 
 Une vague = ensemble de tâches sans dépendance mutuelle, exécuté en parallèle
 réel (`ThreadPoolExecutor`). Les tâches de revue (`code-review`, `testing-qa`)
-dépendent de tout le reste : elles tournent dans une vague ultérieure et notent
-un livrable réel, pas une intention. La durée mesurée de chaque vague est
+dépendent de tout le reste : un parcours topologique calcule leurs vagues à
+partir du graphe de dépendances, indépendamment de l'ordre de classement des
+spécialités. Une dépendance inconnue ou un cycle bloque la planification au
+lieu de lancer la tâche trop tôt. La durée mesurée de chaque vague est
 enregistrée (`wall_s`) — c'est la preuve du parallélisme, pas une affirmation.
 
 ### 2.3 Gestion d'échec
@@ -83,7 +85,7 @@ Un livrable dont un critère d'acceptation n'est pas satisfait déclenche une
 
 | Gate | Ce qu'elle vérifie | Échec ⇒ |
 |---|---|---|
-| `completeness` | toutes les tâches livrées, tous les critères satisfaits | `NEEDS_WORK` |
+| `completeness` | toutes les spécialités demandées sont couvertes, toutes les tâches livrées, tous les critères satisfaits | `NEEDS_WORK` |
 | `evidence` | toute tâche `ok` porte au moins une preuve | `NEEDS_WORK` |
 | `execution` | la tâche a réellement été exécutée par un provider | `NEEDS_WORK` |
 | `arbitration` | aucune contradiction non tranchée | `NEEDS_WORK` |
