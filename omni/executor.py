@@ -363,7 +363,7 @@ class MistralProvider:
                 summary=clean_summary[:4000],
                 evidence=clean(proof),
                 artifacts=clean(artifacts),
-                met_criteria=[item for item in met if item in allowed],
+                met_criteria=clean([item for item in met if item in allowed]),
                 claims=clean(claims),
                 executed=True,
                 provider=self.name,

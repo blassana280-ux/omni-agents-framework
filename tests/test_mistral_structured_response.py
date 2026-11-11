@@ -72,5 +72,40 @@ class TestMistralStructuredResponse(unittest.TestCase):
         self.assertEqual(body["response_format"], {"type": "json_object"})
 
 
+
+    def test_exact_api_key_is_redacted_from_accepted_criteria(self):
+        secret = "test-secret-key-not-a-pattern"
+        brief = Brief(
+            task_id="mistral-redaction",
+            agent_id="omni-research",
+            specialty="research",
+            objective="Check secret redaction",
+            acceptance_criteria=[secret],
+            allowed_tools=[],
+            boundaries=[],
+        )
+        payload = {
+            "choices": [{
+                "message": {"content": json.dumps({
+                    "summary": "ok",
+                    "evidence": [],
+                    "met_criteria": [secret],
+                    "artifacts": [],
+                    "claims": {},
+                })}
+            }]
+        }
+        with mock.patch.dict(os.environ, {
+            "MISTRAL_API_KEY": secret,
+            "OMNI_MISTRAL_ALLOW_PAID": "1",
+        }, clear=True), mock.patch(
+            "urllib.request.urlopen", return_value=FakeResponse(payload)
+        ):
+            result = MistralProvider.from_env().execute(brief)
+
+        self.assertEqual(result.met_criteria, ["[REDACTED]"])
+        self.assertNotIn(secret, str(result.to_dict()))
+
+
 if __name__ == "__main__":
     unittest.main()
