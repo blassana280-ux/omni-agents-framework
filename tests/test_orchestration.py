@@ -48,6 +48,24 @@ class OrchestrationBase(unittest.TestCase):
         )
 
 
+class UnverifiedModelOnlyProvider:
+    name = "mistral"
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def execute(self, brief, workdir=None) -> ProviderResult:
+        self.calls += 1
+        return ProviderResult(
+            status="incomplete",
+            summary="Model output requires independent verification",
+            evidence=["provider_response_received=true"],
+            claims={"verification": "unverified_model_output"},
+            executed=True,
+            provider=self.name,
+        )
+
+
 class TestParallelExecution(OrchestrationBase):
     """Scenario 3 — several agents run in the same wave, really concurrently."""
 
@@ -82,6 +100,23 @@ class TestParallelExecution(OrchestrationBase):
         work = [t for t, w in dispatch_wave.items() if w == 1]
         review = [t for t, w in dispatch_wave.items() if w == 2]
         self.assertTrue(work and review, dispatch_wave)
+
+
+class TestMistralCorrectionBudget(OrchestrationBase):
+    def test_unverified_mistral_output_is_not_retried_as_correction(self) -> None:
+        provider = UnverifiedModelOnlyProvider()
+        orch = self.orchestrator(provider, correction_rounds=3)
+        plan = orch.plan(SIMPLE)
+
+        record = orch.run(SIMPLE, plan=plan)
+
+        self.assertEqual(provider.calls, len(plan.assignments))
+        self.assertEqual(record.verdict, "NEEDS_WORK")
+        events = [event["event"] for event in record.trace]
+        self.assertNotIn("correction_request", events)
+        skipped = [event for event in record.trace if event["event"] == "correction_skipped"]
+        self.assertEqual(len(skipped), len(plan.assignments))
+        self.assertTrue(all(item["reason"] == "independent_verification_required" for item in skipped))
 
 
 class TestFailureRecovery(OrchestrationBase):
