@@ -78,8 +78,11 @@ class TestSubprocessProvider(unittest.TestCase):
             command=[sys.executable, "-c", "import time;time.sleep(5)"], timeout=1
         )
         result = provider.execute(make_brief(), self.workdir)
-        self.assertEqual(result.status, "failed")
+        self.assertEqual(result.status, "effect_unknown")
+        self.assertTrue(result.executed)
         self.assertIn("timeout", result.error or "")
+        self.assertIn("completion=unknown", result.evidence)
+        self.assertIn("automatic_retry=blocked", result.evidence)
 
     def test_prompt_substitution_still_works_and_brief_file_is_removed(self) -> None:
         provider = SubprocessProvider(
