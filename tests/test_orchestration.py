@@ -136,6 +136,27 @@ class TestFailureRecovery(OrchestrationBase):
         self.assertEqual(record.verdict, "READY")
 
 
+    def test_provider_crash_after_start_is_not_retried_or_reassigned(self) -> None:
+        side_effects = []
+
+        def crash_after_side_effect(brief):
+            side_effects.append(brief.task_id)
+            raise RuntimeError("connection lost after write")
+
+        provider = ScriptedProvider(script={"omni-backend": crash_after_side_effect})
+        record = self.orchestrator(provider, retries=2, correction_rounds=2).run(SIMPLE)
+
+        task_results = [result for result in record.results if result.task_id == "t1-backend-api"]
+        self.assertEqual(len(side_effects), 1)
+        self.assertEqual(len(task_results), 1)
+        self.assertEqual(task_results[0].status, "effect_unknown")
+        self.assertFalse(task_results[0].executed)
+        self.assertEqual(record.verdict, "NEEDS_WORK")
+        events = [event["event"] for event in record.trace]
+        self.assertNotIn("retry", events)
+        self.assertNotIn("reassign", events)
+
+
 class TestUnknownExecutionOutcome(OrchestrationBase):
     def test_unknown_outcome_is_never_retried_reassigned_or_corrected(self) -> None:
         provider = ScriptedProvider(script={
