@@ -83,6 +83,8 @@ class SharedMemory:
         run_id: str,
         writable_shared: Optional[List[str]] = None,
     ) -> None:
+        if not isinstance(run_id, str) or not run_id or redact(run_id) != run_id:
+            raise ValueError("run_id must be a non-empty string without credential-like data")
         self.path = Path(path)
         self.run_id = run_id
         self.writable_shared = set(writable_shared or [])
