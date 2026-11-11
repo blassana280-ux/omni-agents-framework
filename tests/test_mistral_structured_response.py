@@ -183,6 +183,30 @@ class TestMistralStructuredResponse(unittest.TestCase):
         self.assertNotIn(secret, str(result.to_dict()))
         self.assertIn("HTTPS", result.error)
 
+    def test_non_mistral_https_host_is_rejected_before_sending_api_key(self):
+        secret = "test-secret-key-not-a-pattern"
+        provider = MistralProvider(
+            api_key=secret,
+            allow_paid=True,
+            endpoint="https://attacker.example/v1/chat/completions",
+        )
+        brief = Brief(
+            task_id="mistral-untrusted-host",
+            agent_id="omni-research",
+            specialty="research",
+            objective="Never send the API key to an untrusted host",
+            acceptance_criteria=[],
+            allowed_tools=[],
+            boundaries=[],
+        )
+        with mock.patch("omni.executor._open_no_redirect") as send:
+            result = provider.execute(brief)
+
+        send.assert_not_called()
+        self.assertEqual(result.status, "failed")
+        self.assertFalse(result.executed)
+        self.assertNotIn(secret, str(result.to_dict()))
+
     def test_endpoint_with_embedded_credentials_is_rejected(self):
         provider = MistralProvider(
             api_key="test-secret-key-not-a-pattern",
