@@ -5,9 +5,11 @@ from __future__ import annotations
 import json
 import os
 import unittest
+import urllib.error
+import urllib.request
 from unittest import mock
 
-from omni.executor import MistralProvider
+from omni.executor import MistralProvider, _NoRedirectHandler, _open_no_redirect
 from omni.models import Brief
 
 
@@ -26,6 +28,46 @@ class FakeResponse:
 
 
 class TestMistralStructuredResponse(unittest.TestCase):
+    def test_redirect_handler_rejects_redirects(self):
+        handler = _NoRedirectHandler()
+        request = urllib.request.Request(
+            "https://api.mistral.ai/v1/chat/completions",
+            data=b"{}",
+            headers={"Authorization": "Bearer synthetic-secret"},
+            method="POST",
+        )
+
+        with self.assertRaises(urllib.error.HTTPError) as raised:
+            handler.redirect_request(
+                request,
+                None,
+                302,
+                "Found",
+                {"Location": "https://attacker.example/collect"},
+                "https://attacker.example/collect",
+            )
+
+        self.assertEqual(raised.exception.code, 302)
+        self.assertEqual(raised.exception.filename, request.full_url)
+
+    def test_open_no_redirect_uses_the_blocking_handler(self):
+        request = urllib.request.Request(
+            "https://api.mistral.ai/v1/chat/completions",
+            data=b"{}",
+            headers={"Authorization": "Bearer synthetic-secret"},
+            method="POST",
+        )
+        fake_response = FakeResponse({})
+        opener = mock.Mock()
+        opener.open.return_value = fake_response
+
+        with mock.patch("urllib.request.build_opener", return_value=opener) as build:
+            response = _open_no_redirect(request, timeout=17)
+
+        self.assertIs(response, fake_response)
+        self.assertIsInstance(build.call_args.args[0], _NoRedirectHandler)
+        opener.open.assert_called_once_with(request, timeout=17)
+
     def test_structured_output_filters_criteria_and_redacts_exact_key(self):
         brief = Brief(
             task_id="mistral-test",
@@ -55,7 +97,7 @@ class TestMistralStructuredResponse(unittest.TestCase):
             "MISTRAL_API_KEY": secret,
             "OMNI_MISTRAL_ALLOW_PAID": "1",
         }, clear=True), mock.patch(
-            "urllib.request.urlopen", return_value=FakeResponse(payload)
+            "omni.executor._open_no_redirect", return_value=FakeResponse(payload)
         ) as send:
             provider = MistralProvider.from_env()
             result = provider.execute(brief)
@@ -105,7 +147,7 @@ class TestMistralStructuredResponse(unittest.TestCase):
             "MISTRAL_API_KEY": secret,
             "OMNI_MISTRAL_ALLOW_PAID": "1",
         }, clear=True), mock.patch(
-            "urllib.request.urlopen", return_value=FakeResponse(payload)
+            "omni.executor._open_no_redirect", return_value=FakeResponse(payload)
         ):
             result = MistralProvider.from_env().execute(brief)
 
@@ -132,7 +174,7 @@ class TestMistralStructuredResponse(unittest.TestCase):
             allowed_tools=[],
             boundaries=[],
         )
-        with mock.patch("urllib.request.urlopen") as send:
+        with mock.patch("omni.executor._open_no_redirect") as send:
             result = provider.execute(brief)
 
         send.assert_not_called()
@@ -156,7 +198,7 @@ class TestMistralStructuredResponse(unittest.TestCase):
             allowed_tools=[],
             boundaries=[],
         )
-        with mock.patch("urllib.request.urlopen") as send:
+        with mock.patch("omni.executor._open_no_redirect") as send:
             result = provider.execute(brief)
 
         send.assert_not_called()
@@ -190,7 +232,7 @@ class TestMistralStructuredResponse(unittest.TestCase):
             "MISTRAL_API_KEY": secret,
             "OMNI_MISTRAL_ALLOW_PAID": "1",
         }, clear=True), mock.patch(
-            "urllib.request.urlopen", return_value=FakeResponse(payload)
+            "omni.executor._open_no_redirect", return_value=FakeResponse(payload)
         ) as send:
             result = MistralProvider.from_env().execute(brief)
 
