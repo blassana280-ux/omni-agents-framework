@@ -323,6 +323,23 @@ class TestTraceability(OrchestrationBase):
         self.assertEqual(entry["owner"], "omnibrain")
         self.assertEqual(entry["value"]["verdict"], record.verdict)
 
+    def test_deliverable_redacts_request_and_provider_fields(self) -> None:
+        orch = self.orchestrator(ScriptedProvider())
+        record = orch.run(SIMPLE)
+        result = next(iter(record.by_task().values()))
+        github_secret = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234"
+        api_secret = "api_key=super-secret-value"
+        record.request = f"request included {github_secret}"
+        result.summary = github_secret
+        result.evidence = [api_secret]
+        result.artifacts = [f"artifact:{github_secret}"]
+        result.error = f"provider failed with token={github_secret}"
+
+        document = orch.deliverable(record)
+        for secret in (github_secret, api_secret):
+            self.assertNotIn(secret, document)
+        self.assertIn("[REDACTED]", document)
+
     def test_deliverable_is_one_coherent_document(self) -> None:
         orch = self.orchestrator(ScriptedProvider())
         record = orch.run(COMPLEX)
