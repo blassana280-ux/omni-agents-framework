@@ -83,7 +83,12 @@ class SharedMemory:
         run_id: str,
         writable_shared: Optional[List[str]] = None,
     ) -> None:
-        if not isinstance(run_id, str) or not run_id or redact(run_id) != run_id:
+        if (
+            not isinstance(run_id, str)
+            or not run_id
+            or "::" in run_id
+            or redact(run_id) != run_id
+        ):
             raise ValueError("run_id must be a non-empty string without credential-like data")
         self.path = Path(path)
         self.run_id = run_id
@@ -102,8 +107,30 @@ class SharedMemory:
                 os.chmod(self.path, 0o600)
             data = self._load()  # validate existing state before accepting writes
             sanitized = redact(data)
+            migrated_entries: Dict[str, Any] = {}
+            for old_key, entry in sanitized["entries"].items():
+                scope, separator, legacy_key = old_key.partition("::")
+                if not separator:
+                    raise MemoryCorruptionError("memory entry key is missing its scope separator")
+                if scope == "shared":
+                    new_key = old_key
+                else:
+                    parts = old_key.split("::", 2)
+                    already_isolated = (
+                        len(parts) == 3 and parts[1] == entry["run_id"]
+                    )
+                    new_key = (
+                        old_key
+                        if already_isolated
+                        else self._key(scope, legacy_key, entry["run_id"])
+                    )
+                if new_key in migrated_entries and migrated_entries[new_key] != entry:
+                    raise MemoryCorruptionError("memory key migration collision")
+                migrated_entries[new_key] = entry
+
+            sanitized["entries"] = migrated_entries
             if sanitized != data:
-                self._store(sanitized)  # migrate legacy entries under the same lock
+                self._store(sanitized)  # redact and isolate legacy entries under the same lock
 
     @contextmanager
     def _exclusive_lock(self) -> Iterator[None]:
@@ -233,8 +260,12 @@ class SharedMemory:
                 pass
 
     @staticmethod
-    def _key(scope: str, key: str) -> str:
-        return f"{scope}::{key}"
+    def _key(scope: str, key: str, run_id: str) -> str:
+        # Shared memory is deliberately global; every other scope belongs to
+        # exactly one run so a persistent store cannot leak values cross-run.
+        if scope == "shared":
+            return f"shared::{key}"
+        return f"{scope}::{run_id}::{key}"
 
     @staticmethod
     def _validate_address(scope: str, key: str, owner: str) -> None:
@@ -265,7 +296,7 @@ class SharedMemory:
         ):
             raise ValueError("ttl_s must be a positive integer or None")
 
-        full_key = self._key(scope, key)
+        full_key = self._key(scope, key, self.run_id)
         now = time.time()
         entry = {
             "value": redact(value),
@@ -282,8 +313,10 @@ class SharedMemory:
 
     # ----------------------------------------------------------------- read
     def get(self, scope: str, key: str) -> Optional[Any]:
-        entry = self._load()["entries"].get(self._key(scope, key))
+        entry = self._load()["entries"].get(self._key(scope, key, self.run_id))
         if not entry:
+            return None
+        if scope != "shared" and entry.get("run_id") != self.run_id:
             return None
         expires_at = entry.get("expires_at")
         if expires_at is not None and expires_at < time.time():
@@ -294,7 +327,16 @@ class SharedMemory:
         hits = []
         now = time.time()
         for full_key, entry in self._load()["entries"].items():
-            if scope and not full_key.startswith(f"{scope}::"):
+            is_shared = full_key.startswith("shared::")
+            if scope:
+                prefix = (
+                    f"{scope}::"
+                    if scope == "shared"
+                    else f"{scope}::{self.run_id}::"
+                )
+                if not full_key.startswith(prefix):
+                    continue
+            elif not is_shared and entry.get("run_id") != self.run_id:
                 continue
             expires_at = entry.get("expires_at")
             if expires_at is not None and expires_at < now:
