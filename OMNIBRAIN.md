@@ -116,6 +116,13 @@ humaine explicite, même pour un agent autorisé.
   écriture en `shared` réservée aux agents explicitement autorisés ; TTL
   optionnel ; toute valeur est **rédigée** (clés API, tokens, clés privées)
   avant persistance.
+- Les clés des portées autres que `shared` incluent l'identifiant du run :
+  `scope::run_id::key`. Un run ne peut donc ni lire, ni rechercher, ni écraser
+  les entrées privées d'un autre run. La portée `shared` reste globale et
+  accessible selon les permissions explicites.
+- À l'ouverture, les anciennes clés non partagées sont migrées sous le
+  `run_id` enregistré dans chaque entrée, sous verrou ; une collision rend
+  l'ouverture impossible plutôt que d'écraser silencieusement des données.
 - Chaque modification est protégée par un verrou de fichier inter-processus et
   un verrou de thread, puis écrite par remplacement atomique avec `fsync`.
   Le fichier mémoire et son verrou reçoivent des permissions POSIX `0600`.
