@@ -42,7 +42,7 @@ function keyPath(rootDir, name, createDirectory = false) {
 }
 
 function storeProviderKey(rootDir, name, key) {
-  if (typeof key !== 'string' || !key || /\\s/.test(key)) {
+  if (typeof key !== 'string' || !key || /\s/.test(key)) {
     throw new Error('API key must be non-empty and contain no whitespace');
   }
   const target = keyPath(rootDir, name, true);
@@ -53,7 +53,7 @@ function storeProviderKey(rootDir, name, key) {
     const info = fs.fstatSync(fd);
     if (!info.isFile()) throw new Error('secret target must be a regular file');
     if (process.platform !== 'win32') fs.fchmodSync(fd, 0o600);
-    fs.writeFileSync(fd, key + '\\n', { encoding: 'utf8' });
+    fs.writeFileSync(fd, key + '\n', { encoding: 'utf8' });
     fs.fsyncSync(fd);
   } finally {
     if (fd !== undefined) fs.closeSync(fd);
