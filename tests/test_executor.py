@@ -223,7 +223,7 @@ class TestMistralProvider(unittest.TestCase):
             os.environ,
             {"OMNI_PROVIDER": "mistral", "MISTRAL_API_KEY": "test-secret"},
             clear=True,
-        ), mock.patch("urllib.request.urlopen") as urlopen:
+        ), mock.patch("omni.executor._open_no_redirect") as urlopen:
             provider, _ = provider_from_env()
             self.assertEqual(provider.name, "mistral")
             self.assertTrue(provider.available()[0])
@@ -258,7 +258,7 @@ class TestMistralProvider(unittest.TestCase):
                 "OMNI_MISTRAL_ALLOW_PAID": "1",
             },
             clear=True,
-        ), mock.patch("urllib.request.urlopen", return_value=response) as urlopen:
+        ), mock.patch("omni.executor._open_no_redirect", return_value=response) as urlopen:
             provider, _ = provider_from_env()
             result = provider.execute(make_brief())
 
@@ -312,7 +312,7 @@ class TestMistralProvider(unittest.TestCase):
             os.environ,
             {"MISTRAL_API_KEY": "test-secret"},
             clear=True,
-        ), mock.patch("urllib.request.urlopen") as urlopen, contextlib.redirect_stdout(output):
+        ), mock.patch("omni.executor._open_no_redirect") as urlopen, contextlib.redirect_stdout(output):
             code = main(["providers", "--verify", "mistral"])
         self.assertEqual(code, 0)
         self.assertIn("network request: not sent", output.getvalue())
