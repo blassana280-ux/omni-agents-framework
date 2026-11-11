@@ -165,6 +165,20 @@ class PersistenceRedactionTests(unittest.TestCase):
         self.assertEqual(event["summary"], "[REDACTED]")
         self.assertEqual(event["nested"]["api_key"], "[REDACTED]")
 
+    def test_trace_redacts_custom_stringified_values(self) -> None:
+        class SecretValue:
+            def __str__(self) -> str:
+                return "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234"
+
+        path = self.root / "custom-value.jsonl"
+        trace = Trace("run-custom-value", path)
+        event = trace.emit("custom_value", payload=SecretValue())
+
+        stored = path.read_text(encoding="utf-8")
+        self.assertEqual(event["payload"], "[REDACTED]")
+        self.assertNotIn("ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234", stored)
+        self.assertNotIn("ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234", json.dumps(trace.events))
+
     def test_validation_gate_checks_all_result_surfaces(self) -> None:
         secret = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234"
         surfaces = {
