@@ -134,6 +134,15 @@ humaine explicite, même pour un agent autorisé.
 - **État de run** (`omni/orchestrator.py`) : le snapshot JSON complet est
   rédigé, écrit dans un fichier temporaire privé, synchronisé puis remplacé
   atomiquement.
+- **Exécution provider** (`omni/executor.py`) : chaque brief fichier est
+  créé avec un nom aléatoire dans le workspace, en permissions POSIX `0600`,
+  puis supprimé dans un bloc `finally` après la fin ou l'échec du processus.
+  Les sorties stdout/stderr et erreurs sont rédigées avant d'être retournées.
+- **Ingestion provider** (`omni/models.py`) : même un provider personnalisé
+  passe par une rédaction centrale des résumés, preuves, artefacts, claims et
+  erreurs avant d'entrer dans le résultat du run.
+- **Livrable final** : le document assemblé est rédigé une dernière fois avant
+  d'être retourné ou affiché.
 - Le gate `secrets` inspecte la demande, les résultats complets (preuves,
   claims, erreurs, résumés, artefacts) et les événements de trace ; il bloque
   tout contenu ressemblant à un identifiant secret.
