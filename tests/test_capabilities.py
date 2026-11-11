@@ -271,6 +271,12 @@ class TestResultsLedger(unittest.TestCase):
         stored = self.ledger.history("litellm-routing")[0]["summary"]
         self.assertNotIn("ghp_", stored)
 
+    def test_ledger_redacts_secret_patterns_from_capability_identifier(self) -> None:
+        secret_id = "ghp_0123456789ABCDEF0123456789ABCDEF0123"
+        entry = self.ledger.record(secret_id, "error", "redacted")
+        self.assertNotIn(secret_id, entry["capability"])
+        self.assertEqual(entry["capability"], "[REDACTED]")
+
     def test_ledger_redacts_generic_credentials_and_bearer_tokens(self) -> None:
         secret_values = [
             "api_key=provider-secret-value",
