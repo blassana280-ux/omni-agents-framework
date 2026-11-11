@@ -15,6 +15,7 @@ on:
       - "tests/**"
       - "registry/**"
       - ".github/workflows/omnibrain-ci.yml"
+      - ".github/workflows/omnibrain-mistral-secret-verify.yml"
 
 permissions:
   contents: read
