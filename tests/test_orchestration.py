@@ -166,6 +166,34 @@ class TestUnknownExecutionOutcome(OrchestrationBase):
         self.assertFalse(completeness.passed)
 
 
+class TestMistralRetryPolicy(OrchestrationBase):
+    def test_mistral_results_are_never_retried_reassigned_or_corrected(self) -> None:
+        for status in ("failed", "incomplete", "pending_human", "effect_unknown"):
+            with self.subTest(status=status):
+                provider = ScriptedProvider(script={
+                    "omni-backend": [
+                        ProviderResult(
+                            status=status,
+                            summary=f"Mistral returned {status}",
+                            evidence=["mistral_provider=true"],
+                            executed=status in ("incomplete", "effect_unknown"),
+                            provider="mistral",
+                            error="test outcome",
+                        )
+                    ]
+                })
+                record = self.orchestrator(
+                    provider, retries=2, correction_rounds=2
+                ).run(SIMPLE)
+
+                self.assertEqual(len(provider.calls), 1)
+                events = [event["event"] for event in record.trace]
+                self.assertNotIn("retry", events)
+                self.assertNotIn("reassign", events)
+                self.assertFalse(record.corrections)
+                self.assertEqual(record.by_task()["t1-backend-api"].status, status)
+
+
 class TestArbitration(OrchestrationBase):
     """Scenario 6 — contradictory results are arbitrated, or flagged."""
 
