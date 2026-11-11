@@ -51,13 +51,19 @@ class TestPolicy(unittest.TestCase):
         self.assertFalse(decision.allowed)
 
     def test_path_rule_denies_normalized_git_paths(self) -> None:
-        for resource in (".git", ".git/config", "./.git/config", ".GIT/config"):
+        for resource in (
+            ".git", ".git/config", "./.git/config", ".GIT/config",
+            "vendor/.git/config",
+        ):
             with self.subTest(resource=resource):
                 decision = self.policy.check("omni-backend", "write_file", resource=resource)
                 self.assertFalse(decision.allowed, resource)
 
     def test_path_rule_rejects_traversal_and_ambiguous_paths(self) -> None:
-        for resource in ("folder/../.git/config", "../.env", r".\\.git\\config", "/.git/config", "C:/.git/config"):
+        for resource in (
+            "folder/../.git/config", "../.env", r".\\.git\\config",
+            "/.git/config", "C:/.git/config", "config/.env", "config/.env.production",
+        ):
             with self.subTest(resource=resource):
                 decision = self.policy.check("omni-backend", "write_file", resource=resource)
                 self.assertFalse(decision.allowed, resource)
