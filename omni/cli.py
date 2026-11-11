@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from .audit import audit_account
-from .executor import detect_clis, provider_from_env
+from .executor import MistralProvider, detect_clis, provider_from_env
 from .gitops import GitOpsError, probe_branch_protection
 from .overlays import apply as apply_overlay, plan as plan_overlays, write_manifest
 from .orchestrator import Orchestrator
@@ -65,7 +65,16 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 0 if record.verdict == "READY" else 1
 
 
-def cmd_providers(_: argparse.Namespace) -> int:
+def cmd_providers(args: argparse.Namespace) -> int:
+    if getattr(args, "verify", None) == "mistral":
+        provider = MistralProvider.from_env()
+        ready, detail = provider.available()
+        print(f"Mistral configuration: {'ready' if ready else 'not ready'}")
+        print(f"  detail: {detail}")
+        print("  network request: not sent")
+        print(f"  paid inference: {'enabled' if provider.allow_paid else 'locked'}")
+        return 0 if ready else 1
+
     provider, detail = provider_from_env()
     print(f"configured provider: {provider.name}")
     print(f"  detail: {detail}")
@@ -73,8 +82,8 @@ def cmd_providers(_: argparse.Namespace) -> int:
     for probe in detect_clis():
         mark = "yes" if probe["available"] else "no "
         print(f"  [{mark}] {probe['command']:<14} {probe['label']:<22} {probe['path'] or '-'}")
-    print("\nSet OMNI_PROVIDER_CMD to enable real execution, e.g.:")
-    print("  export OMNI_PROVIDER_CMD='claude -p {prompt}'")
+    print("\nSet OMNI_PROVIDER_CMD to enable local CLI execution, or OMNI_PROVIDER=mistral for the native API.")
+    print("Mistral inference remains locked unless OMNI_MISTRAL_ALLOW_PAID=1 is explicitly set.")
     return 0
 
 
@@ -191,6 +200,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     run.set_defaults(func=cmd_run)
 
     prov = sub.add_parser("providers", help="show what can really execute briefs")
+    prov.add_argument("--verify", choices=["mistral"], help="check local Mistral configuration without sending a request")
     prov.set_defaults(func=cmd_providers)
 
     reg = sub.add_parser("registry", help="validate the registries")

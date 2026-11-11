@@ -93,3 +93,15 @@ Commande d'application dès que l'accès en écriture est accordé :
 python3 -m omni overlays --account blassana280-ux            # plan (lecture seule)
 python3 -m omni overlays --account blassana280-ux --apply    # 1 branche + 1 PR par dépôt
 ```
+
+
+## 6. Provider Mistral
+
+- **Code** : `MistralProvider` natif, API officielle Chat Completions, sans SDK tiers.
+- **Activation** : `OMNI_PROVIDER=mistral` ; aucun choix implicite.
+- **Coût** : verrouillé par défaut. L'environnement doit explicitement définir `OMNI_MISTRAL_ALLOW_PAID=1` pour autoriser l'inférence facturable sur le run concerné.
+- **Secret** : `MISTRAL_API_KEY_FILE` privé prioritaire ; variable `MISTRAL_API_KEY` possible uniquement via un secret d'environnement protégé. Pas de secret versionné.
+- **Vérification** : `python3 -m omni providers --verify mistral` ne fait qu'une vérification locale, sans réseau.
+- **Réponse** : JSON structuré ; preuves, critères, claims et artefacts du modèle conservés comme déclarations non vérifiées ; `met_criteria` et artefacts effectifs vides ; statut `incomplete` ; secret exact et motifs connus rédigés ; modèle, identifiant de requête et tokens suivis ; aucun retry HTTP.
+- **Limite** : un run Mistral seul ne peut pas obtenir `READY`. Une validation indépendante ou humaine doit attester le travail. Le provider n'exécute pas de commandes, n'utilise pas GitHub et ne navigue pas sans adaptateur d'outils réel.
+- **Tests** : tous les appels réseau sont mockés en CI ; aucune clé ni inférence payante n'est nécessaire.
