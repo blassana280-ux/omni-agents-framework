@@ -20,11 +20,13 @@ import os
 import shlex
 import shutil
 import subprocess
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Protocol, Sequence, Tuple
 
+from .memory import redact
 from .models import Brief, ProviderResult
 
 # Local agent CLIs the network knows how to detect. Detection is a PATH lookup
@@ -79,49 +81,90 @@ class SubprocessProvider:
                 status="failed",
                 executed=False,
                 provider=self.name,
-                error=detail,
+                error=redact(detail),
             )
 
         workdir = Path(workdir or Path.cwd())
-        brief_file = workdir / f".omni-brief-{brief.task_id}.md"
-        brief_file.write_text(brief.to_text(), encoding="utf-8")
-        prompt = brief.to_text()
-        argv = [str(part).replace("{prompt}", prompt).replace("{brief_file}", str(brief_file)) for part in self.command]
-
+        workdir.mkdir(parents=True, exist_ok=True)
+        safe_brief = redact(brief.to_text())
+        fd, brief_path = tempfile.mkstemp(
+            prefix=".omni-brief-",
+            suffix=".md",
+            dir=str(workdir),
+        )
+        brief_file = Path(brief_path)
+        open_fd: Optional[int] = fd
         started = time.time()
         try:
-            proc = subprocess.run(
-                argv,
-                cwd=str(workdir),
-                capture_output=True,
-                text=True,
-                timeout=self.timeout,
-            )
-        except subprocess.TimeoutExpired as exc:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                open_fd = None
+                if os.name != "nt":
+                    os.fchmod(fh.fileno(), 0o600)
+                fh.write(safe_brief)
+                fh.flush()
+
+            prompt = safe_brief
+            argv = [
+                str(part).replace("{prompt}", prompt).replace("{brief_file}", str(brief_file))
+                for part in self.command
+            ]
+
+            try:
+                proc = subprocess.run(
+                    argv,
+                    cwd=str(workdir),
+                    capture_output=True,
+                    text=True,
+                    timeout=self.timeout,
+                )
+            except subprocess.TimeoutExpired as exc:
+                stdout = exc.stdout or ""
+                stderr = exc.stderr or ""
+                if isinstance(stdout, bytes):
+                    stdout = stdout.decode("utf-8", errors="replace")
+                if isinstance(stderr, bytes):
+                    stderr = stderr.decode("utf-8", errors="replace")
+                stdout = redact(stdout.strip())
+                stderr = redact(stderr.strip())
+                return ProviderResult(
+                    status="failed",
+                    executed=False,
+                    provider=self.name,
+                    error=redact(f"timeout after {self.timeout}s"),
+                    summary=stdout[:4000],
+                    stdout=stdout,
+                    stderr=stderr,
+                    duration_s=time.time() - started,
+                )
+            except OSError as exc:
+                return ProviderResult(
+                    status="failed",
+                    executed=False,
+                    provider=self.name,
+                    error=redact(str(exc)),
+                    duration_s=time.time() - started,
+                )
+
+            out = redact((proc.stdout or "").strip())
+            err = redact((proc.stderr or "").strip())
             return ProviderResult(
-                status="failed",
-                executed=False,
+                status="ok" if proc.returncode == 0 else "failed",
+                summary=out[:4000],
+                evidence=[f"exit_code={proc.returncode}", f"stdout_chars={len(out)}"],
+                executed=True,
                 provider=self.name,
-                error=f"timeout after {self.timeout}s",
-                stdout=(exc.stdout or b"").decode() if isinstance(exc.stdout, bytes) else (exc.stdout or ""),
+                error=None if proc.returncode == 0 else redact(f"exit {proc.returncode}: {err[:800]}".strip()),
+                stdout=out,
+                stderr=err,
                 duration_s=time.time() - started,
             )
-        except OSError as exc:
-            return ProviderResult(status="failed", executed=False, provider=self.name, error=str(exc))
-
-        out = (proc.stdout or "").strip()
-        err = (proc.stderr or "").strip()
-        return ProviderResult(
-            status="ok" if proc.returncode == 0 else "failed",
-            summary=out[:4000],
-            evidence=[f"exit_code={proc.returncode}", f"stdout_chars={len(out)}"],
-            executed=True,
-            provider=self.name,
-            error=None if proc.returncode == 0 else f"exit {proc.returncode}: {err[:800]}".strip(),
-            stdout=out,
-            stderr=err,
-            duration_s=time.time() - started,
-        )
+        finally:
+            if open_fd is not None:
+                os.close(open_fd)
+            try:
+                brief_file.unlink()
+            except FileNotFoundError:
+                pass
 
 
 @dataclass
