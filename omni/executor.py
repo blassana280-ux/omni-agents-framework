@@ -127,11 +127,12 @@ class SubprocessProvider:
                 stdout = redact(stdout.strip())
                 stderr = redact(stderr.strip())
                 return ProviderResult(
-                    status="failed",
-                    executed=False,
+                    status="effect_unknown",
+                    executed=True,
                     provider=self.name,
-                    error=redact(f"timeout after {self.timeout}s"),
+                    error=redact(f"timeout after {self.timeout}s; execution may have produced side effects"),
                     summary=stdout[:4000],
+                    evidence=["execution_started=true", "completion=unknown", "automatic_retry=blocked"],
                     stdout=stdout,
                     stderr=stderr,
                     duration_s=time.time() - started,
