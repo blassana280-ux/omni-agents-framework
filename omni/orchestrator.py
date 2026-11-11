@@ -506,4 +506,4 @@ class Orchestrator:
             lines.append("")
         lines.append("## Gates")
         lines += [f"- {f.gate}: {'PASS' if f.passed else 'FAIL'} — {f.detail}" for f in record.findings]
-        return "\n".join(lines)
+        return redact("\n".join(lines))
