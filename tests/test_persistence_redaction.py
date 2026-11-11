@@ -249,7 +249,7 @@ class PersistenceRedactionTests(unittest.TestCase):
         stored_memory = memory_path.read_text(encoding="utf-8")
         self.assertNotIn(secret, stored_memory)
         self.assertEqual(
-            json.loads(stored_memory)["entries"]["run::nested"]["value"]["items"],
+            json.loads(stored_memory)["entries"]["run::run-tuple::nested"]["value"]["items"],
             ["[REDACTED]"],
         )
 
@@ -270,6 +270,31 @@ class PersistenceRedactionTests(unittest.TestCase):
         trace.emit("tuple_test", items=(secret,))
         self.assertNotIn(secret, trace_path.read_text(encoding="utf-8"))
 
+
+    def test_run_scope_isolated_between_shared_memory_instances(self) -> None:
+        path = self.root / "shared-memory-runs.json"
+        first = SharedMemory(path, "run-one", writable_shared=["omnibrain"])
+        second = SharedMemory(path, "run-two", writable_shared=["omnibrain"])
+
+        first.write("run", "private", {"marker": "first-run-only"}, owner="omni-backend")
+        self.assertIsNone(second.get("run", "private"))
+        self.assertEqual(second.search("first-run-only"), [])
+        self.assertEqual(second.search("first-run-only", scope="run"), [])
+
+        second.write("run", "private", {"marker": "second-run-only"}, owner="omni-backend")
+        self.assertEqual(first.get("run", "private"), {"marker": "first-run-only"})
+        self.assertEqual(second.get("run", "private"), {"marker": "second-run-only"})
+        self.assertEqual(first.search("first-run-only", scope="run")[0]["run_id"], "run-one")
+        self.assertEqual(second.search("second-run-only", scope="run")[0]["run_id"], "run-two")
+
+    def test_shared_scope_remains_visible_across_runs(self) -> None:
+        path = self.root / "shared-memory-global.json"
+        first = SharedMemory(path, "run-one", writable_shared=["omnibrain"])
+        second = SharedMemory(path, "run-two", writable_shared=["omnibrain"])
+
+        first.write("shared", "project-context", {"marker": "shared-context"}, owner="omnibrain")
+        self.assertEqual(second.get("shared", "project-context"), {"marker": "shared-context"})
+        self.assertEqual(second.search("shared-context", scope="shared")[0]["run_id"], "run-one")
 
     def test_existing_memory_is_redacted_when_opened(self) -> None:
         secret_key = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234"
