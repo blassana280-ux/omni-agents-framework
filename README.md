@@ -88,9 +88,19 @@ python3 -m omni providers                       # verify the CLI is actually fou
 python3 -m omni run "…"                         # now executed=True
 ```
 
-`{prompt}` and `{brief_file}` are substituted with the agent's brief. The exit
-code decides success; stdout/stderr are captured as evidence. Credentials stay
-in your environment — never in this repository.
+`{prompt}` and `{brief_file}` are substituted with the agent's brief.
+Prefer `{brief_file}`: the randomly named temporary brief is created with
+private POSIX permissions (`0600`) and removed after the provider exits,
+including timeout/error paths. Do not rely on that file as a persistent
+artifact. `{prompt}` passes the complete brief in the child process argument
+list, which may be visible to local process-inspection tools; use the file
+placeholder when that exposure is undesirable.
+
+Provider stdout/stderr and error strings are redacted before they are returned.
+Custom providers are redacted again at result ingestion, and the final assembled
+deliverable is redacted before display. These controls are heuristic secret
+pattern checks, not a substitute for keeping credentials out of prompts and
+provider output. Credentials stay in your environment — never in this repository.
 
 ## Layout
 
