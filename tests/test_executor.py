@@ -149,6 +149,35 @@ class TestSubprocessProvider(unittest.TestCase):
         self.assertIn("[REDACTED]", str(result.claims))
 
 
+    def test_secrets_are_redacted_before_brief_reaches_subprocess(self) -> None:
+        secret = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234"
+        brief = make_brief()
+        brief.objective = f"Review this supplied context: {secret}"
+
+        cases = [
+            (
+                "prompt",
+                "import sys; print(sys.argv[1])",
+                "{prompt}",
+            ),
+            (
+                "brief_file",
+                "import pathlib,sys; print(pathlib.Path(sys.argv[1]).read_text())",
+                "{brief_file}",
+            ),
+        ]
+        for label, code, placeholder in cases:
+            with self.subTest(transport=label):
+                provider = SubprocessProvider(
+                    command=[sys.executable, "-c", code, placeholder]
+                )
+                result = provider.execute(brief, self.workdir)
+                self.assertEqual(result.status, "ok")
+                self.assertNotIn(secret, result.stdout)
+                self.assertIn("[REDACTED]", result.stdout)
+                self.assertEqual(list(self.workdir.glob(".omni-brief-*")), [])
+
+
 class TestProviderDetection(unittest.TestCase):
     def test_manual_provider_never_claims_execution(self) -> None:
         result = ManualProvider().execute(make_brief())
