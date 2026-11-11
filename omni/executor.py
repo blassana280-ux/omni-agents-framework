@@ -288,7 +288,9 @@ class MistralProvider:
             endpoint = urlsplit(self.endpoint)
             endpoint_is_safe = (
                 endpoint.scheme == "https"
-                and bool(endpoint.hostname)
+                and endpoint.hostname == "api.mistral.ai"
+                and endpoint.netloc.lower() in {"api.mistral.ai", "api.mistral.ai:443"}
+                and endpoint.path == "/v1/chat/completions"
                 and endpoint.username is None
                 and endpoint.password is None
                 and not endpoint.query
@@ -301,7 +303,7 @@ class MistralProvider:
                 status="failed",
                 executed=False,
                 provider=self.name,
-                error="Mistral endpoint must be HTTPS and contain no embedded credentials, query, or fragment",
+                error="Mistral endpoint must use HTTPS and the official api.mistral.ai chat-completions path, without embedded credentials, query, or fragment",
                 duration_s=time.time() - started,
             )
 
