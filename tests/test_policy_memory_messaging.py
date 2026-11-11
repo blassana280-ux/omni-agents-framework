@@ -50,6 +50,23 @@ class TestPolicy(unittest.TestCase):
         decision = self.policy.check("omni-backend", "write_file", resource=".env")
         self.assertFalse(decision.allowed)
 
+    def test_path_rule_denies_normalized_git_paths(self) -> None:
+        for resource in (".git", ".git/config", "./.git/config", ".GIT/config"):
+            with self.subTest(resource=resource):
+                decision = self.policy.check("omni-backend", "write_file", resource=resource)
+                self.assertFalse(decision.allowed, resource)
+
+    def test_path_rule_rejects_traversal_and_ambiguous_paths(self) -> None:
+        for resource in ("folder/../.git/config", "../.env", r".\\.git\\config", "/.git/config", "C:/.git/config"):
+            with self.subTest(resource=resource):
+                decision = self.policy.check("omni-backend", "write_file", resource=resource)
+                self.assertFalse(decision.allowed, resource)
+
+    def test_path_rule_allows_unrelated_relative_paths(self) -> None:
+        self.assertTrue(
+            self.policy.check("omni-backend", "write_file", resource="src/api/routes.py").allowed
+        )
+
 
 class TestSharedMemory(unittest.TestCase):
     def setUp(self) -> None:
