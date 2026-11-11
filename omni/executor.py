@@ -357,18 +357,28 @@ class MistralProvider:
                     count = usage.get(key_name)
                     if isinstance(count, int) and not isinstance(count, bool):
                         proof.append(f"{key_name}={count}")
-            proof.extend(evidence)
+            # The model's evidence, criteria, claims, and artifacts are self-reports.
+            # Preserve them for inspection, but never let them satisfy OmniBrain's
+            # deterministic completion/evidence gates or imply that tools ran.
+            proof.append("provider_response_received=true")
+            proof.append("verification=unverified_model_output")
             clean = lambda value: self._clean(value, key)
-            allowed = set(brief.acceptance_criteria)
             clean_summary = clean(summary.strip())
             clean_content = clean(content)
+            unverified_claims = {
+                "verification": "unverified_model_output",
+                "model_claims": claims,
+                "model_evidence": evidence,
+                "model_reported_criteria": met,
+                "model_reported_artifacts": artifacts,
+            }
             return ProviderResult(
-                status="ok",
+                status="incomplete",
                 summary=clean_summary[:4000],
                 evidence=clean(proof),
-                artifacts=clean(artifacts),
-                met_criteria=clean([item for item in met if item in allowed]),
-                claims=clean(claims),
+                artifacts=[],
+                met_criteria=[],
+                claims=clean(unverified_claims),
                 executed=True,
                 provider=self.name,
                 stdout=clean_content,
