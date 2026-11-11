@@ -38,6 +38,10 @@ SECRET_PATTERNS: Dict[str, "re.Pattern[str]"] = {
     "slack-token": re.compile(r"xox[baprs]-[A-Za-z0-9-]{10,}"),
     "aws-key": re.compile(r"AKIA[0-9A-Z]{16}"),
     "private-key": re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+    "generic-credential": re.compile(
+        r"""(?i)\\b[A-Z0-9_]*(?:API[_-]?KEY|ACCESS[_-]?TOKEN|REFRESH[_-]?TOKEN|CLIENT[_-]?SECRET|SECRET|PASSWORD|AUTHORIZATION|PRIVATE[_-]?KEY)\\b\\s*[:=]\\s*(?:"[^"]*"|'[^']*'|[^\\s,;]+)"""
+    ),
+    "bearer-token": re.compile(r"(?i)\\bBearer\\s+[A-Za-z0-9._~+/=-]{8,}"),
 }
 
 
@@ -191,15 +195,34 @@ class CapabilityRegistry:
                 hits.append(cap)
         return hits
 
+    @staticmethod
+    def _safe_entry_path(path: str) -> bool:
+        """Only allow unambiguous repository-relative POSIX paths."""
+        if (
+            not isinstance(path, str)
+            or not path
+            or "\\x00" in path
+            or "\\\\" in path
+            or path.startswith("/")
+            or re.match(r"^[A-Za-z]:", path)
+        ):
+            return False
+        parts = path.split("/")
+        if parts[-1] == "":
+            parts = parts[:-1]  # directory entry points may end with one slash
+        return bool(parts) and all(part not in ("", ".", "..") for part in parts)
+
     def entry_paths(self, cap_id: str) -> List[Dict[str, str]]:
         """Directives de chargement paresseux : quoi lire, dans quel dépôt, pourquoi."""
         cap = self.capabilities.get(cap_id)
         if cap is None:
             raise CapabilityError(f"unknown capability: {cap_id}")
-        return [
-            {"repo": cap.repo_ref(), "path": ep.path, "purpose": ep.purpose}
-            for ep in cap.entry_points
-        ]
+        directives: List[Dict[str, str]] = []
+        for ep in cap.entry_points:
+            if not self._safe_entry_path(ep.path):
+                raise CapabilityError(f"unsafe entry point path for '{cap_id}': {ep.path!r}")
+            directives.append({"repo": cap.repo_ref(), "path": ep.path, "purpose": ep.purpose})
+        return directives
 
     def suggest_agents(self, cap_id: str, registry: Any) -> List[str]:
         """Routage : agents de l'orchestrateur couvrant les spécialités de la capacité."""
@@ -260,6 +283,11 @@ class CapabilityRegistry:
                 problems.append(f"{where}: unknown domain '{cap.domain}'")
             if not cap.entry_points:
                 problems.append(f"{where}: no entry_points (lazy loading impossible)")
+            for entry_point in cap.entry_points:
+                if not self._safe_entry_path(entry_point.path):
+                    problems.append(
+                        f"{where}: unsafe entry point path {entry_point.path!r}"
+                    )
             if not cap.specialties:
                 problems.append(f"{where}: no routing specialties")
             if cap.upstream:
