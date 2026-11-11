@@ -157,4 +157,4 @@ if (require.main === module) {
     if (!GATEWAY_KEY && HOST !== '127.0.0.1') console.warn('⚠ Pas de gatewayKey et écoute hors localhost : toute personne sur le réseau peut appeler l\'API.');
   });
 }
-module.exports = { server, chatCompletions, stats, resolveApiKey };
+module.exports = { server, chatCompletions, callProvider, stats, resolveApiKey };
