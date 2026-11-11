@@ -37,6 +37,25 @@ from typing import Dict, List, Optional, Protocol, Sequence, Tuple
 from .memory import redact
 from .models import Brief, ProviderResult
 
+
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Refuse redirects so bearer credentials cannot be forwarded to another host."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise urllib.error.HTTPError(
+            req.full_url,
+            code,
+            "redirects are disabled for credential-bearing API requests",
+            headers,
+            fp,
+        )
+
+
+def _open_no_redirect(request: urllib.request.Request, timeout: int):
+    """Open an API request without following HTTP redirects."""
+    opener = urllib.request.build_opener(_NoRedirectHandler())
+    return opener.open(request, timeout=timeout)
+
 # Local agent CLIs the network knows how to detect. Detection is a PATH lookup
 # only: presence on PATH is reported, absence is reported as unavailable.
 KNOWN_CLIS: Dict[str, str] = {
@@ -335,7 +354,7 @@ class MistralProvider:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+            with _open_no_redirect(request, timeout=self.timeout) as response:
                 raw = response.read(2 * 1024 * 1024 + 1)
             if len(raw) > 2 * 1024 * 1024:
                 raise ValueError("Mistral response exceeded 2 MiB")
