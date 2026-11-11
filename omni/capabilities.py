@@ -38,10 +38,10 @@ SECRET_PATTERNS: Dict[str, "re.Pattern[str]"] = {
     "slack-token": re.compile(r"xox[baprs]-[A-Za-z0-9-]{10,}"),
     "aws-key": re.compile(r"AKIA[0-9A-Z]{16}"),
     "private-key": re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
-    "generic-credential": re.compile(
-        r"""(?i)\b[A-Z0-9_]*(?:API[_-]?KEY|ACCESS[_-]?TOKEN|REFRESH[_-]?TOKEN|CLIENT[_-]?SECRET|SECRET|PASSWORD|AUTHORIZATION|PRIVATE[_-]?KEY)\b\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;]+)"""
-    ),
     "bearer-token": re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{8,}"),
+    "generic-credential": re.compile(
+        r"""(?i)\b[A-Z0-9_]*(?:API[_-]?KEY|ACCESS[_-]?TOKEN|REFRESH[_-]?TOKEN|CLIENT[_-]?SECRET|SECRET|PASSWORD|AUTHORIZATION|PRIVATE[_-]?KEY)\b\s*(?:=\s*|:\s+)(?:"[^"]*"|'[^']*'|[^\s,;]+)"""
+    ),
 }
 
 
