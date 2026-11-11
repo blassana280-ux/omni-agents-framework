@@ -301,7 +301,7 @@ class Orchestrator:
                 record.results.append(reassigned)
                 if reassigned.status != "failed":
                     memory.write(
-                        "shared",
+                        "run",
                         f"reassign:{result.task_id}",
                         {"from": result.agent_id, "to": fallback, "status": reassigned.status},
                         owner=OMNIBRAIN,
