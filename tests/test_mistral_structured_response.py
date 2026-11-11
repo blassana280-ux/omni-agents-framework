@@ -107,5 +107,44 @@ class TestMistralStructuredResponse(unittest.TestCase):
         self.assertNotIn(secret, str(result.to_dict()))
 
 
+    def test_brief_is_redacted_before_remote_request(self):
+        secret = "test-secret-key-not-a-pattern"
+        brief = Brief(
+            task_id="mistral-input-redaction",
+            agent_id="omni-research",
+            specialty="research",
+            objective=f"Process this credential: {secret}; also api_key=another-super-secret-value",
+            acceptance_criteria=[secret],
+            allowed_tools=[],
+            boundaries=[],
+        )
+        payload = {
+            "choices": [{
+                "message": {"content": json.dumps({
+                    "summary": "ok",
+                    "evidence": [],
+                    "met_criteria": [],
+                    "artifacts": [],
+                    "claims": {},
+                })}
+            }]
+        }
+        with mock.patch.dict(os.environ, {
+            "MISTRAL_API_KEY": secret,
+            "OMNI_MISTRAL_ALLOW_PAID": "1",
+        }, clear=True), mock.patch(
+            "urllib.request.urlopen", return_value=FakeResponse(payload)
+        ) as send:
+            result = MistralProvider.from_env().execute(brief)
+
+        self.assertEqual(result.status, "ok")
+        request = send.call_args.args[0]
+        body = json.loads(request.data.decode("utf-8"))
+        user_prompt = body["messages"][1]["content"]
+        self.assertNotIn(secret, user_prompt)
+        self.assertNotIn("another-super-secret-value", user_prompt)
+        self.assertIn("[REDACTED]", user_prompt)
+
+
 if __name__ == "__main__":
     unittest.main()
