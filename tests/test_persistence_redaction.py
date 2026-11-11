@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 from tests.helpers import load_registry
-from omni.memory import redact
+from omni.memory import SharedMemory, redact
 from omni.messaging import Message, MessageBus
 from omni.models import Assignment, Brief, Classification, Plan, Result, RunRecord, Task
 from omni.orchestrator import Orchestrator
@@ -224,6 +224,37 @@ class PersistenceRedactionTests(unittest.TestCase):
             Trace(secret_run_id, self.root / "secret-trace.jsonl")
         self.assertFalse((self.root / "secret-run.jsonl").exists())
         self.assertFalse((self.root / "secret-trace.jsonl").exists())
+
+
+    def test_tuple_values_are_redacted_before_json_persistence(self) -> None:
+        secret = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234"
+
+        memory_path = self.root / "tuple-memory.json"
+        memory = SharedMemory(memory_path, "run-tuple")
+        memory.write("run", "nested", {"items": (secret,)}, owner="omni-backend")
+        stored_memory = memory_path.read_text(encoding="utf-8")
+        self.assertNotIn(secret, stored_memory)
+        self.assertEqual(
+            json.loads(stored_memory)["entries"]["run::nested"]["value"]["items"],
+            ["[REDACTED]"],
+        )
+
+        bus_path = self.root / "tuple-bus.jsonl"
+        bus = MessageBus(bus_path, "run-tuple", {"omnibrain", "omni-qa"})
+        bus.send(Message(
+            run_id="run-tuple",
+            sender="omnibrain",
+            recipient="omni-qa",
+            subject="tuple test",
+            body="nested tuple",
+            payload={"items": (secret,)},
+        ))
+        self.assertNotIn(secret, bus_path.read_text(encoding="utf-8"))
+
+        trace_path = self.root / "tuple-trace.jsonl"
+        trace = Trace("run-tuple", trace_path)
+        trace.emit("tuple_test", items=(secret,))
+        self.assertNotIn(secret, trace_path.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
