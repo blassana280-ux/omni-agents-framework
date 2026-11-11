@@ -258,6 +258,20 @@ class Orchestrator:
                 continue
             assignment = by_task[result.task_id]
 
+            # A Mistral request may have been billed even when the response
+            # failed (for example, a timeout after the server processed it).
+            # Do not retry or send the same paid provider through fallback
+            # automatically; every further attempt needs a fresh decision.
+            if result.provider.strip().casefold() == "mistral":
+                trace.emit(
+                    "retry_skipped",
+                    task=result.task_id,
+                    agent=result.agent_id,
+                    provider=result.provider,
+                    reason="paid_attempt_requires_explicit_authorization",
+                )
+                continue
+
             # 1. retry with the same agent
             for attempt in range(2, self.retries + 2):
                 trace.emit("retry", task=result.task_id, agent=result.agent_id, attempt=attempt)
@@ -338,7 +352,10 @@ class Orchestrator:
                 result = latest.get(task.id)
                 if result is None or result.status == "failed":
                     continue
-                if result.claims.get("verification") == "unverified_model_output":
+                if (
+                    result.provider.strip().casefold() == "mistral"
+                    or result.claims.get("verification") == "unverified_model_output"
+                ):
                     trace.emit(
                         "correction_skipped",
                         task=task.id,
