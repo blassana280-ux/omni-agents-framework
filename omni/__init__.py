@@ -12,7 +12,7 @@ Public entry points::
 from pathlib import Path
 from typing import Optional
 
-from .executor import ManualProvider, SubprocessProvider, detect_clis, provider_from_env
+from .executor import ManualProvider, MistralProvider, SubprocessProvider, detect_clis, provider_from_env
 from .models import Agent, Brief, Classification, Plan, Result, RunRecord, Skill
 from .orchestrator import OMNIBRAIN, Orchestrator
 from .policy import Policy, PolicyDenied
@@ -34,6 +34,7 @@ __all__ = [
     "Brief",
     "Classification",
     "ManualProvider",
+    "MistralProvider",
     "MissingSpecialty",
     "OMNIBRAIN",
     "Orchestrator",
