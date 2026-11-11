@@ -35,13 +35,18 @@ class ValidationEngine:
             unmet = [c for c in task.acceptance_criteria if c not in result.met_criteria]
             if result.status not in ("ok",) or unmet:
                 incomplete.append(f"{task.id}: status={result.status}, unmet={unmet or 'none'}")
+        unstaffed_specialties = list(plan.unresolved_specialties)
+        complete = not missing_tasks and not incomplete and not unstaffed_specialties
         findings.append(
             GateFinding(
                 gate="completeness",
-                passed=not missing_tasks and not incomplete,
-                detail="all tasks delivered and criteria met"
-                if not missing_tasks and not incomplete
-                else f"missing={missing_tasks} incomplete={incomplete}",
+                passed=complete,
+                detail="all requested specialties staffed, all tasks delivered and criteria met"
+                if complete
+                else (
+                    f"missing={missing_tasks} incomplete={incomplete} "
+                    f"unstaffed_specialties={unstaffed_specialties}"
+                ),
             )
         )
 
