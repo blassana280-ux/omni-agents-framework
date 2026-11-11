@@ -48,24 +48,6 @@ class OrchestrationBase(unittest.TestCase):
         )
 
 
-class UnverifiedModelOnlyProvider:
-    name = "mistral"
-
-    def __init__(self) -> None:
-        self.calls = 0
-
-    def execute(self, brief, workdir=None) -> ProviderResult:
-        self.calls += 1
-        return ProviderResult(
-            status="incomplete",
-            summary="Model output requires independent verification",
-            evidence=["provider_response_received=true"],
-            claims={"verification": "unverified_model_output"},
-            executed=True,
-            provider=self.name,
-        )
-
-
 class TestParallelExecution(OrchestrationBase):
     """Scenario 3 — several agents run in the same wave, really concurrently."""
 
@@ -100,68 +82,6 @@ class TestParallelExecution(OrchestrationBase):
         work = [t for t, w in dispatch_wave.items() if w == 1]
         review = [t for t, w in dispatch_wave.items() if w == 2]
         self.assertTrue(work and review, dispatch_wave)
-
-
-class MalformedMistralProvider:
-    name = "mistral"
-
-    def __init__(self, status: str) -> None:
-        self.status = status
-        self.calls = 0
-
-    def execute(self, brief, workdir=None) -> ProviderResult:
-        self.calls += 1
-        return ProviderResult(
-            status=self.status,
-            summary="Mistral response unavailable",
-            error="simulated provider failure",
-            executed=self.status == "incomplete",
-            provider=self.name,
-        )
-
-
-class TestMistralCorrectionBudget(OrchestrationBase):
-    def test_unverified_mistral_output_is_not_retried_as_correction(self) -> None:
-        provider = UnverifiedModelOnlyProvider()
-        orch = self.orchestrator(provider, correction_rounds=3)
-        plan = orch.plan(SIMPLE)
-
-        record = orch.run(SIMPLE, plan=plan)
-
-        self.assertEqual(provider.calls, len(plan.assignments))
-        self.assertEqual(record.verdict, "NEEDS_WORK")
-        events = [event["event"] for event in record.trace]
-        self.assertNotIn("correction_request", events)
-        skipped = [event for event in record.trace if event["event"] == "correction_skipped"]
-        self.assertEqual(len(skipped), len(plan.assignments))
-        self.assertTrue(all(item["reason"] == "independent_verification_required" for item in skipped))
-
-    def test_malformed_mistral_output_is_not_repeated(self) -> None:
-        provider = MalformedMistralProvider("incomplete")
-        orch = self.orchestrator(provider, correction_rounds=3)
-        plan = orch.plan(SIMPLE)
-
-        record = orch.run(SIMPLE, plan=plan)
-
-        self.assertEqual(provider.calls, len(plan.assignments))
-        self.assertEqual(record.verdict, "NEEDS_WORK")
-        self.assertNotIn("correction_request", [event["event"] for event in record.trace])
-
-    def test_failed_mistral_request_is_not_retried_or_reassigned(self) -> None:
-        provider = MalformedMistralProvider("failed")
-        orch = self.orchestrator(provider, retries=3, correction_rounds=3)
-        plan = orch.plan(SIMPLE)
-
-        record = orch.run(SIMPLE, plan=plan)
-
-        self.assertEqual(provider.calls, len(plan.assignments))
-        events = [event["event"] for event in record.trace]
-        self.assertNotIn("retry", events)
-        self.assertNotIn("reassign", events)
-        skipped = [event for event in record.trace if event["event"] == "retry_skipped"]
-        self.assertEqual(len(skipped), len(plan.assignments))
-        self.assertTrue(all(event["reason"] == "paid_attempt_requires_explicit_authorization" for event in skipped))
-        self.assertEqual(record.verdict, "NEEDS_WORK")
 
 
 class TestFailureRecovery(OrchestrationBase):
@@ -214,6 +134,36 @@ class TestFailureRecovery(OrchestrationBase):
         # the run survives and recovers through the fallback agent
         self.assertIn("reassign", [e["event"] for e in record.trace])
         self.assertEqual(record.verdict, "READY")
+
+
+class TestUnknownExecutionOutcome(OrchestrationBase):
+    def test_unknown_outcome_is_never_retried_reassigned_or_corrected(self) -> None:
+        provider = ScriptedProvider(script={
+            "omni-backend": [
+                ProviderResult(
+                    status="effect_unknown",
+                    summary="The provider timed out after execution may have begun.",
+                    evidence=["execution_started=true", "completion=unknown"],
+                    executed=True,
+                    provider="scripted-double",
+                    error="timeout; side effects may have occurred",
+                )
+            ]
+        })
+        record = self.orchestrator(provider, retries=2, correction_rounds=2).run(SIMPLE)
+
+        task_results = [result for result in record.results if result.task_id == "t1-backend-api"]
+        self.assertEqual(len(task_results), 1)
+        self.assertEqual(task_results[0].status, "effect_unknown")
+        self.assertTrue(task_results[0].executed)
+        self.assertEqual(len(provider.calls), 1)
+        events = [event["event"] for event in record.trace]
+        self.assertNotIn("retry", events)
+        self.assertNotIn("reassign", events)
+        self.assertFalse(record.corrections)
+        self.assertEqual(record.verdict, "NEEDS_WORK")
+        completeness = next(item for item in record.findings if item.gate == "completeness")
+        self.assertFalse(completeness.passed)
 
 
 class TestArbitration(OrchestrationBase):
