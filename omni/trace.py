@@ -38,12 +38,21 @@ class Trace:
             "event": event,
             **fields,
         })
+        # Normalize non-JSON values through the same redactor before either
+        # retaining the event in memory or appending it to the trace file.
+        serialized = json.dumps(
+            record,
+            ensure_ascii=False,
+            default=lambda value: redact(str(value)),
+        )
+        safe_record = json.loads(serialized)
+        line = json.dumps(safe_record, ensure_ascii=False) + "\n"
         with self._lock:
-            self.events.append(record)
+            self.events.append(safe_record)
             if self.path:
                 with self.path.open("a", encoding="utf-8") as fh:
-                    fh.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
-        return record
+                    fh.write(line)
+        return safe_record
 
     # ------------------------------------------------------------ queries
     def of_type(self, event: str) -> List[Dict[str, Any]]:
