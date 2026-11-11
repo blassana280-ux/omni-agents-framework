@@ -257,5 +257,32 @@ class PersistenceRedactionTests(unittest.TestCase):
         self.assertNotIn(secret, trace_path.read_text(encoding="utf-8"))
 
 
+    def test_existing_memory_is_redacted_when_opened(self) -> None:
+        secret_key = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234"
+        secret_value = "api_key=legacy-secret-value"
+        path = self.root / "legacy-memory.json"
+        legacy = {
+            "entries": {
+                "run-legacy::facts": {
+                    "value": {"nested": {secret_key: (secret_value,)}},
+                    "owner": "omni-qa",
+                    "run_id": "run-legacy",
+                    "written_at": 1700000000.0,
+                    "expires_at": None,
+                }
+            }
+        }
+        path.write_text(json.dumps(legacy), encoding="utf-8")
+
+        memory = SharedMemory(path, "run-legacy")
+        stored = path.read_text(encoding="utf-8")
+        self.assertNotIn(secret_key, stored)
+        self.assertNotIn(secret_value, stored)
+        self.assertEqual(
+            memory.get("run-legacy", "facts"),
+            {"nested": {"[REDACTED]": ["[REDACTED]"]}},
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
