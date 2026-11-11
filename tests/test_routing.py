@@ -32,6 +32,21 @@ class TestClassification(unittest.TestCase):
         # the generalist fallback must not be used while a specialist exists
         self.assertNotIn("omni-generalist", plan.squad)
 
+    def test_brief_includes_selected_agent_profile_and_skill_references(self) -> None:
+        plan = self.router.plan("Ajoute un endpoint REST pour lister les utilisateurs")
+        brief = plan.assignments[0].brief
+        profile = brief.context["agent_profile"]
+        agent = self.registry.agents["omni-backend"]
+
+        self.assertEqual(profile["id"], agent.id)
+        self.assertEqual(profile["title"], agent.title)
+        self.assertEqual(profile["brief_template"], agent.brief_template)
+        self.assertEqual(profile["provenance"], agent.provenance)
+        self.assertEqual(
+            [skill["id"] for skill in profile["skill_references"]],
+            agent.skills,
+        )
+
     # Scenario 2 ---------------------------------------------------------
     def test_complex_request_forms_squad(self) -> None:
         request = (
