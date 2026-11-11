@@ -106,6 +106,10 @@ class TestFailureRecovery(OrchestrationBase):
         # recovery produced a usable deliverable
         self.assertEqual(record.verdict, "READY", [f for f in record.findings if not f.passed])
 
+        entries = json.loads((self.root / ".omni" / "memory.json").read_text(encoding="utf-8"))["entries"]
+        self.assertIn(f"run::{record.run_id}::reassign:t1-backend-api", entries)
+        self.assertNotIn("shared::reassign:t1-backend-api", entries)
+
     def test_total_failure_escalates_and_never_claims_success(self) -> None:
         provider = ScriptedProvider(
             script={
