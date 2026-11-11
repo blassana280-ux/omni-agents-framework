@@ -269,5 +269,32 @@ class TestMistralStructuredResponse(unittest.TestCase):
         self.assertIn("[REDACTED]", user_prompt)
 
 
+    def test_network_timeout_marks_provider_effect_unknown(self):
+        secret = "test-secret-key-not-a-pattern"
+        brief = Brief(
+            task_id="mistral-network-timeout",
+            agent_id="omni-research",
+            specialty="research",
+            objective="Classify an ambiguous provider timeout safely",
+            acceptance_criteria=[],
+            allowed_tools=[],
+            boundaries=[],
+        )
+        with mock.patch.dict(os.environ, {
+            "MISTRAL_API_KEY": secret,
+            "OMNI_MISTRAL_ALLOW_PAID": "1",
+        }, clear=True), mock.patch(
+            "omni.executor._open_no_redirect", side_effect=TimeoutError("read timed out")
+        ):
+            result = MistralProvider.from_env().execute(brief)
+
+        self.assertEqual(result.status, "effect_unknown")
+        self.assertFalse(result.executed)
+        self.assertIn("network_request=attempted", result.evidence)
+        self.assertIn("provider_effect=unknown", result.evidence)
+        self.assertIn("automatic_retry=blocked", result.evidence)
+        self.assertNotIn(secret, str(result.to_dict()))
+
+
 if __name__ == "__main__":
     unittest.main()
