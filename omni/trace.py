@@ -9,7 +9,7 @@ import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from .memory import redact
+from .memory import _open_private_regular_file, redact
 
 
 class Trace:
@@ -24,12 +24,12 @@ class Trace:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             if self.path.is_symlink():
                 raise ValueError("trace path must not be a symbolic link")
-            fd = os.open(self.path, os.O_CREAT | os.O_TRUNC | os.O_WRONLY, 0o600)
-            try:
-                if os.name != "nt":
-                    os.fchmod(fd, 0o600)
-            finally:
-                os.close(fd)
+            fd = _open_private_regular_file(
+                self.path,
+                os.O_CREAT | os.O_TRUNC | os.O_WRONLY,
+                0o600,
+            )
+            os.close(fd)
 
     def emit(self, event: str, **fields: Any) -> Dict[str, Any]:
         record = redact({
@@ -50,8 +50,14 @@ class Trace:
         with self._lock:
             self.events.append(safe_record)
             if self.path:
-                with self.path.open("a", encoding="utf-8") as fh:
+                fd = _open_private_regular_file(
+                    self.path,
+                    os.O_APPEND | os.O_WRONLY,
+                    0o600,
+                )
+                with os.fdopen(fd, "a", encoding="utf-8") as fh:
                     fh.write(line)
+                    fh.flush()
         return safe_record
 
     # ------------------------------------------------------------ queries
