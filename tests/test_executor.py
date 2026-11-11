@@ -5,6 +5,8 @@ These tests spawn actual processes; nothing here is simulated.
 
 from __future__ import annotations
 
+import os
+import stat
 import sys
 import tempfile
 import unittest
@@ -18,7 +20,7 @@ from omni.executor import (
     detect_clis,
     provider_from_env,
 )
-from omni.models import Brief
+from omni.models import Brief, ProviderResult, Result
 
 
 def make_brief() -> Brief:
@@ -79,13 +81,72 @@ class TestSubprocessProvider(unittest.TestCase):
         self.assertEqual(result.status, "failed")
         self.assertIn("timeout", result.error or "")
 
-    def test_brief_file_is_written_and_prompt_substituted(self) -> None:
+    def test_prompt_substitution_still_works_and_brief_file_is_removed(self) -> None:
         provider = SubprocessProvider(
             command=[sys.executable, "-c", "import sys;print(len(sys.argv[1])>100)", "{prompt}"]
         )
         result = provider.execute(make_brief(), self.workdir)
         self.assertEqual(result.summary.strip(), "True")
-        self.assertTrue((self.workdir / ".omni-brief-t1-test.md").is_file())
+        self.assertEqual(list(self.workdir.glob(".omni-brief-*")), [])
+
+    def test_brief_file_is_private_during_execution_and_removed_after(self) -> None:
+        provider = SubprocessProvider(
+            command=[
+                sys.executable,
+                "-c",
+                "import os,stat,sys; p=sys.argv[1]; print(os.path.isfile(p)); print(oct(stat.S_IMODE(os.stat(p).st_mode)))",
+                "{brief_file}",
+            ]
+        )
+        result = provider.execute(make_brief(), self.workdir)
+        self.assertEqual(result.status, "ok")
+        self.assertIn("True", result.summary)
+        if os.name != "nt":
+            self.assertIn("0o600", result.summary)
+        self.assertEqual(list(self.workdir.glob(".omni-brief-*")), [])
+
+    def test_provider_stdout_stderr_and_error_are_redacted(self) -> None:
+        github_secret = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234"
+        keyed_secret = "api_key=super-secret-value"
+        code = (
+            "import sys; "
+            f"print({github_secret!r}); "
+            f"print({keyed_secret!r}, file=sys.stderr); "
+            "sys.exit(4)"
+        )
+        provider = SubprocessProvider(command=[sys.executable, "-c", code])
+        result = provider.execute(make_brief(), self.workdir)
+        self.assertEqual(result.status, "failed")
+        for secret in (github_secret, keyed_secret):
+            self.assertNotIn(secret, result.summary)
+            self.assertNotIn(secret, result.stdout)
+            self.assertNotIn(secret, result.stderr)
+            self.assertNotIn(secret, result.error or "")
+        self.assertIn("[REDACTED]", result.summary)
+        self.assertIn("[REDACTED]", result.stderr)
+        self.assertIn("[REDACTED]", result.error or "")
+
+    def test_custom_provider_payload_is_redacted_at_result_ingestion(self) -> None:
+        github_secret = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234"
+        api_secret = "AKIAABCDEFGHIJKLMNOP"
+        pr = ProviderResult(
+            status="ok",
+            summary=github_secret,
+            evidence=[api_secret],
+            artifacts=[f"artifact:{github_secret}"],
+            claims={github_secret: api_secret},
+            executed=True,
+            provider="custom-provider",
+            error=f"failure token={github_secret}",
+        )
+        result = Result.from_provider(make_brief(), pr)
+        for secret in (github_secret, api_secret):
+            self.assertNotIn(secret, result.summary)
+            self.assertNotIn(secret, str(result.evidence))
+            self.assertNotIn(secret, str(result.artifacts))
+            self.assertNotIn(secret, str(result.claims))
+            self.assertNotIn(secret, result.error or "")
+        self.assertIn("[REDACTED]", str(result.claims))
 
 
 class TestProviderDetection(unittest.TestCase):
