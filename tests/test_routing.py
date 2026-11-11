@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 from tests.helpers import load_registry, patch_json
-from omni.models import Skill
+from omni.models import Classification, Skill
 from omni.registry import Registry, RegistryError
 from omni.routing import MissingSpecialty, Router
 
@@ -49,6 +49,31 @@ class TestClassification(unittest.TestCase):
         review = next(a for a in plan.assignments if a.task.specialty == "code-review")
         self.assertEqual(review.wave, 2)
         self.assertTrue(review.task.depends_on)
+
+    def test_reviewers_follow_dependencies_even_when_ranked_first(self) -> None:
+        # Force the deterministic classifier to return the reviewer before the
+        # work it must inspect. Planning must still honor the dependency graph.
+        self.router.classify = lambda request: Classification(
+            size="complex",
+            scores={},
+            specialties=["code-review", "backend-api", "frontend-ui"],
+            rationale="forced reviewer-first ordering",
+        )
+
+        plan = self.router.plan("review backend and frontend work")
+        by_specialty = {assignment.task.specialty: assignment for assignment in plan.assignments}
+        reviewer = by_specialty["code-review"]
+        reviewed = [
+            assignment
+            for assignment in plan.assignments
+            if assignment.task.specialty != "code-review"
+        ]
+
+        self.assertEqual(
+            set(reviewer.task.depends_on),
+            {assignment.task.id for assignment in reviewed},
+        )
+        self.assertEqual(reviewer.wave, max(assignment.wave for assignment in reviewed) + 1)
 
     def test_medium_request_uses_one_to_three_agents(self) -> None:
         plan = self.router.plan("Corrige l'API REST et ajoute les tests unitaires")
