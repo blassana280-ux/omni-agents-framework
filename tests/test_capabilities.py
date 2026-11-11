@@ -140,6 +140,15 @@ class TestValidationGates(unittest.TestCase):
         self.assertTrue(any("requires evidence" in p for p in problems), problems)
         self.assertTrue(any("passing test" in p for p in problems), problems)
 
+    def test_validate_rejects_unsafe_entry_point_paths(self) -> None:
+        def break_it(dest: Path) -> None:
+            def mutate(data: dict) -> None:
+                data["capabilities"][0]["entry_points"][0]["path"] = "../../.git/config"
+            patch_json(dest / "capabilities.json", mutate)
+
+        problems = self._caps(break_it).validate()
+        self.assertTrue(any("unsafe entry point path" in p for p in problems), problems)
+
     def test_validate_catches_missing_entry_points(self) -> None:
         def break_it(dest: Path) -> None:
             def mutate(data: dict) -> None:
@@ -205,6 +214,16 @@ class TestDiscoveryRouting(unittest.TestCase):
             self.assertTrue(directive["path"])
             self.assertTrue(directive["purpose"])
 
+    def test_entry_paths_refuse_traversal_even_before_registry_validation(self) -> None:
+        capability = self.caps.capabilities["browser-use-agentic"]
+        object.__setattr__(
+            capability,
+            "entry_points",
+            [type(capability.entry_points[0])(path="../.git/config", purpose="unsafe path")],
+        )
+        with self.assertRaisesRegex(CapabilityError, "unsafe entry point path"):
+            self.caps.entry_paths("browser-use-agentic")
+
     def test_unknown_capability_entry_points_raise(self) -> None:
         with self.assertRaises(CapabilityError):
             self.caps.entry_paths("does-not-exist")
@@ -251,6 +270,22 @@ class TestResultsLedger(unittest.TestCase):
         # rien ne fuit pas non plus depuis le disque
         stored = self.ledger.history("litellm-routing")[0]["summary"]
         self.assertNotIn("ghp_", stored)
+
+    def test_ledger_redacts_generic_credentials_and_bearer_tokens(self) -> None:
+        secret_values = [
+            "api_key=provider-secret-value",
+            'password="do not leak this phrase"',
+            "Authorization: Bearer abcdefghijklmnopqrstuvwxyz012345",
+            "MISTRAL_API_KEY=generic-mistral-secret",
+        ]
+        payload = " | ".join(secret_values)
+        entry = self.ledger.record("mistral-provider", "error", payload, [payload])
+        for secret in ("provider-secret-value", "do not leak this phrase", "abcdefghijklmnopqrstuvwxyz012345", "generic-mistral-secret"):
+            self.assertNotIn(secret, entry["summary"])
+            self.assertNotIn(secret, str(entry["evidence"]))
+        stored = self.ledger.history("mistral-provider")[0]
+        for secret in ("provider-secret-value", "do not leak this phrase", "abcdefghijklmnopqrstuvwxyz012345", "generic-mistral-secret"):
+            self.assertNotIn(secret, str(stored))
 
     def test_invalid_outcome_is_rejected(self) -> None:
         with self.assertRaises(CapabilityError):
