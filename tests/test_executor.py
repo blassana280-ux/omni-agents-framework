@@ -263,8 +263,12 @@ class TestMistralProvider(unittest.TestCase):
             result = provider.execute(make_brief())
 
         self.assertTrue(result.executed)
-        self.assertEqual(result.status, "ok")
+        self.assertEqual(result.status, "incomplete")
         self.assertEqual(result.summary, "Mistral answered")
+        self.assertEqual(result.met_criteria, [])
+        self.assertEqual(result.artifacts, [])
+        self.assertEqual(result.claims["verification"], "unverified_model_output")
+        self.assertEqual(result.claims["model_reported_criteria"], ["tests_run"])
         request = urlopen.call_args.args[0]
         self.assertEqual(request.full_url, "https://api.mistral.ai/v1/chat/completions")
         self.assertEqual(request.get_header("Authorization"), "Bearer test-secret")
