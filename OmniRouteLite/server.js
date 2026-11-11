@@ -5,6 +5,12 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const core = require('./core.js');
+const { resolveProviderKey, isSafeProviderEndpoint } = require('./provider-keys');
+
+// ---- clés API sécurisées (ADR-SEC-KEYS) ----
+function resolveApiKey(provider) {
+  return resolveProviderKey(provider, __dirname, process.env);
+}
 
 const cfgPath = path.join(__dirname, process.env.OMNILITE_CONFIG || 'config.json');
 const cfg = fs.existsSync(cfgPath) ? JSON.parse(fs.readFileSync(cfgPath, 'utf8')) : {};
@@ -43,12 +49,17 @@ function authorized(req) {
 
 // ---- provider call (OpenAI-compatible or Anthropic) ----
 async function callProvider(p, body, timeoutMs) {
+  if (!isSafeProviderEndpoint(p.baseUrl)) {
+    throw new Error('provider endpoint must be HTTPS without embedded credentials, query, or fragment');
+  }
+  const key = resolveApiKey(p);
+  if (!key) throw new Error('provider credential is unavailable or unsafe');
   const out = {
     name: p.name,
     url: p.type === 'anthropic' ? `${p.baseUrl}/v1/messages` : `${p.baseUrl}/v1/chat/completions`,
     headers: p.type === 'anthropic'
-      ? { 'content-type': 'application/json', 'x-api-key': p.apiKey, 'anthropic-version': '2023-06-01' }
-      : { 'content-type': 'application/json', authorization: `Bearer ${p.apiKey}` },
+      ? { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' }
+      : { 'content-type': 'application/json', authorization: `Bearer ${key}` },
     body: p.type === 'anthropic' ? core.toAnthropic(body) : { model: body.model, messages: body.messages, temperature: body.temperature, max_tokens: body.max_tokens },
   };
   const ctrl = new AbortController();
@@ -146,4 +157,4 @@ if (require.main === module) {
     if (!GATEWAY_KEY && HOST !== '127.0.0.1') console.warn('⚠ Pas de gatewayKey et écoute hors localhost : toute personne sur le réseau peut appeler l\'API.');
   });
 }
-module.exports = { server, chatCompletions, stats };
+module.exports = { server, chatCompletions, callProvider, stats, resolveApiKey };

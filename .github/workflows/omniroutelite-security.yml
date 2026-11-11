@@ -1,0 +1,28 @@
+name: OmniRouteLite key security
+
+on:
+  pull_request:
+    paths:
+      - "OmniRouteLite/**"
+      - ".github/workflows/omniroutelite-security.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  node-security-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Run key-storage security tests
+        run: node --test OmniRouteLite/security.test.js
+      - name: Syntax-check CLI/server and smoke-test provider listing
+        run: |
+          node --check OmniRouteLite/provider-keys.js
+          node --check OmniRouteLite/cli.js
+          node --check OmniRouteLite/server.js
+          OMNILITE_CONFIG=config.example.json node OmniRouteLite/cli.js providers --list
+          node -e "const server = require('./OmniRouteLite/server'); if (typeof server.resolveApiKey !== 'function') process.exit(1)"
