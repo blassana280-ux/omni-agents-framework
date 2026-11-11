@@ -184,6 +184,13 @@ class TestSharedMemory(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.memory.write("run", "api_key=super-secret-value", "value", owner="omni-qa")
 
+    def test_run_id_cannot_contain_credentials(self) -> None:
+        secret_run_id = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234"
+        target = self.path.with_name("secret-run-memory.json")
+        with self.assertRaises(ValueError):
+            SharedMemory(target, secret_run_id)
+        self.assertFalse(target.exists())
+
     @unittest.skipIf(os.name == "nt", "POSIX file permission mode is not available on Windows")
     def test_memory_and_lock_files_are_private(self) -> None:
         self.assertEqual(stat.S_IMODE(self.path.stat().st_mode), 0o600)
