@@ -39,9 +39,9 @@ SECRET_PATTERNS: Dict[str, "re.Pattern[str]"] = {
     "aws-key": re.compile(r"AKIA[0-9A-Z]{16}"),
     "private-key": re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
     "generic-credential": re.compile(
-        r"""(?i)\\b[A-Z0-9_]*(?:API[_-]?KEY|ACCESS[_-]?TOKEN|REFRESH[_-]?TOKEN|CLIENT[_-]?SECRET|SECRET|PASSWORD|AUTHORIZATION|PRIVATE[_-]?KEY)\\b\\s*[:=]\\s*(?:"[^"]*"|'[^']*'|[^\\s,;]+)"""
+        r"""(?i)\b[A-Z0-9_]*(?:API[_-]?KEY|ACCESS[_-]?TOKEN|REFRESH[_-]?TOKEN|CLIENT[_-]?SECRET|SECRET|PASSWORD|AUTHORIZATION|PRIVATE[_-]?KEY)\b\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;]+)"""
     ),
-    "bearer-token": re.compile(r"(?i)\\bBearer\\s+[A-Za-z0-9._~+/=-]{8,}"),
+    "bearer-token": re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{8,}"),
 }
 
 
@@ -201,8 +201,8 @@ class CapabilityRegistry:
         if (
             not isinstance(path, str)
             or not path
-            or "\\x00" in path
-            or "\\\\" in path
+            or "\x00" in path
+            or "\\" in path
             or path.startswith("/")
             or re.match(r"^[A-Za-z]:", path)
         ):
