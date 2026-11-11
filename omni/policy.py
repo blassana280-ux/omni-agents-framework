@@ -80,10 +80,13 @@ class Policy:
             raise ValueError("path-rule prefix must be non-empty text")
         directory_rule = prefix.endswith("/")
         normalized_prefix = cls._normalize_resource(prefix.rstrip("/"))
+        components = resource.split("/")
         if directory_rule:
-            return resource == normalized_prefix or resource.startswith(normalized_prefix + "/")
-        # Preserve the existing .env* protection while preventing case bypasses.
-        return resource.startswith(normalized_prefix)
+            # Protect a repository metadata directory at any depth, not only at
+            # the workspace root (for example vendor/package/.git/config).
+            return normalized_prefix in components
+        # Preserve .env* protection for root and nested directories.
+        return any(component.startswith(normalized_prefix) for component in components)
 
     # ------------------------------------------------------------- checks
     def check(
