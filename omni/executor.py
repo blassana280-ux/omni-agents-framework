@@ -154,11 +154,12 @@ class SubprocessProvider:
                 stdout = redact(stdout.strip())
                 stderr = redact(stderr.strip())
                 return ProviderResult(
-                    status="failed",
-                    executed=False,
+                    status="effect_unknown",
+                    executed=True,
                     provider=self.name,
-                    error=redact(f"timeout after {self.timeout}s"),
+                    error=redact(f"timeout after {self.timeout}s; execution may have produced side effects"),
                     summary=stdout[:4000],
+                    evidence=["execution_started=true", "completion=unknown", "automatic_retry=blocked"],
                     stdout=stdout,
                     stderr=stderr,
                     duration_s=time.time() - started,
@@ -433,6 +434,19 @@ class MistralProvider:
                 403: "access denied",
                 429: "rate limit or quota reached",
             }.get(exc.code, "request rejected")
+            if exc.code in (408, 425) or exc.code >= 500:
+                return ProviderResult(
+                    status="effect_unknown",
+                    executed=False,
+                    provider=self.name,
+                    error=f"Mistral API HTTP {exc.code}: provider effect is unknown",
+                    evidence=[
+                        "network_request=attempted",
+                        "provider_effect=unknown",
+                        "automatic_retry=blocked",
+                    ],
+                    duration_s=time.time() - started,
+                )
             return ProviderResult(
                 status="failed",
                 executed=False,
@@ -442,10 +456,15 @@ class MistralProvider:
             )
         except (urllib.error.URLError, TimeoutError, OSError):
             return ProviderResult(
-                status="failed",
+                status="effect_unknown",
                 executed=False,
                 provider=self.name,
-                error="Mistral API connection failed or timed out",
+                error="Mistral API connection lost; provider effect is unknown",
+                evidence=[
+                    "network_request=attempted",
+                    "provider_effect=unknown",
+                    "automatic_retry=blocked",
+                ],
                 duration_s=time.time() - started,
             )
         except (UnicodeError, json.JSONDecodeError, ValueError, KeyError, IndexError, TypeError, AttributeError):
