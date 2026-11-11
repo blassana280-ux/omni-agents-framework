@@ -116,6 +116,54 @@ class TestMistralStructuredResponse(unittest.TestCase):
         self.assertNotIn(secret, str(result.to_dict()))
 
 
+    def test_http_endpoint_is_rejected_before_sending_api_key(self):
+        secret = "test-secret-key-not-a-pattern"
+        provider = MistralProvider(
+            api_key=secret,
+            allow_paid=True,
+            endpoint="http://attacker.example/v1/chat/completions",
+        )
+        brief = Brief(
+            task_id="mistral-insecure-endpoint",
+            agent_id="omni-research",
+            specialty="research",
+            objective="Never send credentials over HTTP",
+            acceptance_criteria=[],
+            allowed_tools=[],
+            boundaries=[],
+        )
+        with mock.patch("urllib.request.urlopen") as send:
+            result = provider.execute(brief)
+
+        send.assert_not_called()
+        self.assertEqual(result.status, "failed")
+        self.assertFalse(result.executed)
+        self.assertNotIn(secret, str(result.to_dict()))
+        self.assertIn("HTTPS", result.error)
+
+    def test_endpoint_with_embedded_credentials_is_rejected(self):
+        provider = MistralProvider(
+            api_key="test-secret-key-not-a-pattern",
+            allow_paid=True,
+            endpoint="https://user:password@api.mistral.ai/v1/chat/completions",
+        )
+        brief = Brief(
+            task_id="mistral-userinfo-endpoint",
+            agent_id="omni-research",
+            specialty="research",
+            objective="Reject credential-bearing endpoints",
+            acceptance_criteria=[],
+            allowed_tools=[],
+            boundaries=[],
+        )
+        with mock.patch("urllib.request.urlopen") as send:
+            result = provider.execute(brief)
+
+        send.assert_not_called()
+        self.assertEqual(result.status, "failed")
+        self.assertIn("endpoint", result.error.lower())
+
+
     def test_brief_is_redacted_before_remote_request(self):
         secret = "test-secret-key-not-a-pattern"
         brief = Brief(
