@@ -102,6 +102,24 @@ class TestParallelExecution(OrchestrationBase):
         self.assertTrue(work and review, dispatch_wave)
 
 
+class MalformedMistralProvider:
+    name = "mistral"
+
+    def __init__(self, status: str) -> None:
+        self.status = status
+        self.calls = 0
+
+    def execute(self, brief, workdir=None) -> ProviderResult:
+        self.calls += 1
+        return ProviderResult(
+            status=self.status,
+            summary="Mistral response unavailable",
+            error="simulated provider failure",
+            executed=self.status == "incomplete",
+            provider=self.name,
+        )
+
+
 class TestMistralCorrectionBudget(OrchestrationBase):
     def test_unverified_mistral_output_is_not_retried_as_correction(self) -> None:
         provider = UnverifiedModelOnlyProvider()
@@ -117,6 +135,33 @@ class TestMistralCorrectionBudget(OrchestrationBase):
         skipped = [event for event in record.trace if event["event"] == "correction_skipped"]
         self.assertEqual(len(skipped), len(plan.assignments))
         self.assertTrue(all(item["reason"] == "independent_verification_required" for item in skipped))
+
+    def test_malformed_mistral_output_is_not_repeated(self) -> None:
+        provider = MalformedMistralProvider("incomplete")
+        orch = self.orchestrator(provider, correction_rounds=3)
+        plan = orch.plan(SIMPLE)
+
+        record = orch.run(SIMPLE, plan=plan)
+
+        self.assertEqual(provider.calls, len(plan.assignments))
+        self.assertEqual(record.verdict, "NEEDS_WORK")
+        self.assertNotIn("correction_request", [event["event"] for event in record.trace])
+
+    def test_failed_mistral_request_is_not_retried_or_reassigned(self) -> None:
+        provider = MalformedMistralProvider("failed")
+        orch = self.orchestrator(provider, retries=3, correction_rounds=3)
+        plan = orch.plan(SIMPLE)
+
+        record = orch.run(SIMPLE, plan=plan)
+
+        self.assertEqual(provider.calls, len(plan.assignments))
+        events = [event["event"] for event in record.trace]
+        self.assertNotIn("retry", events)
+        self.assertNotIn("reassign", events)
+        skipped = [event for event in record.trace if event["event"] == "retry_skipped"]
+        self.assertEqual(len(skipped), len(plan.assignments))
+        self.assertTrue(all(event["reason"] == "paid_attempt_requires_explicit_authorization" for event in skipped))
+        self.assertEqual(record.verdict, "NEEDS_WORK")
 
 
 class TestFailureRecovery(OrchestrationBase):
