@@ -261,6 +261,19 @@ class Orchestrator:
     ) -> None:
         by_task = {a.task.id: a for a in wave}
         for result in list(results):
+            # Mistral calls may be billable and their effects may be ambiguous.
+            # The provider contract therefore permits at most one attempt per
+            # task in a run: no retry, fallback reassignment, or escalation loop.
+            if str(result.provider).strip().lower() == "mistral":
+                trace.emit(
+                    "provider_replay_blocked",
+                    task=result.task_id,
+                    agent=result.agent_id,
+                    provider=result.provider,
+                    status=result.status,
+                    reason="operator must start a new run for another Mistral attempt",
+                )
+                continue
             if result.status not in ("failed",):
                 continue
             assignment = by_task[result.task_id]
@@ -343,6 +356,19 @@ class Orchestrator:
             for assignment in plan.assignments:
                 task = assignment.task
                 result = latest.get(task.id)
+                # Mistral outputs are never auto-corrected: even an incomplete
+                # structured answer can cause another paid request. A new
+                # operator-started run is required for any further attempt.
+                if result is not None and str(result.provider).strip().lower() == "mistral":
+                    trace.emit(
+                        "provider_correction_blocked",
+                        task=task.id,
+                        agent=result.agent_id,
+                        provider=result.provider,
+                        status=result.status,
+                        reason="Mistral results require a new operator-started run",
+                    )
+                    continue
                 # Never issue another automatic request when the previous
                 # provider run is unresolved or explicitly waiting for a human.
                 if result is None or result.status in {"failed", "pending_human", "effect_unknown"}:
