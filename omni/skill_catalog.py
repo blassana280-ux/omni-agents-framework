@@ -571,7 +571,7 @@ def _is_scoped_build_cleanup_example(path: str, lines: list[str], line_index: in
 
     fence_language = None
     for line in lines[:line_index]:
-        fence = re.match(r"^\\s*`{3,}([A-Za-z0-9_-]*)\\s*$", line)
+        fence = re.match(r"^\s*`{3,}([A-Za-z0-9_-]*)\s*$", line)
         if fence:
             if fence_language is None:
                 fence_language = fence.group(1).lower()
