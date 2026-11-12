@@ -140,6 +140,32 @@ class TestFailureRecovery(OrchestrationBase):
         self.assertTrue(all(r.status == "failed" for r in record.results))
         self.assertTrue(any(f.gate == "completeness" and not f.passed for f in record.findings))
 
+    def test_non_retryable_provider_states_are_not_corrected(self) -> None:
+        for status in ("effect_unknown", "pending_human"):
+            with self.subTest(status=status):
+                provider = ScriptedProvider(
+                    script={
+                        "omni-backend": [
+                            ProviderResult(
+                                status=status,
+                                summary="completion is not confirmed",
+                                executed=status == "effect_unknown",
+                                provider="scripted-double",
+                            )
+                        ]
+                    }
+                )
+                record = self.orchestrator(
+                    provider,
+                    retries=3,
+                    correction_rounds=2,
+                ).run(SIMPLE)
+
+                self.assertEqual(len(provider.calls), 1)
+                self.assertEqual(len(record.results), 1)
+                self.assertEqual(record.corrections, [])
+                self.assertEqual(record.results[0].status, status)
+
     def test_provider_exception_does_not_kill_the_run(self) -> None:
         def boom(brief):
             raise RuntimeError("provider crashed")

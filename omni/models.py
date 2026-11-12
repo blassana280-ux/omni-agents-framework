@@ -166,7 +166,7 @@ class Plan:
 # --------------------------------------------------------------------------- #
 @dataclass
 class ProviderResult:
-    status: str = "failed"  # ok | failed | incomplete | pending_human
+    status: str = "failed"  # ok | failed | incomplete | pending_human | effect_unknown
     summary: str = ""
     evidence: List[str] = field(default_factory=list)
     artifacts: List[str] = field(default_factory=list)
@@ -202,19 +202,33 @@ class Result:
 
     @classmethod
     def from_provider(cls, brief: Brief, pr: ProviderResult, reassigned_from: Optional[str] = None) -> "Result":
+        # Providers may be custom implementations; sanitize their complete
+        # returned payload at the common ingestion boundary.
+        from .memory import redact
+
+        clean = redact({
+            "status": pr.status,
+            "summary": pr.summary,
+            "evidence": list(pr.evidence),
+            "artifacts": list(pr.artifacts),
+            "met_criteria": list(pr.met_criteria),
+            "claims": dict(pr.claims),
+            "provider": pr.provider,
+            "error": pr.error,
+        })
         return cls(
             task_id=brief.task_id,
             agent_id=brief.agent_id,
-            status=pr.status,
-            summary=pr.summary,
-            evidence=list(pr.evidence),
-            artifacts=list(pr.artifacts),
-            met_criteria=list(pr.met_criteria),
-            claims=dict(pr.claims),
+            status=clean["status"],
+            summary=clean["summary"],
+            evidence=clean["evidence"],
+            artifacts=clean["artifacts"],
+            met_criteria=clean["met_criteria"],
+            claims=clean["claims"],
             executed=pr.executed,
-            provider=pr.provider,
+            provider=clean["provider"],
             attempt=brief.attempt,
-            error=pr.error,
+            error=clean["error"],
             duration_s=pr.duration_s,
             reassigned_from=reassigned_from,
         )
