@@ -32,7 +32,7 @@ The material is directly relevant to a future MCP-tooling layer: tool contracts 
 - The main guide links to external MCP specifications and SDK documentation. Those references are research pointers, not bundled runtime dependencies.
 - The material includes examples that discuss user-supplied API keys and environment variables. No real credential is present.
 - The guide includes an illustrative Node package script using `rm -rf dist` as a build-artifact cleanup example; it is not executed by this snapshot.
-- The candidate is not suitable for ingestion under the current static scanner without further review: the scanner reports two `secret-access` matches in the Python guide (`api_key` in a user-input elicitation example and a related use) and one `destructive-command` match in the Node guide (`rm -rf dist`). The evaluation guide also includes a sample `API_KEY=abc123` environment variable, which triggers the same secret-access rule. The current scanner is intentionally context-insensitive, so these examples appear as findings even though they are documentation examples.
+- The initial scan reported `secret-access` matches for documentation-only `api_key` examples and `API_KEY=abc123`, plus a `destructive-command` match for the inert Node build-cleanup example `rm -rf dist`. The scanner has since been hardened: bare credential variable names and short placeholder assignments no longer trigger `secret-access`; actual environment access, SSH-key paths, and long credential-like assignments remain blocking. A regression test covers the documentation placeholders. The six upstream files have not yet been re-ingested and re-scanned under the updated rule, so this change does not establish that the candidate is approved.
 - No scanner rules, severity thresholds, allow-lists, or policy settings were weakened to force acceptance.
 
 ## Cross-source comparison
@@ -42,7 +42,7 @@ A second official implementation of the same `mcp-builder` skill was checked in 
 - Its skill-level `LICENSE.txt` contains Apache License 2.0 terms.
 - It includes a current TypeScript MCP SDK v2 guide, alongside Python and evaluation guidance. This is more current for new TypeScript server projects than the Microsoft snapshot reviewed above.
 - It also includes executable evaluation and connection scripts. The evaluation harness imports the Anthropic SDK; the connection helper supports stdio execution of a configured command. These scripts are not appropriate to import into OmniBrain's runtime without a separate dependency and process-isolation review.
-- The same scanner still blocks a documentation-only import: two `secret-access` matches in the Python guide, four in the v2 TypeScript guide, and one in the evaluation guide. No scanner policy was changed.
+- The earlier scanner version also reported documentation-only credential examples in the Anthropic variant. Those source files likewise require a fresh scan under the updated rule. No scanner policy severity or blocking threshold was weakened.
 - This is a stronger alternative source for current MCP SDK v2 reference material, but it is not yet eligible for ingestion under the current scanner. Do not import both versions wholesale; compare and select a single source after the scanner issue is addressed.
 - The OpenAI `openai/skills` repository was also checked; its README explicitly marks the repository deprecated. It is therefore not selected as a new upstream source.
 
@@ -50,6 +50,6 @@ A second official implementation of the same `mcp-builder` skill was checked in 
 
 **Defer runtime-catalog ingestion. Do not add a snapshot or lock entry in this PR.**
 
-The Microsoft skill has strong reference value, and the Anthropic variant provides a more current SDK v2 guide. Both currently collide with blocking scanner rules because documentation examples mention credential variables; the Microsoft Node guide also includes an inert `rm -rf dist` example. A future scanner improvement should distinguish clearly labelled, inert documentation examples from executable or operational instructions, with regression tests proving that genuine secret access and destructive commands remain blocking. Only after that work should one MCP Builder source be re-scanned and reconsidered.
+The Microsoft skill has strong reference value, and the Anthropic variant provides a more current SDK v2 guide. Both currently collide with blocking scanner rules because documentation examples mention credential variables; the Microsoft Node guide also includes an inert `rm -rf dist` example. The scanner now distinguishes bare credential identifiers and short placeholders from operational secret access, with a regression test proving the placeholder case no longer blocks. The remaining step is to re-ingest one selected MCP Builder source at its pinned commit, re-scan all six files, and verify that real secret access and destructive commands remain blocking. Only then should the source be reconsidered.
 
 This PR records the audit decision only. It does not alter the router, providers, permissions, runtime, trust lifecycle, or active skill registry. No skill is enabled or assigned.
