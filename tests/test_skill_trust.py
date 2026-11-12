@@ -185,7 +185,10 @@ class SkillTrustTests(unittest.TestCase):
             "---\nname: package-doc\ndescription: package example\nlicense: MIT\n---\n"
             "```json\n{\n  \"scripts\": {\n    \"clean\": \"rm -rf dist\"\n  }\n}\n```\n"
         )
-        snapshot = ingest_skill(SOURCE, {"reference/node_mcp_server.md": content})
+        snapshot = ingest_skill(SOURCE, {
+            "SKILL.md": "---\nname: package-doc\ndescription: package example\nlicense: MIT\n---\n",
+            "reference/node_mcp_server.md": content,
+        })
         report = scan_skill(snapshot)
         self.assertNotIn("destructive-command", {finding.rule_id for finding in report.findings})
         self.assertFalse(report.blocking)
@@ -195,7 +198,10 @@ class SkillTrustTests(unittest.TestCase):
             "---\nname: unsafe-cleanup\ndescription: destructive command\nlicense: MIT\n---\n"
             "```bash\nrm -rf dist\n```\n"
         )
-        snapshot = ingest_skill(SOURCE, {"reference/node_mcp_server.md": content})
+        snapshot = ingest_skill(SOURCE, {
+            "SKILL.md": "---\nname: unsafe-cleanup\ndescription: destructive command\nlicense: MIT\n---\n",
+            "reference/node_mcp_server.md": content,
+        })
         report = scan_skill(snapshot)
         self.assertIn("destructive-command", {finding.rule_id for finding in report.findings})
         self.assertTrue(report.blocking)
