@@ -11,13 +11,14 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
 from .executor import ManualProvider, Provider
-from .memory import SharedMemory, _open_private_regular_file, redact
+from .memory import SharedMemory, redact
 from .messaging import Message, MessageBus
 from .models import (
     Arbitration,
@@ -430,14 +431,35 @@ class Orchestrator:
     def _persist(self, record: RunRecord) -> None:
         out = self.state_dir / "runs" / f"{record.run_id}.json"
         out.parent.mkdir(parents=True, exist_ok=True)
-        fd = _open_private_regular_file(
-            out,
-            os.O_CREAT | os.O_TRUNC | os.O_WRONLY,
-            0o600,
-        )
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(redact(record.to_dict()), handle, indent=2, ensure_ascii=False)
-            handle.write("\n")
+        fd, tmp = tempfile.mkstemp(dir=str(out.parent), prefix=".run-")
+        open_fd: Optional[int] = fd
+        try:
+            if os.name != "nt":
+                os.fchmod(fd, 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                open_fd = None
+                json.dump(redact(record.to_dict()), handle, indent=2, ensure_ascii=False)
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+
+            os.replace(tmp, out)
+            if os.name != "nt":
+                directory_fd = os.open(
+                    str(out.parent),
+                    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+                )
+                try:
+                    os.fsync(directory_fd)
+                finally:
+                    os.close(directory_fd)
+        finally:
+            if open_fd is not None:
+                os.close(open_fd)
+            try:
+                os.unlink(tmp)
+            except FileNotFoundError:
+                pass
 
     def deliverable(self, record: RunRecord) -> str:
         """Assemble one coherent document from all results."""
