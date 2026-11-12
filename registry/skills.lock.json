@@ -150,6 +150,36 @@
       "source_id": "muratcankoylan-context-engineering-context-compression",
       "sha256": "9f2c2a8031953276ac5f3f87a52a00e586775b42bf43dcfa56ee335fc1fba2dc",
       "state": "pinned"
+    },
+    {
+      "skill_id": "api-and-interface-design",
+      "source_id": "addyosmani-agent-skills-api-and-interface-design",
+      "sha256": "44c340a6a28ec251d50319b009ceceddf1f33feb994331f3853553cd8053569e",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "doubt-driven-development",
+      "source_id": "addyosmani-agent-skills-doubt-driven-development",
+      "sha256": "71a059a86530c039889fa712cccdb49e5e53cd7a21d4fb043506a25e8c97e0bc",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "frontend-ui-engineering",
+      "source_id": "addyosmani-agent-skills-frontend-ui-engineering",
+      "sha256": "bbed2acc6ef2d2f65525e2c0264769fc6699f77806febc7773b0f3154eb90fbf",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "observability-and-instrumentation",
+      "source_id": "addyosmani-agent-skills-observability-and-instrumentation",
+      "sha256": "33acd8bb49835eac58c752036bae6e6cc8eff248f9272b01ae54b0c34d59b907",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "performance-optimization",
+      "source_id": "addyosmani-agent-skills-performance-optimization",
+      "sha256": "d70823dc31fef94b117792b84b03b551613455f8b9c25973a95cb0cac15d323e",
+      "state": "pinned"
     }
   ]
 }

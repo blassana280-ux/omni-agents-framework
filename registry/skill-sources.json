@@ -250,6 +250,56 @@
       "license_spdx": "MIT",
       "upstream_identity": "muratcankoylan/agent-skills-for-context-engineering",
       "maintainer": "Muratcan Koylan"
+    },
+    {
+      "source_id": "addyosmani-agent-skills-api-and-interface-design",
+      "skill_id": "api-and-interface-design",
+      "repository_url": "https://github.com/addyosmani/agent-skills",
+      "skill_path": "skills/api-and-interface-design",
+      "commit_sha": "301b02b12bff98e4688e6984af6556802322bbde",
+      "license_spdx": "MIT",
+      "upstream_identity": "addyosmani/agent-skills",
+      "maintainer": "Addy Osmani"
+    },
+    {
+      "source_id": "addyosmani-agent-skills-doubt-driven-development",
+      "skill_id": "doubt-driven-development",
+      "repository_url": "https://github.com/addyosmani/agent-skills",
+      "skill_path": "skills/doubt-driven-development",
+      "commit_sha": "301b02b12bff98e4688e6984af6556802322bbde",
+      "license_spdx": "MIT",
+      "upstream_identity": "addyosmani/agent-skills",
+      "maintainer": "Addy Osmani"
+    },
+    {
+      "source_id": "addyosmani-agent-skills-frontend-ui-engineering",
+      "skill_id": "frontend-ui-engineering",
+      "repository_url": "https://github.com/addyosmani/agent-skills",
+      "skill_path": "skills/frontend-ui-engineering",
+      "commit_sha": "301b02b12bff98e4688e6984af6556802322bbde",
+      "license_spdx": "MIT",
+      "upstream_identity": "addyosmani/agent-skills",
+      "maintainer": "Addy Osmani"
+    },
+    {
+      "source_id": "addyosmani-agent-skills-observability-and-instrumentation",
+      "skill_id": "observability-and-instrumentation",
+      "repository_url": "https://github.com/addyosmani/agent-skills",
+      "skill_path": "skills/observability-and-instrumentation",
+      "commit_sha": "301b02b12bff98e4688e6984af6556802322bbde",
+      "license_spdx": "MIT",
+      "upstream_identity": "addyosmani/agent-skills",
+      "maintainer": "Addy Osmani"
+    },
+    {
+      "source_id": "addyosmani-agent-skills-performance-optimization",
+      "skill_id": "performance-optimization",
+      "repository_url": "https://github.com/addyosmani/agent-skills",
+      "skill_path": "skills/performance-optimization",
+      "commit_sha": "301b02b12bff98e4688e6984af6556802322bbde",
+      "license_spdx": "MIT",
+      "upstream_identity": "addyosmani/agent-skills",
+      "maintainer": "Addy Osmani"
     }
   ]
 }
