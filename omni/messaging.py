@@ -2,16 +2,21 @@
 
 A file-backed mailbox, scoped to a run. Messages are append-only JSONL so the
 conversation between agents is auditable after the fact. Unknown senders or
-recipients are rejected: the bus only carries traffic between declared agents.
+recipients are rejected. Secret-looking content is redacted before it reaches
+disk or the in-memory inbox/outbox.
 """
 
 from __future__ import annotations
 
 import json
+import os
+import threading
 import time
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
+
+from .memory import _open_private_regular_file, redact
 
 
 @dataclass
@@ -36,12 +41,26 @@ class UnknownAgent(LookupError):
 
 
 class MessageBus:
+    """Run-scoped JSONL mailbox with thread-safe, redacted persistence."""
+
+    ALLOWED_KINDS = frozenset({"info", "question", "answer", "correction", "arbitration"})
+
     def __init__(self, path: str | Path, run_id: str, known_agents: Set[str]) -> None:
+        if not isinstance(run_id, str) or not run_id or redact(run_id) != run_id:
+            raise ValueError("run_id must be a non-empty string without credential-like data")
         self.path = Path(path)
         self.run_id = run_id
         self.known_agents = set(known_agents)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.touch(exist_ok=True)
+        if self.path.is_symlink():
+            raise ValueError("message bus path must not be a symbolic link")
+        fd = _open_private_regular_file(
+            self.path,
+            os.O_CREAT | os.O_APPEND | os.O_WRONLY,
+            0o600,
+        )
+        os.close(fd)
+        self._lock = threading.Lock()
 
     def _validate(self, agent_id: str, role: str) -> None:
         if agent_id not in self.known_agents:
@@ -52,20 +71,38 @@ class MessageBus:
         self._validate(message.recipient, "recipient")
         if message.run_id != self.run_id:
             raise ValueError("message run_id does not match the bus run")
+        if message.kind not in self.ALLOWED_KINDS:
+            raise ValueError(f"unsupported message kind: {message.kind!r}")
+
+        # Redact the object itself so callers cannot accidentally reuse an
+        # unsanitized message after it has crossed the persistence boundary.
+        message.subject = redact(message.subject)
+        message.body = redact(message.body)
+        message.payload = redact(message.payload) if message.payload is not None else None
         message.ts = message.ts or time.time()
-        with self.path.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(message.to_dict(), ensure_ascii=False) + "\n")
+        line = json.dumps(message.to_dict(), ensure_ascii=False) + "\n"
+        with self._lock:
+            fd = _open_private_regular_file(self.path, os.O_APPEND | os.O_WRONLY, 0o600)
+            with os.fdopen(fd, "a", encoding="utf-8") as fh:
+                fh.write(line)
+                fh.flush()
         return message
 
     def all(self) -> List[Dict[str, Any]]:
         out: List[Dict[str, Any]] = []
-        for line in self.path.read_text(encoding="utf-8").splitlines():
+        with self._lock:
+            fd = _open_private_regular_file(self.path, os.O_RDONLY, 0o600)
+            with os.fdopen(fd, "r", encoding="utf-8") as fh:
+                lines = fh.read().splitlines()
+        for line in lines:
             line = line.strip()
             if not line:
                 continue
             msg = json.loads(line)
             if msg.get("run_id") == self.run_id:
-                out.append(msg)
+                # Also protect consumers reading legacy files created before
+                # write-time redaction was introduced.
+                out.append(redact(msg))
         return out
 
     def inbox(self, agent_id: str) -> List[Dict[str, Any]]:

@@ -14,6 +14,7 @@ import json
 import math
 import os
 import re
+import stat
 import tempfile
 import threading
 import time
@@ -46,6 +47,8 @@ def redact(value: Any) -> Any:
         }
     if isinstance(value, list):
         return [redact(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(redact(item) for item in value)
     return value
 
 
@@ -72,6 +75,26 @@ def _thread_lock(path: Path) -> threading.RLock:
         return _PATH_LOCKS.setdefault(key, threading.RLock())
 
 
+def _open_private_regular_file(path: str | Path, flags: int, mode: int = 0o600) -> int:
+    """Open only a regular file, refusing final-component symlinks on POSIX.
+
+    O_NONBLOCK prevents a substituted FIFO from hanging the caller before
+    fstat can reject it. O_NOFOLLOW closes the lstat/open race for the final
+    path component on platforms that provide it.
+    """
+    safe_flags = flags | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    fd = os.open(path, safe_flags, mode)
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise OSError("persistence path must refer to a regular file")
+        if os.name != "nt":
+            os.fchmod(fd, mode)
+        return fd
+    except Exception:
+        os.close(fd)
+        raise
+
+
 class SharedMemory:
     """File-backed key/value store with per-agent ownership and safe updates."""
 
@@ -81,7 +104,12 @@ class SharedMemory:
         run_id: str,
         writable_shared: Optional[List[str]] = None,
     ) -> None:
-        if not isinstance(run_id, str) or not run_id or redact(run_id) != run_id:
+        if (
+            not isinstance(run_id, str)
+            or not run_id
+            or "::" in run_id
+            or redact(run_id) != run_id
+        ):
             raise ValueError("run_id must be a non-empty string without credential-like data")
         self.path = Path(path)
         self.run_id = run_id
@@ -96,9 +124,58 @@ class SharedMemory:
                 raise MemoryStorageError("memory path must not be a symbolic link")
             if not self.path.exists():
                 self._store({"entries": {}})
-            elif os.name != "nt":
-                os.chmod(self.path, 0o600)
-            self._load()  # validate existing state before accepting writes
+            data = self._load()  # validate existing state before accepting writes
+            sanitized = redact(data)
+            schema_version = sanitized.get("schema_version", 1)
+            migrated_entries: Dict[str, Any] = {}
+
+            if schema_version == 1:
+                # Version 1 stored private keys as "scope::key". A key with
+                # another separator is ambiguous: it could be a legacy key
+                # whose first segment happens to equal run_id, or a key that
+                # was already isolated by an intermediate implementation.
+                # Refuse to guess; the original file remains untouched.
+                for old_key, entry in sanitized["entries"].items():
+                    scope, separator, legacy_key = old_key.partition("::")
+                    if not separator:
+                        raise MemoryCorruptionError(
+                            "memory entry key is missing its scope separator"
+                        )
+                    if scope == "shared":
+                        new_key = old_key
+                    else:
+                        if "::" in legacy_key:
+                            raise MemoryCorruptionError(
+                                "ambiguous legacy memory key contains '::'; "
+                                "refusing unsafe run-scope migration"
+                            )
+                        new_key = self._key(scope, legacy_key, entry["run_id"])
+                    if new_key in migrated_entries and migrated_entries[new_key] != entry:
+                        raise MemoryCorruptionError("memory key migration collision")
+                    migrated_entries[new_key] = entry
+            elif schema_version == 2:
+                # Version 2 records the key format explicitly, so keys may
+                # safely contain the separator after the run-id component.
+                for stored_key, entry in sanitized["entries"].items():
+                    scope, separator, _ = stored_key.partition("::")
+                    if not separator:
+                        raise MemoryCorruptionError(
+                            "memory entry key is missing its scope separator"
+                        )
+                    if scope != "shared":
+                        parts = stored_key.split("::", 2)
+                        if len(parts) != 3 or parts[1] != entry["run_id"]:
+                            raise MemoryCorruptionError(
+                                "versioned private memory key has an invalid run namespace"
+                            )
+                    migrated_entries[stored_key] = entry
+            else:
+                raise MemoryCorruptionError("unsupported memory schema version")
+
+            sanitized["entries"] = migrated_entries
+            sanitized["schema_version"] = 2
+            if sanitized != data:
+                self._store(sanitized)  # version, redact and migrate under the same lock
 
     @contextmanager
     def _exclusive_lock(self) -> Iterator[None]:
@@ -108,11 +185,15 @@ class SharedMemory:
 
         with _thread_lock(self._lock_path):
             try:
-                lock_file = self._lock_path.open("a+b")
+                lock_fd = _open_private_regular_file(
+                    self._lock_path,
+                    os.O_CREAT | os.O_RDWR,
+                    0o600,
+                )
             except OSError as exc:
-                raise MemoryStorageError(f"cannot open memory lock: {exc}") from exc
+                raise MemoryStorageError(f"cannot safely open memory lock: {exc}") from exc
 
-            with lock_file:
+            with os.fdopen(lock_fd, "r+b") as lock_file:
                 if os.name == "nt":
                     import msvcrt
 
@@ -137,7 +218,6 @@ class SharedMemory:
                         raise MemoryStorageError("cross-process file locking is unavailable") from exc
 
                     try:
-                        os.chmod(self._lock_path, 0o600)
                         fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
                     except OSError as exc:
                         raise MemoryStorageError(f"cannot lock memory store: {exc}") from exc
@@ -149,13 +229,15 @@ class SharedMemory:
     # ------------------------------------------------------------- plumbing
     def _load(self) -> Dict[str, Any]:
         try:
-            raw = self.path.read_text(encoding="utf-8")
+            fd = _open_private_regular_file(self.path, os.O_RDONLY, 0o600)
+            with os.fdopen(fd, "r", encoding="utf-8") as handle:
+                raw = handle.read()
         except FileNotFoundError:
             return {"entries": {}}
         except UnicodeDecodeError as exc:
             raise MemoryCorruptionError("memory store is not valid UTF-8") from exc
         except OSError as exc:
-            raise MemoryStorageError(f"cannot read memory store: {exc}") from exc
+            raise MemoryStorageError(f"cannot safely read memory store: {exc}") from exc
 
         try:
             data = json.loads(raw)
@@ -166,6 +248,13 @@ class SharedMemory:
 
         if not isinstance(data, dict) or not isinstance(data.get("entries"), dict):
             raise MemoryCorruptionError("memory store must be an object with an entries object")
+        schema_version = data.get("schema_version", 1)
+        if (
+            isinstance(schema_version, bool)
+            or not isinstance(schema_version, int)
+            or schema_version not in {1, 2}
+        ):
+            raise MemoryCorruptionError("unsupported memory schema version")
         required_fields = {"value", "owner", "run_id", "written_at", "expires_at"}
         for key, entry in data["entries"].items():
             if (
@@ -205,7 +294,9 @@ class SharedMemory:
                 os.fchmod(fd, 0o600)
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
                 open_fd = None
-                json.dump(data, fh, ensure_ascii=False, indent=2)
+                versioned_data = dict(data)
+                versioned_data["schema_version"] = 2
+                json.dump(versioned_data, fh, ensure_ascii=False, indent=2)
                 fh.flush()
                 os.fsync(fh.fileno())
 
@@ -228,8 +319,12 @@ class SharedMemory:
                 pass
 
     @staticmethod
-    def _key(scope: str, key: str) -> str:
-        return f"{scope}::{key}"
+    def _key(scope: str, key: str, run_id: str) -> str:
+        # Shared memory is deliberately global; every other scope belongs to
+        # exactly one run so a persistent store cannot leak values cross-run.
+        if scope == "shared":
+            return f"shared::{key}"
+        return f"{scope}::{run_id}::{key}"
 
     @staticmethod
     def _validate_address(scope: str, key: str, owner: str) -> None:
@@ -260,7 +355,7 @@ class SharedMemory:
         ):
             raise ValueError("ttl_s must be a positive integer or None")
 
-        full_key = self._key(scope, key)
+        full_key = self._key(scope, key, self.run_id)
         now = time.time()
         entry = {
             "value": redact(value),
@@ -277,8 +372,10 @@ class SharedMemory:
 
     # ----------------------------------------------------------------- read
     def get(self, scope: str, key: str) -> Optional[Any]:
-        entry = self._load()["entries"].get(self._key(scope, key))
+        entry = self._load()["entries"].get(self._key(scope, key, self.run_id))
         if not entry:
+            return None
+        if scope != "shared" and entry.get("run_id") != self.run_id:
             return None
         expires_at = entry.get("expires_at")
         if expires_at is not None and expires_at < time.time():
@@ -289,7 +386,16 @@ class SharedMemory:
         hits = []
         now = time.time()
         for full_key, entry in self._load()["entries"].items():
-            if scope and not full_key.startswith(f"{scope}::"):
+            is_shared = full_key.startswith("shared::")
+            if scope:
+                prefix = (
+                    f"{scope}::"
+                    if scope == "shared"
+                    else f"{scope}::{self.run_id}::"
+                )
+                if not full_key.startswith(prefix):
+                    continue
+            elif not is_shared and entry.get("run_id") != self.run_id:
                 continue
             expires_at = entry.get("expires_at")
             if expires_at is not None and expires_at < now:

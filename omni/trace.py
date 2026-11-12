@@ -1,41 +1,64 @@
-"""Append-only trace of everything the orchestrator did.
-
-Traceability requirement: every agent selection, tool decision, provider call,
-result, correction and arbitration lands in one JSONL file per run.
-"""
+"""Append-only, secret-redacted trace of orchestrator decisions."""
 
 from __future__ import annotations
 
 import json
+import os
 import time
 import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .memory import _open_private_regular_file, redact
+
 
 class Trace:
     def __init__(self, run_id: str, path: Optional[Path] = None) -> None:
+        if not isinstance(run_id, str) or not run_id or redact(run_id) != run_id:
+            raise ValueError("run_id must be a non-empty string without credential-like data")
         self.run_id = run_id
         self.path = Path(path) if path else None
         self.events: List[Dict[str, Any]] = []
         self._lock = threading.Lock()
         if self.path:
             self.path.parent.mkdir(parents=True, exist_ok=True)
-            self.path.write_text("", encoding="utf-8")
+            if self.path.is_symlink():
+                raise ValueError("trace path must not be a symbolic link")
+            fd = _open_private_regular_file(
+                self.path,
+                os.O_CREAT | os.O_TRUNC | os.O_WRONLY,
+                0o600,
+            )
+            os.close(fd)
 
     def emit(self, event: str, **fields: Any) -> Dict[str, Any]:
-        record = {
+        record = redact({
             "ts": round(time.time(), 6),
             "run_id": self.run_id,
             "event": event,
             **fields,
-        }
+        })
+        # Normalize non-JSON values through the same redactor before either
+        # retaining the event in memory or appending it to the trace file.
+        serialized = json.dumps(
+            record,
+            ensure_ascii=False,
+            default=lambda value: redact(str(value)),
+        )
+        safe_record = json.loads(serialized)
+        line = json.dumps(safe_record, ensure_ascii=False) + "\n"
         with self._lock:
-            self.events.append(record)
             if self.path:
-                with self.path.open("a", encoding="utf-8") as fh:
-                    fh.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
-        return record
+                fd = _open_private_regular_file(
+                    self.path,
+                    os.O_APPEND | os.O_WRONLY,
+                    0o600,
+                )
+                with os.fdopen(fd, "a", encoding="utf-8") as fh:
+                    fh.write(line)
+                    fh.flush()
+            self.events.append(safe_record)
+        return safe_record
 
     # ------------------------------------------------------------ queries
     def of_type(self, event: str) -> List[Dict[str, Any]]:
