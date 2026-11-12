@@ -35,6 +35,28 @@ def _tokens(text: str) -> List[str]:
     return _WORD.findall(text.lower())
 
 
+def agent_profile_context(registry: Registry, agent_id: str) -> Dict[str, object]:
+    """Build the auditable, non-executable profile metadata for one dispatch."""
+    agent = registry.agents[agent_id]
+    return {
+        "id": agent.id,
+        "title": agent.title,
+        "brief_template": agent.brief_template,
+        "provenance": agent.provenance,
+        "skill_references": [
+            {
+                "id": skill.id,
+                "title": skill.title,
+                "source": skill.source,
+                "verification": skill.verification,
+                "notes": skill.notes,
+            }
+            for skill_id in agent.skills
+            if (skill := registry.skills.get(skill_id)) is not None
+        ],
+    }
+
+
 class Router:
     def __init__(self, registry: Registry, policy: Optional[Policy] = None) -> None:
         self.registry = registry
@@ -172,23 +194,7 @@ class Router:
                 context={
                     "request": request,
                     "specialty": task.specialty,
-                    "agent_profile": {
-                        "id": agent.id,
-                        "title": agent.title,
-                        "brief_template": agent.brief_template,
-                        "provenance": agent.provenance,
-                        "skill_references": [
-                            {
-                                "id": skill.id,
-                                "title": skill.title,
-                                "source": skill.source,
-                                "verification": skill.verification,
-                                "notes": skill.notes,
-                            }
-                            for skill_id in agent.skills
-                            if (skill := self.registry.skills.get(skill_id)) is not None
-                        ],
-                    },
+                    "agent_profile": agent_profile_context(self.registry, agent_id),
                 },
             )
             assignments.append(Assignment(task=task, agent_id=agent_id, wave=wave_of[task.id], brief=brief))
