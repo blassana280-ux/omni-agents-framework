@@ -34,7 +34,7 @@ from .models import (
 )
 from .policy import Policy
 from .registry import Registry
-from .routing import Router
+from .routing import Router, agent_profile_context
 from .trace import Trace
 from .validation import ValidationEngine, verdict_for
 
@@ -175,7 +175,12 @@ class Orchestrator:
             acceptance_criteria=task.acceptance_criteria,
             allowed_tools=self.policy.allowed_tools(agent_id),
             boundaries=agent.boundaries,
-            context={"request": assignment.brief.context.get("request", ""), "specialty": task.specialty},
+            context={
+                **assignment.brief.context,
+                "request": assignment.brief.context.get("request", ""),
+                "specialty": task.specialty,
+                "agent_profile": agent_profile_context(self.registry, agent_id),
+            },
             attempt=attempt,
             correction_of=task.id if missing else None,
             missing_criteria=list(missing or []),
