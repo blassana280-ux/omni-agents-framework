@@ -186,6 +186,12 @@
       "source_id": "vercel-labs-agent-skills-react-best-practices",
       "sha256": "47004bbcfb90686bde66784f09e300da201e7957812f5bf523a2f54edffeed5f",
       "state": "pinned"
+    },
+    {
+      "skill_id": "agent-architecture",
+      "source_id": "github-awesome-copilot-agent-architecture",
+      "sha256": "e787659695264e00224f845c06c4b33605809f32d591c1bba855597c80c82d5b",
+      "state": "pinned"
     }
   ]
 }
