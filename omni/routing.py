@@ -154,8 +154,31 @@ class Router:
             rt.depends_on = [t.id for t in non_review]
 
         wave_of: Dict[str, int] = {}
-        for task in tasks:  # tasks are already in a dependency-safe order
-            wave_of[task.id] = 1 + max([wave_of.get(d, 0) for d in task.depends_on], default=0)
+        pending = {task.id: task for task in tasks}
+        while pending:
+            # A task is schedulable only after every declared dependency has
+            # itself been assigned a wave. This is independent of classifier
+            # ranking and preserves the dependency contract for reviewers.
+            ready = [
+                task
+                for task in tasks
+                if task.id in pending and all(dep in wave_of for dep in task.depends_on)
+            ]
+            if not ready:
+                blocked = {
+                    task_id: task.depends_on
+                    for task_id, task in pending.items()
+                }
+                raise ValueError(
+                    "task dependency graph contains an unknown dependency or cycle: "
+                    f"{blocked}"
+                )
+            for task in ready:
+                wave_of[task.id] = 1 + max(
+                    (wave_of[dependency] for dependency in task.depends_on),
+                    default=0,
+                )
+                del pending[task.id]
 
         assignments: List[Assignment] = []
         for task in tasks:

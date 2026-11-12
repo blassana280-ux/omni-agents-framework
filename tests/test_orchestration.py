@@ -84,6 +84,20 @@ class TestParallelExecution(OrchestrationBase):
         self.assertTrue(work and review, dispatch_wave)
 
 
+class TestPlanningCoverage(OrchestrationBase):
+    def test_unstaffed_requested_specialty_prevents_ready_verdict(self) -> None:
+        orch = self.orchestrator(ScriptedProvider())
+        plan = orch.plan(SIMPLE)
+        plan.unresolved_specialties.append("android")
+
+        record = orch.run(SIMPLE, plan=plan)
+
+        self.assertEqual(record.verdict, "NEEDS_WORK")
+        completeness = next(f for f in record.findings if f.gate == "completeness")
+        self.assertFalse(completeness.passed)
+        self.assertIn("android", completeness.detail)
+
+
 class TestFailureRecovery(OrchestrationBase):
     """Scenario 5 — retry, then reassignment, then escalation."""
 
