@@ -504,7 +504,15 @@ _STATIC_RULES = (
     ("destructive-command", "critical", re.compile(r"\b(?:rm\s+-[^\n]*\brf\b|shred\b|mkfs(?:\.\w+)?\b|dd\s+if=)", re.IGNORECASE)),
     ("shell-execution", "medium", re.compile(r"\b(?:os\.system\s*\(|subprocess\.(?:run|Popen|call)\s*\(|(?:bash|sh)\s+-c\b)", re.IGNORECASE)),
     ("network-upload", "high", re.compile(r"\b(?:curl\b[^\n]*(?:--data(?:-binary)?|-d\b|--upload-file)|wget\b[^\n]*--post-file|requests\.(?:post|put)\s*\()", re.IGNORECASE)),
-    ("secret-access", "high", re.compile(r"\b(?:os\.(?:environ|getenv)\b|id_rsa\b|(?:api|secret|access)[_-]?key\b)|(?:~?/\.ssh/)", re.IGNORECASE)),
+    (
+        "secret-access", "high",
+        re.compile(
+            r"\b(?:os\.(?:environ|getenv)\b|id_rsa\b)|(?:~?/\.ssh/)"
+            r"|\b(?:api[_-]?key|secret(?:[_-]?key)?|access[_-]?token|auth[_-]?token|password|token)"
+            r"\s*[:=]\s*(?:[\"'][^\"']{32,}[\"']|[A-Za-z0-9_./+=-]{32,})",
+            re.IGNORECASE,
+        ),
+    ),
     ("prompt-injection", "high", re.compile(r"\b(?:ignore (?:all )?(?:previous|prior) instructions|reveal (?:the )?(?:system prompt|secrets)|bypass (?:the )?safety)", re.IGNORECASE)),
 )
 
