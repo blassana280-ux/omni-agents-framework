@@ -116,6 +116,14 @@ humaine explicite, même pour un agent autorisé.
   écriture en `shared` réservée aux agents explicitement autorisés ; TTL
   optionnel ; toute valeur est **rédigée** (clés API, tokens, clés privées)
   avant persistance.
+- Chaque modification est protégée par un verrou de fichier inter-processus et
+  un verrou de thread, puis écrite par remplacement atomique avec `fsync`.
+  Le fichier mémoire et son verrou reçoivent des permissions POSIX `0600`.
+- Un JSON invalide ou un schéma inattendu déclenche
+  `MemoryCorruptionError` : le contenu existant n'est jamais silencieusement
+  remplacé par une mémoire vide.
+- Les TTL doivent être des entiers strictement positifs. Les adresses mémoire
+  ne peuvent pas contenir de chaînes ressemblant à des identifiants secrets.
 - **Bus d'agents** (`omni/messaging.py`) : boîte aux lettres JSONL par run ;
   expéditeur et destinataire doivent être des agents déclarés ; aucun transport
   réseau implicite.
