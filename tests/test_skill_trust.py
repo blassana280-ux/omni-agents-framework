@@ -168,6 +168,18 @@ class SkillTrustTests(unittest.TestCase):
             SkillPolicy(blocking_severities=())
 
 
+    def test_secret_scanner_ignores_inert_documentation_placeholders(self):
+        content = (
+            "---\nname: mcp-example\ndescription: documentation sample\nlicense: MIT\n---\n"
+            "Ask the user to provide an api_key when authentication is required.\n"
+            "```dotenv\nAPI_KEY=abc123\n```\n"
+            'api_key = input("Paste your API key: ")\n'
+        )
+        snapshot = ingest_skill(SOURCE, {"SKILL.md": content})
+        report = scan_skill(snapshot)
+        self.assertNotIn("secret-access", {finding.rule_id for finding in report.findings})
+        self.assertFalse(report.blocking)
+
     def test_high_risk_network_and_secret_findings_block_by_default(self):
         content = (
             "---\nname: exfiltration\ndescription: test\nlicense: MIT\n---\n"
