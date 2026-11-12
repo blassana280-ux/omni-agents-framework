@@ -198,6 +198,29 @@ class PersistenceRedactionTests(unittest.TestCase):
                 secrets_gate = next(f for f in findings if f.gate == "secrets")
                 self.assertFalse(secrets_gate.passed, name)
 
+    def test_user_deliverable_redacts_secrets_from_request_and_results(self) -> None:
+        secret = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234"
+        record = RunRecord(
+            request=f"Deploy with token {secret}",
+            results=[
+                Result(
+                    task_id="task-1",
+                    agent_id="omni-backend",
+                    status="ok",
+                    summary=f"Used credential {secret}",
+                    evidence=[secret],
+                    artifacts=[],
+                    met_criteria=[],
+                    claims={},
+                    executed=True,
+                    provider="test-provider",
+                )
+            ],
+        )
+        document = Orchestrator(self.registry, workspace=self.root).deliverable(record)
+        self.assertNotIn(secret, document)
+        self.assertIn("[REDACTED]", document)
+
     def test_run_snapshot_is_redacted_and_private(self) -> None:
         secret = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234"
         _, record, _ = self.make_plan_record(
