@@ -120,9 +120,11 @@ humaine explicite, même pour un agent autorisé.
   `scope::run_id::key`. Un run ne peut donc ni lire, ni rechercher, ni écraser
   les entrées privées d'un autre run. La portée `shared` reste globale et
   accessible selon les permissions explicites.
-- À l'ouverture, les anciennes clés non partagées sont migrées sous le
-  `run_id` enregistré dans chaque entrée, sous verrou ; une collision rend
-  l'ouverture impossible plutôt que d'écraser silencieusement des données.
+- Le fichier mémoire porte `schema_version=2` afin de distinguer explicitement
+  les clés déjà isolées des anciens formats. Les clés privées historiques sans
+  séparateur dans leur nom sont migrées sous le `run_id` enregistré dans chaque
+  entrée ; les anciennes clés ambiguës contenant `::` sont refusées sans
+  réécriture du fichier. Les collisions font également échouer l'ouverture.
 - Chaque modification est protégée par un verrou de fichier inter-processus et
   un verrou de thread, puis écrite par remplacement atomique avec `fsync`.
   Le fichier mémoire et son verrou reçoivent des permissions POSIX `0600`.
