@@ -10,6 +10,8 @@ measured wall time is recorded so parallelism is observable, not claimed.
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -429,7 +431,43 @@ class Orchestrator:
     def _persist(self, record: RunRecord) -> None:
         out = self.state_dir / "runs" / f"{record.run_id}.json"
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(json.dumps(redact(record.to_dict()), indent=2, ensure_ascii=False), encoding="utf-8")
+        payload = json.dumps(redact(record.to_dict()), indent=2, ensure_ascii=False)
+
+        # Publish only complete snapshots. A same-directory temporary file
+        # keeps os.replace atomic and prevents concurrent writers from
+        # interleaving JSON or exposing a partially written run record.
+        fd, temporary_path = tempfile.mkstemp(
+            dir=str(out.parent),
+            prefix=f".{out.name}.",
+            suffix=".tmp",
+        )
+        open_fd: Optional[int] = fd
+        try:
+            if os.name != "nt":
+                os.fchmod(fd, 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                open_fd = None
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+
+            os.replace(temporary_path, out)
+            if os.name != "nt":
+                directory_fd = os.open(
+                    str(out.parent),
+                    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+                )
+                try:
+                    os.fsync(directory_fd)
+                finally:
+                    os.close(directory_fd)
+        finally:
+            if open_fd is not None:
+                os.close(open_fd)
+            try:
+                os.unlink(temporary_path)
+            except FileNotFoundError:
+                pass
 
     def deliverable(self, record: RunRecord) -> str:
         """Assemble one coherent document from all results."""
