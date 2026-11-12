@@ -190,6 +190,66 @@
       "license_spdx": "Apache-2.0",
       "upstream_identity": "NVIDIA/skills",
       "maintainer": "NVIDIA Corporation"
+    },
+    {
+      "source_id": "muratcankoylan-context-engineering-harness-engineering",
+      "skill_id": "harness-engineering",
+      "repository_url": "https://github.com/muratcankoylan/agent-skills-for-context-engineering",
+      "skill_path": "skills/harness-engineering",
+      "commit_sha": "9ff0c99108b36d3b886defd825d8ac1f47dba374",
+      "license_spdx": "MIT",
+      "upstream_identity": "muratcankoylan/agent-skills-for-context-engineering",
+      "maintainer": "Muratcan Koylan"
+    },
+    {
+      "source_id": "muratcankoylan-context-engineering-multi-agent-patterns",
+      "skill_id": "multi-agent-patterns",
+      "repository_url": "https://github.com/muratcankoylan/agent-skills-for-context-engineering",
+      "skill_path": "skills/multi-agent-patterns",
+      "commit_sha": "9ff0c99108b36d3b886defd825d8ac1f47dba374",
+      "license_spdx": "MIT",
+      "upstream_identity": "muratcankoylan/agent-skills-for-context-engineering",
+      "maintainer": "Muratcan Koylan"
+    },
+    {
+      "source_id": "muratcankoylan-context-engineering-memory-systems",
+      "skill_id": "memory-systems",
+      "repository_url": "https://github.com/muratcankoylan/agent-skills-for-context-engineering",
+      "skill_path": "skills/memory-systems",
+      "commit_sha": "9ff0c99108b36d3b886defd825d8ac1f47dba374",
+      "license_spdx": "MIT",
+      "upstream_identity": "muratcankoylan/agent-skills-for-context-engineering",
+      "maintainer": "Muratcan Koylan"
+    },
+    {
+      "source_id": "muratcankoylan-context-engineering-self-improvement-loops",
+      "skill_id": "self-improvement-loops",
+      "repository_url": "https://github.com/muratcankoylan/agent-skills-for-context-engineering",
+      "skill_path": "skills/self-improvement-loops",
+      "commit_sha": "9ff0c99108b36d3b886defd825d8ac1f47dba374",
+      "license_spdx": "MIT",
+      "upstream_identity": "muratcankoylan/agent-skills-for-context-engineering",
+      "maintainer": "Muratcan Koylan"
+    },
+    {
+      "source_id": "muratcankoylan-context-engineering-tool-design",
+      "skill_id": "tool-design",
+      "repository_url": "https://github.com/muratcankoylan/agent-skills-for-context-engineering",
+      "skill_path": "skills/tool-design",
+      "commit_sha": "9ff0c99108b36d3b886defd825d8ac1f47dba374",
+      "license_spdx": "MIT",
+      "upstream_identity": "muratcankoylan/agent-skills-for-context-engineering",
+      "maintainer": "Muratcan Koylan"
+    },
+    {
+      "source_id": "muratcankoylan-context-engineering-context-compression",
+      "skill_id": "context-compression",
+      "repository_url": "https://github.com/muratcankoylan/agent-skills-for-context-engineering",
+      "skill_path": "skills/context-compression",
+      "commit_sha": "9ff0c99108b36d3b886defd825d8ac1f47dba374",
+      "license_spdx": "MIT",
+      "upstream_identity": "muratcankoylan/agent-skills-for-context-engineering",
+      "maintainer": "Muratcan Koylan"
     }
   ]
 }
