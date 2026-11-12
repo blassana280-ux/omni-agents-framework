@@ -490,5 +490,16 @@ class PersistenceRedactionTests(unittest.TestCase):
             {"marker": "key-with-separator"},
         )
 
+
+    def test_unknown_memory_schema_is_rejected_without_rewriting_file(self) -> None:
+        path = self.root / "future-memory-schema.json"
+        original = json.dumps({"schema_version": 999, "entries": {}})
+        path.write_text(original, encoding="utf-8")
+
+        with self.assertRaises(MemoryStorageError):
+            SharedMemory(path, "run-current")
+
+        self.assertEqual(path.read_text(encoding="utf-8"), original)
+
 if __name__ == "__main__":
     unittest.main()
