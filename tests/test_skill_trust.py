@@ -180,6 +180,32 @@ class SkillTrustTests(unittest.TestCase):
         self.assertNotIn("secret-access", {finding.rule_id for finding in report.findings})
         self.assertFalse(report.blocking)
 
+    def test_scanner_allows_scoped_dist_cleanup_in_json_package_example(self):
+        content = (
+            "---\nname: package-doc\ndescription: package example\nlicense: MIT\n---\n"
+            "```json\n{\n  \"scripts\": {\n    \"clean\": \"rm -rf dist\"\n  }\n}\n```\n"
+        )
+        snapshot = ingest_skill(SOURCE, {
+            "SKILL.md": "---\nname: package-doc\ndescription: package example\nlicense: MIT\n---\n",
+            "reference/node_mcp_server.md": content,
+        })
+        report = scan_skill(snapshot)
+        self.assertNotIn("destructive-command", {finding.rule_id for finding in report.findings})
+        self.assertFalse(report.blocking)
+
+    def test_scanner_still_blocks_dist_cleanup_outside_json_package_example(self):
+        content = (
+            "---\nname: unsafe-cleanup\ndescription: destructive command\nlicense: MIT\n---\n"
+            "```bash\nrm -rf dist\n```\n"
+        )
+        snapshot = ingest_skill(SOURCE, {
+            "SKILL.md": "---\nname: unsafe-cleanup\ndescription: destructive command\nlicense: MIT\n---\n",
+            "reference/node_mcp_server.md": content,
+        })
+        report = scan_skill(snapshot)
+        self.assertIn("destructive-command", {finding.rule_id for finding in report.findings})
+        self.assertTrue(report.blocking)
+
     def test_high_risk_network_and_secret_findings_block_by_default(self):
         content = (
             "---\nname: exfiltration\ndescription: test\nlicense: MIT\n---\n"
