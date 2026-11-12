@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
 from .executor import ManualProvider, Provider
-from .memory import SharedMemory, redact
+from .memory import SharedMemory
 from .messaging import Message, MessageBus
 from .models import (
     Arbitration,
@@ -221,9 +221,8 @@ class Orchestrator:
             provider_result = self.provider.execute(brief, self.workspace)
         except Exception as exc:  # a provider crash must not kill the run
             provider_result = ProviderResult(
-                status="effect_unknown",
-                error=redact(f"{type(exc).__name__}: {exc}"),
-                evidence=["provider_invocation_started=true", "completion=unknown", "automatic_retry=blocked"],
+                status="failed",
+                error=f"{type(exc).__name__}: {exc}",
                 provider=getattr(self.provider, "name", "unknown"),
                 executed=False,
                 duration_s=time.time() - started,
@@ -302,7 +301,7 @@ class Orchestrator:
                 record.results.append(reassigned)
                 if reassigned.status != "failed":
                     memory.write(
-                        "run",
+                        "shared",
                         f"reassign:{result.task_id}",
                         {"from": result.agent_id, "to": fallback, "status": reassigned.status},
                         owner=OMNIBRAIN,
@@ -337,7 +336,7 @@ class Orchestrator:
             for assignment in plan.assignments:
                 task = assignment.task
                 result = latest.get(task.id)
-                if result is None or result.status in ("failed", "effect_unknown"):
+                if result is None or result.status == "failed":
                     continue
                 unmet = [c for c in task.acceptance_criteria if c not in result.met_criteria]
                 if result.status != "ok" or unmet:
@@ -428,39 +427,9 @@ class Orchestrator:
 
     # ------------------------------------------------------------ persistence
     def _persist(self, record: RunRecord) -> None:
-        """Persist a redacted run snapshot atomically with private permissions."""
-        import os
-        import tempfile
-
         out = self.state_dir / "runs" / f"{record.run_id}.json"
         out.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=str(out.parent), prefix=".run-")
-        open_fd: Optional[int] = fd
-        try:
-            if os.name != "nt":
-                os.fchmod(fd, 0o600)
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                open_fd = None
-                json.dump(redact(record.to_dict()), fh, indent=2, ensure_ascii=False)
-                fh.flush()
-                os.fsync(fh.fileno())
-            os.replace(tmp, out)
-            if os.name != "nt":
-                directory_fd = os.open(
-                    str(out.parent),
-                    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
-                )
-                try:
-                    os.fsync(directory_fd)
-                finally:
-                    os.close(directory_fd)
-        finally:
-            if open_fd is not None:
-                os.close(open_fd)
-            try:
-                os.unlink(tmp)
-            except FileNotFoundError:
-                pass
+        out.write_text(json.dumps(record.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
 
     def deliverable(self, record: RunRecord) -> str:
         """Assemble one coherent document from all results."""
@@ -507,4 +476,4 @@ class Orchestrator:
             lines.append("")
         lines.append("## Gates")
         lines += [f"- {f.gate}: {'PASS' if f.passed else 'FAIL'} — {f.detail}" for f in record.findings]
-        return redact("\n".join(lines))
+        return "\n".join(lines)
