@@ -339,6 +339,7 @@ class PersistenceRedactionTests(unittest.TestCase):
 
         memory = SharedMemory(path, "run-legacy")
         stored = path.read_text(encoding="utf-8")
+        self.assertEqual(json.loads(stored)["schema_version"], 2)
         self.assertNotIn(secret_key, stored)
         self.assertNotIn(secret_value, stored)
         self.assertEqual(
@@ -447,6 +448,47 @@ class PersistenceRedactionTests(unittest.TestCase):
         self.assertEqual(target.read_text(encoding="utf-8"), original)
         self.assertEqual(trace.events, [])
 
+
+
+    def test_ambiguous_legacy_key_is_rejected_without_rewriting_file(self) -> None:
+        path = self.root / "ambiguous-legacy-memory.json"
+        legacy = {
+            "entries": {
+                "private::run-123::cache": {
+                    "value": {"marker": "must-remain-untouched"},
+                    "owner": "omni-qa",
+                    "run_id": "run-123",
+                    "written_at": 1700000000.0,
+                    "expires_at": None,
+                }
+            }
+        }
+        original = json.dumps(legacy, ensure_ascii=False)
+        path.write_text(original, encoding="utf-8")
+
+        with self.assertRaises(MemoryStorageError):
+            SharedMemory(path, "run-current")
+
+        self.assertEqual(path.read_text(encoding="utf-8"), original)
+
+    def test_versioned_memory_store_preserves_keys_containing_separator(self) -> None:
+        path = self.root / "versioned-memory.json"
+        memory = SharedMemory(path, "run-123")
+        memory.write(
+            "private",
+            "run-123::cache",
+            {"marker": "key-with-separator"},
+            owner="omni-qa",
+        )
+
+        stored = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(stored["schema_version"], 2)
+
+        reopened = SharedMemory(path, "run-123")
+        self.assertEqual(
+            reopened.get("private", "run-123::cache"),
+            {"marker": "key-with-separator"},
+        )
 
 if __name__ == "__main__":
     unittest.main()
