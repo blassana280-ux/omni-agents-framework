@@ -74,6 +74,27 @@ class TestParallelExecution(OrchestrationBase):
         for call in provider.calls:
             self.assertTrue(call["tools"], f"agent {call['agent']} got no tool list")
 
+    def test_dispatch_preserves_profile_and_uses_fallback_profile_on_reassignment(self) -> None:
+        class CapturingProvider(ScriptedProvider):
+            def __init__(self):
+                super().__init__(script={"omni-backend": failing("omni-backend")})
+                self.briefs = []
+
+            def execute(self, brief, workdir=None):
+                self.briefs.append(brief)
+                return super().execute(brief, workdir)
+
+        provider = CapturingProvider()
+        record = self.orchestrator(provider, retries=1).run(SIMPLE)
+
+        profiles = [
+            (brief.agent_id, brief.context.get("agent_profile", {}).get("id"))
+            for brief in provider.briefs
+        ]
+        self.assertIn(("omni-backend", "omni-backend"), profiles)
+        self.assertIn(("omni-generalist", "omni-generalist"), profiles)
+        self.assertEqual(record.verdict, "READY")
+
     def test_review_wave_runs_after_work_wave(self) -> None:
         record = self.orchestrator(ScriptedProvider()).run(COMPLEX)
         waves = [e for e in record.trace if e["event"] == "wave"]
