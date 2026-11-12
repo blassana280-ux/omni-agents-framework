@@ -425,5 +425,33 @@ class PersistenceRedactionTests(unittest.TestCase):
         self.assertEqual(trace.events, [])
 
 
+    def test_run_snapshot_is_published_atomically(self) -> None:
+        _, record, _ = self.make_plan_record()
+        orchestrator = Orchestrator(
+            self.registry,
+            workspace=self.root,
+            state_dir=self.root / ".omni",
+        )
+        run_file = self.root / ".omni" / "runs" / f"{record.run_id}.json"
+        run_file.parent.mkdir(parents=True, exist_ok=True)
+        previous = '{"previous": true}'
+        run_file.write_text(previous, encoding="utf-8")
+        real_replace = os.replace
+
+        def inspect_then_replace(source, destination):
+            self.assertEqual(Path(destination), run_file)
+            self.assertEqual(run_file.read_text(encoding="utf-8"), previous)
+            temporary = Path(source)
+            self.assertEqual(json.loads(temporary.read_text(encoding="utf-8"))["request"], record.request)
+            if os.name != "nt":
+                self.assertEqual(stat.S_IMODE(temporary.stat().st_mode), 0o600)
+            real_replace(source, destination)
+
+        with mock.patch("os.replace", side_effect=inspect_then_replace) as replace:
+            orchestrator._persist(record)
+
+        replace.assert_called_once()
+        self.assertEqual(json.loads(run_file.read_text(encoding="utf-8"))["request"], record.request)
+
 if __name__ == "__main__":
     unittest.main()
