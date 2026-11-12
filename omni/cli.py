@@ -17,6 +17,7 @@ from .gitops import GitOpsError, probe_branch_protection
 from .overlays import apply as apply_overlay, plan as plan_overlays, write_manifest
 from .orchestrator import Orchestrator
 from .registry import Registry, RegistryError
+from .skill_catalog_cli import handle_skill_command
 
 DEFAULT_ACCOUNT = "blassana280-ux"
 FrameworkDoc = "blassana280-ux/omni-agents-framework/blob/main/OMNIBRAIN.md"
@@ -91,6 +92,9 @@ def cmd_registry(args: argparse.Namespace) -> int:
 
 
 def cmd_skills(args: argparse.Namespace) -> int:
+    handled = handle_skill_command(args)
+    if handled is not None:
+        return handled
     registry = _registry(args.registry)
     hits = registry.search_skills(args.terms)
     if not hits:
@@ -192,8 +196,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     reg = sub.add_parser("registry", help="validate the registries")
     reg.set_defaults(func=cmd_registry)
 
-    skills = sub.add_parser("skills", help="search the skill registry")
+    skills = sub.add_parser("skills", help="search or inspect the skill trust catalog")
     skills.add_argument("terms", nargs="+")
+    skills.add_argument(
+        "--snapshot-dir",
+        dest="snapshot_dir",
+        help="local read-only snapshot directory used by 'skills scan'",
+    )
     skills.set_defaults(func=cmd_skills)
 
     audit = sub.add_parser("audit", help="audit the GitHub account (read-only)")

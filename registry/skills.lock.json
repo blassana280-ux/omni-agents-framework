@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "skills": [
+    {
+      "skill_id": "superpowers-test-driven-development",
+      "source_id": "obra-superpowers-test-driven-development",
+      "sha256": "d964e27f1bc7cecbfd08511ec10d79114ba6047a2ef257d5802a6114f74758b2",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "superpowers-verification-before-completion",
+      "source_id": "obra-superpowers-verification-before-completion",
+      "sha256": "8a3e006d285f620d6aaed0c33fbbb41b584d6ebc4a5b8f4199e2ef213ee13af9",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "superpowers-writing-plans",
+      "source_id": "obra-superpowers-writing-plans",
+      "sha256": "7d6bcd84f2faf6593cbeb69056f0ae8ad26acf88c9d248352862cf55f1b9592b",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "superpowers-dispatching-parallel-agents",
+      "source_id": "obra-superpowers-dispatching-parallel-agents",
+      "sha256": "66c6623c372c4dff8d64ddf759ad73fe22ed85f1353b38aa67116c8761615e89",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "superpowers-finishing-a-development-branch",
+      "source_id": "obra-superpowers-finishing-a-development-branch",
+      "sha256": "0354b0c1585bf562f9d2a424e6857e647b798f2d26eee7fef8f53e1901b3695d",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "superpowers-receiving-code-review",
+      "source_id": "obra-superpowers-receiving-code-review",
+      "sha256": "2a97da4ab372d0213a00331b25212a78df9b26d40265d683f653c5a2fc94952a",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "superpowers-using-git-worktrees",
+      "source_id": "obra-superpowers-using-git-worktrees",
+      "sha256": "e0ac19a652ce46003d1133d8a207f9cafe43b3d1f520d50b1641746e148f369f",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "superpowers-requesting-code-review",
+      "source_id": "obra-superpowers-requesting-code-review",
+      "sha256": "439a6a6058c8ba7bff9610f970fff395fc6126427dc1baa75063b18727e07d4d",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "superpowers-systematic-debugging",
+      "source_id": "obra-superpowers-systematic-debugging",
+      "sha256": "e1bddfb78115f3ebbe5a07531e2469d7d9f87af20584c27f3cac44c05ad577f8",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "superpowers-writing-skills",
+      "source_id": "obra-superpowers-writing-skills",
+      "sha256": "7774fa35b436c3f549dc923bfb7a2700b40959c557ffd651c4183b76ddb0d12e",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "agent-consent-patterns",
+      "source_id": "mrchaarlie-agent-consent-patterns",
+      "sha256": "b76175dec2e5d1f8826c18cdb59fce7ca73037d5b2585b0d0abc94e2951fbbfd",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "ecc-agent-eval",
+      "source_id": "affaan-m-ecc-agent-eval",
+      "sha256": "1dcd3d0f3ee95c9d14f131494daaa93f3c49d18b0a0712c58e99eca16aa3141b",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "ecc-agent-security-hardening",
+      "source_id": "affaan-m-ecc-agent-security-hardening",
+      "sha256": "80780f721e3a92a93127dbf098d5e319827d4a84e8d10ec14a6d20131d975db4",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "ecc-agent-architecture-audit",
+      "source_id": "affaan-m-ecc-agent-architecture-audit",
+      "sha256": "a959cf7df7af32fe0a98133dd6b41ddbb922c5825c6f1dcca3e709fe838a5f6a",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "ecc-team-agent-orchestration",
+      "source_id": "affaan-m-ecc-team-agent-orchestration",
+      "sha256": "4a8e4911cebe028cf1b07290461a761434c580bff57c377e9c7b1b5efda2d8cb",
+      "state": "pinned"
+    },
+    {
+      "skill_id": "submission-pack-builder",
+      "source_id": "imma-plugin-autopilot-submission-pack-builder",
+      "sha256": "232aa9c924199a10f515965e1c17613d66201af068362aa0b61752516b0c1ec6",
+      "state": "pinned"
+    }
+  ]
+}

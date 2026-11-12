@@ -1,0 +1,165 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "source_id": "obra-superpowers-test-driven-development",
+      "skill_id": "superpowers-test-driven-development",
+      "repository_url": "https://github.com/obra/superpowers",
+      "skill_path": "skills/test-driven-development",
+      "commit_sha": "df2e996a174f49f05aa5d5777ca56fbb0aa972ec",
+      "license_spdx": "MIT",
+      "upstream_identity": "obra/superpowers",
+      "maintainer": "Jesse Vincent (obra)"
+    },
+    {
+      "source_id": "obra-superpowers-verification-before-completion",
+      "skill_id": "superpowers-verification-before-completion",
+      "repository_url": "https://github.com/obra/superpowers",
+      "skill_path": "skills/verification-before-completion",
+      "commit_sha": "df2e996a174f49f05aa5d5777ca56fbb0aa972ec",
+      "license_spdx": "MIT",
+      "upstream_identity": "obra/superpowers",
+      "maintainer": "Jesse Vincent (obra)"
+    },
+    {
+      "source_id": "obra-superpowers-writing-plans",
+      "skill_id": "superpowers-writing-plans",
+      "repository_url": "https://github.com/obra/superpowers",
+      "skill_path": "skills/writing-plans",
+      "commit_sha": "df2e996a174f49f05aa5d5777ca56fbb0aa972ec",
+      "license_spdx": "MIT",
+      "upstream_identity": "obra/superpowers",
+      "maintainer": "Jesse Vincent (obra)"
+    },
+    {
+      "source_id": "obra-superpowers-dispatching-parallel-agents",
+      "skill_id": "superpowers-dispatching-parallel-agents",
+      "repository_url": "https://github.com/obra/superpowers",
+      "skill_path": "skills/dispatching-parallel-agents",
+      "commit_sha": "df2e996a174f49f05aa5d5777ca56fbb0aa972ec",
+      "license_spdx": "MIT",
+      "upstream_identity": "obra/superpowers",
+      "maintainer": "Jesse Vincent (obra)"
+    },
+    {
+      "source_id": "obra-superpowers-finishing-a-development-branch",
+      "skill_id": "superpowers-finishing-a-development-branch",
+      "repository_url": "https://github.com/obra/superpowers",
+      "skill_path": "skills/finishing-a-development-branch",
+      "commit_sha": "df2e996a174f49f05aa5d5777ca56fbb0aa972ec",
+      "license_spdx": "MIT",
+      "upstream_identity": "obra/superpowers",
+      "maintainer": "Jesse Vincent (obra)"
+    },
+    {
+      "source_id": "obra-superpowers-receiving-code-review",
+      "skill_id": "superpowers-receiving-code-review",
+      "repository_url": "https://github.com/obra/superpowers",
+      "skill_path": "skills/receiving-code-review",
+      "commit_sha": "df2e996a174f49f05aa5d5777ca56fbb0aa972ec",
+      "license_spdx": "MIT",
+      "upstream_identity": "obra/superpowers",
+      "maintainer": "Jesse Vincent (obra)"
+    },
+    {
+      "source_id": "obra-superpowers-using-git-worktrees",
+      "skill_id": "superpowers-using-git-worktrees",
+      "repository_url": "https://github.com/obra/superpowers",
+      "skill_path": "skills/using-git-worktrees",
+      "commit_sha": "df2e996a174f49f05aa5d5777ca56fbb0aa972ec",
+      "license_spdx": "MIT",
+      "upstream_identity": "obra/superpowers",
+      "maintainer": "Jesse Vincent (obra)"
+    },
+    {
+      "source_id": "obra-superpowers-requesting-code-review",
+      "skill_id": "superpowers-requesting-code-review",
+      "repository_url": "https://github.com/obra/superpowers",
+      "skill_path": "skills/requesting-code-review",
+      "commit_sha": "df2e996a174f49f05aa5d5777ca56fbb0aa972ec",
+      "license_spdx": "MIT",
+      "upstream_identity": "obra/superpowers",
+      "maintainer": "Jesse Vincent (obra)"
+    },
+    {
+      "source_id": "obra-superpowers-systematic-debugging",
+      "skill_id": "superpowers-systematic-debugging",
+      "repository_url": "https://github.com/obra/superpowers",
+      "skill_path": "skills/systematic-debugging",
+      "commit_sha": "df2e996a174f49f05aa5d5777ca56fbb0aa972ec",
+      "license_spdx": "MIT",
+      "upstream_identity": "obra/superpowers",
+      "maintainer": "Jesse Vincent (obra)"
+    },
+    {
+      "source_id": "obra-superpowers-writing-skills",
+      "skill_id": "superpowers-writing-skills",
+      "repository_url": "https://github.com/obra/superpowers",
+      "skill_path": "skills/writing-skills",
+      "commit_sha": "df2e996a174f49f05aa5d5777ca56fbb0aa972ec",
+      "license_spdx": "MIT",
+      "upstream_identity": "obra/superpowers",
+      "maintainer": "Jesse Vincent (obra)"
+    },
+    {
+      "source_id": "mrchaarlie-agent-consent-patterns",
+      "skill_id": "agent-consent-patterns",
+      "repository_url": "https://github.com/mrchaarlie/agent-consent-patterns",
+      "skill_path": "plugins/agent-consent-patterns/skills/agent-consent-patterns",
+      "commit_sha": "faaffbcdf804873943169f5c08c0d960ccd3156e",
+      "license_spdx": "MIT",
+      "upstream_identity": "mrchaarlie/agent-consent-patterns",
+      "maintainer": "Charles Wu"
+    },
+    {
+      "source_id": "affaan-m-ecc-agent-eval",
+      "skill_id": "ecc-agent-eval",
+      "repository_url": "https://github.com/affaan-m/ECC",
+      "skill_path": "skills/agent-eval",
+      "commit_sha": "d2ef2680594f9a17526a6e1a2e18b3d242c5d17b",
+      "license_spdx": "MIT",
+      "upstream_identity": "affaan-m/ECC",
+      "maintainer": "Affaan Mustafa"
+    },
+    {
+      "source_id": "affaan-m-ecc-agent-security-hardening",
+      "skill_id": "ecc-agent-security-hardening",
+      "repository_url": "https://github.com/affaan-m/ECC",
+      "skill_path": "skills/agent-security-hardening",
+      "commit_sha": "d2ef2680594f9a17526a6e1a2e18b3d242c5d17b",
+      "license_spdx": "MIT",
+      "upstream_identity": "affaan-m/ECC",
+      "maintainer": "Affaan Mustafa"
+    },
+    {
+      "source_id": "affaan-m-ecc-agent-architecture-audit",
+      "skill_id": "ecc-agent-architecture-audit",
+      "repository_url": "https://github.com/affaan-m/ECC",
+      "skill_path": "skills/agent-architecture-audit",
+      "commit_sha": "d2ef2680594f9a17526a6e1a2e18b3d242c5d17b",
+      "license_spdx": "MIT",
+      "upstream_identity": "affaan-m/ECC",
+      "maintainer": "Affaan Mustafa"
+    },
+    {
+      "source_id": "affaan-m-ecc-team-agent-orchestration",
+      "skill_id": "ecc-team-agent-orchestration",
+      "repository_url": "https://github.com/affaan-m/ECC",
+      "skill_path": "skills/team-agent-orchestration",
+      "commit_sha": "d2ef2680594f9a17526a6e1a2e18b3d242c5d17b",
+      "license_spdx": "MIT",
+      "upstream_identity": "affaan-m/ECC",
+      "maintainer": "Affaan Mustafa"
+    },
+    {
+      "source_id": "imma-plugin-autopilot-submission-pack-builder",
+      "skill_id": "submission-pack-builder",
+      "repository_url": "https://github.com/imMamdouhaboammar/chatgpt-codex-plugin-autopilot",
+      "skill_path": "skills/submission-pack-builder",
+      "commit_sha": "a01ba2d048db98726e58dcccc19e56b9590d5c06",
+      "license_spdx": "MIT",
+      "upstream_identity": "imMamdouhaboammar/chatgpt-codex-plugin-autopilot",
+      "maintainer": "Mamdouh Aboammar"
+    }
+  ]
+}
