@@ -10,13 +10,14 @@ measured wall time is recorded so parallelism is observable, not claimed.
 from __future__ import annotations
 
 import json
+import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
 from .executor import ManualProvider, Provider
-from .memory import SharedMemory, redact
+from .memory import SharedMemory, _open_private_regular_file, redact
 from .messaging import Message, MessageBus
 from .models import (
     Arbitration,
@@ -429,7 +430,14 @@ class Orchestrator:
     def _persist(self, record: RunRecord) -> None:
         out = self.state_dir / "runs" / f"{record.run_id}.json"
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(json.dumps(redact(record.to_dict()), indent=2, ensure_ascii=False), encoding="utf-8")
+        fd = _open_private_regular_file(
+            out,
+            os.O_CREAT | os.O_TRUNC | os.O_WRONLY,
+            0o600,
+        )
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(redact(record.to_dict()), handle, indent=2, ensure_ascii=False)
+            handle.write("\\n")
 
     def deliverable(self, record: RunRecord) -> str:
         """Assemble one coherent document from all results."""
