@@ -138,9 +138,9 @@ humaine explicite, même pour un agent autorisé.
 - **Traces** (`omni/trace.py`) : les champs sont rédigés avant d'entrer en
   mémoire ou dans le JSONL ; le fichier est créé avec des permissions POSIX
   `0600`.
-- **État de run** (`omni/orchestrator.py`) : le snapshot JSON complet est
-  rédigé, écrit dans un fichier temporaire privé, synchronisé puis remplacé
-  atomiquement.
+- **État de run** (`omni/orchestrator.py`) : le snapshot JSON complet et
+  le livrable retourné à l'opérateur sont rédigés ; le snapshot est écrit dans
+  un fichier temporaire privé, synchronisé puis remplacé atomiquement.
 - **Exécution provider** (`omni/executor.py`) : chaque brief fichier est
   créé avec un nom aléatoire dans le workspace, en permissions POSIX `0600`,
   puis supprimé dans un bloc `finally` après la fin ou l'échec du processus.
