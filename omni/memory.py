@@ -126,30 +126,56 @@ class SharedMemory:
                 self._store({"entries": {}})
             data = self._load()  # validate existing state before accepting writes
             sanitized = redact(data)
+            schema_version = sanitized.get("schema_version", 1)
             migrated_entries: Dict[str, Any] = {}
-            for old_key, entry in sanitized["entries"].items():
-                scope, separator, legacy_key = old_key.partition("::")
-                if not separator:
-                    raise MemoryCorruptionError("memory entry key is missing its scope separator")
-                if scope == "shared":
-                    new_key = old_key
-                else:
-                    parts = old_key.split("::", 2)
-                    already_isolated = (
-                        len(parts) == 3 and parts[1] == entry["run_id"]
-                    )
-                    new_key = (
-                        old_key
-                        if already_isolated
-                        else self._key(scope, legacy_key, entry["run_id"])
-                    )
-                if new_key in migrated_entries and migrated_entries[new_key] != entry:
-                    raise MemoryCorruptionError("memory key migration collision")
-                migrated_entries[new_key] = entry
+
+            if schema_version == 1:
+                # Version 1 stored private keys as "scope::key". A key with
+                # another separator is ambiguous: it could be a legacy key
+                # whose first segment happens to equal run_id, or a key that
+                # was already isolated by an intermediate implementation.
+                # Refuse to guess; the original file remains untouched.
+                for old_key, entry in sanitized["entries"].items():
+                    scope, separator, legacy_key = old_key.partition("::")
+                    if not separator:
+                        raise MemoryCorruptionError(
+                            "memory entry key is missing its scope separator"
+                        )
+                    if scope == "shared":
+                        new_key = old_key
+                    else:
+                        if "::" in legacy_key:
+                            raise MemoryCorruptionError(
+                                "ambiguous legacy memory key contains '::'; "
+                                "refusing unsafe run-scope migration"
+                            )
+                        new_key = self._key(scope, legacy_key, entry["run_id"])
+                    if new_key in migrated_entries and migrated_entries[new_key] != entry:
+                        raise MemoryCorruptionError("memory key migration collision")
+                    migrated_entries[new_key] = entry
+            elif schema_version == 2:
+                # Version 2 records the key format explicitly, so keys may
+                # safely contain the separator after the run-id component.
+                for stored_key, entry in sanitized["entries"].items():
+                    scope, separator, _ = stored_key.partition("::")
+                    if not separator:
+                        raise MemoryCorruptionError(
+                            "memory entry key is missing its scope separator"
+                        )
+                    if scope != "shared":
+                        parts = stored_key.split("::", 2)
+                        if len(parts) != 3 or parts[1] != entry["run_id"]:
+                            raise MemoryCorruptionError(
+                                "versioned private memory key has an invalid run namespace"
+                            )
+                    migrated_entries[stored_key] = entry
+            else:
+                raise MemoryCorruptionError("unsupported memory schema version")
 
             sanitized["entries"] = migrated_entries
+            sanitized["schema_version"] = 2
             if sanitized != data:
-                self._store(sanitized)  # redact and isolate legacy entries under the same lock
+                self._store(sanitized)  # version, redact and migrate under the same lock
 
     @contextmanager
     def _exclusive_lock(self) -> Iterator[None]:
@@ -222,6 +248,13 @@ class SharedMemory:
 
         if not isinstance(data, dict) or not isinstance(data.get("entries"), dict):
             raise MemoryCorruptionError("memory store must be an object with an entries object")
+        schema_version = data.get("schema_version", 1)
+        if (
+            isinstance(schema_version, bool)
+            or not isinstance(schema_version, int)
+            or schema_version not in {1, 2}
+        ):
+            raise MemoryCorruptionError("unsupported memory schema version")
         required_fields = {"value", "owner", "run_id", "written_at", "expires_at"}
         for key, entry in data["entries"].items():
             if (
@@ -261,7 +294,9 @@ class SharedMemory:
                 os.fchmod(fd, 0o600)
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
                 open_fd = None
-                json.dump(data, fh, ensure_ascii=False, indent=2)
+                versioned_data = dict(data)
+                versioned_data["schema_version"] = 2
+                json.dump(versioned_data, fh, ensure_ascii=False, indent=2)
                 fh.flush()
                 os.fsync(fh.fileno())
 
