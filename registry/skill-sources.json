@@ -300,6 +300,16 @@
       "license_spdx": "MIT",
       "upstream_identity": "addyosmani/agent-skills",
       "maintainer": "Addy Osmani"
+    },
+    {
+      "source_id": "vercel-labs-agent-skills-react-best-practices",
+      "skill_id": "vercel-react-best-practices",
+      "repository_url": "https://github.com/vercel-labs/agent-skills",
+      "skill_path": "skills/react-best-practices",
+      "commit_sha": "1a2c79d4e6c4a2283dc2c614b6538cbe1ed5ca62",
+      "license_spdx": "MIT",
+      "upstream_identity": "vercel-labs/agent-skills",
+      "maintainer": "Vercel Engineering"
     }
   ]
 }
