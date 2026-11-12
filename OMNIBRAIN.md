@@ -138,9 +138,9 @@ humaine explicite, même pour un agent autorisé.
 - **Traces** (`omni/trace.py`) : les champs sont rédigés avant d'entrer en
   mémoire ou dans le JSONL ; le fichier est créé avec des permissions POSIX
   `0600`.
-- **État de run** (`omni/orchestrator.py`) : le snapshot JSON complet est
-  rédigé, écrit dans un fichier temporaire privé, synchronisé puis remplacé
-  atomiquement.
+- **État de run** (`omni/orchestrator.py`) : le snapshot JSON complet et
+  le livrable retourné à l'opérateur sont rédigés ; le snapshot est écrit dans
+  un fichier temporaire privé, synchronisé puis remplacé atomiquement.
 - Le gate `secrets` inspecte la demande, les résultats complets (preuves,
   claims, erreurs, résumés, artefacts) et les événements de trace ; il bloque
   tout contenu ressemblant à un identifiant secret.
