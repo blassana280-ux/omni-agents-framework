@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
 from .executor import ManualProvider, Provider
-from .memory import SharedMemory, redact
+from .memory import SharedMemory
 from .messaging import Message, MessageBus
 from .models import (
     Arbitration,
@@ -301,7 +301,7 @@ class Orchestrator:
                 record.results.append(reassigned)
                 if reassigned.status != "failed":
                     memory.write(
-                        "run",
+                        "shared",
                         f"reassign:{result.task_id}",
                         {"from": result.agent_id, "to": fallback, "status": reassigned.status},
                         owner=OMNIBRAIN,
@@ -427,39 +427,9 @@ class Orchestrator:
 
     # ------------------------------------------------------------ persistence
     def _persist(self, record: RunRecord) -> None:
-        """Persist a redacted run snapshot atomically with private permissions."""
-        import os
-        import tempfile
-
         out = self.state_dir / "runs" / f"{record.run_id}.json"
         out.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=str(out.parent), prefix=".run-")
-        open_fd: Optional[int] = fd
-        try:
-            if os.name != "nt":
-                os.fchmod(fd, 0o600)
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                open_fd = None
-                json.dump(redact(record.to_dict()), fh, indent=2, ensure_ascii=False)
-                fh.flush()
-                os.fsync(fh.fileno())
-            os.replace(tmp, out)
-            if os.name != "nt":
-                directory_fd = os.open(
-                    str(out.parent),
-                    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
-                )
-                try:
-                    os.fsync(directory_fd)
-                finally:
-                    os.close(directory_fd)
-        finally:
-            if open_fd is not None:
-                os.close(open_fd)
-            try:
-                os.unlink(tmp)
-            except FileNotFoundError:
-                pass
+        out.write_text(json.dumps(record.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
 
     def deliverable(self, record: RunRecord) -> str:
         """Assemble one coherent document from all results."""
