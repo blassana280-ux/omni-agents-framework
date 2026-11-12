@@ -562,6 +562,24 @@ def _redact_evidence(line: str) -> str:
     return line.strip()[:240]
 
 
+def _is_scoped_build_cleanup_example(path: str, lines: list[str], line_index: int) -> bool:
+    """Ignore only the canonical dist cleanup inside a Markdown JSON package example."""
+    if PurePosixPath(path).suffix.lower() not in {".md", ".markdown"}:
+        return False
+    if lines[line_index].strip() not in {'"clean": "rm -rf dist"', '"clean": "rm -rf dist",'}:
+        return False
+
+    fence_language = None
+    for line in lines[:line_index]:
+        fence = re.match(r"^\\s*`{3,}([A-Za-z0-9_-]*)\\s*$", line)
+        if fence:
+            if fence_language is None:
+                fence_language = fence.group(1).lower()
+            else:
+                fence_language = None
+    return fence_language in {"json", "jsonc"}
+
+
 def scan_skill(snapshot: SkillIngestionResult, *, policy: SkillPolicy = SkillPolicy()) -> SkillScanReport:
     """Run documented static patterns over text; never evaluate skill instructions."""
     if not isinstance(snapshot, SkillIngestionResult):
@@ -571,12 +589,15 @@ def scan_skill(snapshot: SkillIngestionResult, *, policy: SkillPolicy = SkillPol
     findings = []
     for rule_id, severity, pattern in _STATIC_RULES:
         for path, file_content in snapshot._contents:
-            for line_number, line in enumerate(file_content.splitlines(), start=1):
+            lines = file_content.splitlines()
+            for line_index, line in enumerate(lines):
+                if rule_id == "destructive-command" and _is_scoped_build_cleanup_example(path, lines, line_index):
+                    continue
                 match = pattern.search(line)
                 if match:
                     findings.append(SkillScanFinding(
                         rule_id=rule_id, severity=severity, path=path,
-                        line_number=line_number, evidence=_redact_evidence(line),
+                        line_number=line_index + 1, evidence=_redact_evidence(line),
                     ))
     return SkillScanReport(
         sha256=snapshot.sha256,
