@@ -343,7 +343,9 @@ class Orchestrator:
             for assignment in plan.assignments:
                 task = assignment.task
                 result = latest.get(task.id)
-                if result is None or result.status == "failed":
+                # Never issue another automatic request when the previous
+                # provider run is unresolved or explicitly waiting for a human.
+                if result is None or result.status in {"failed", "pending_human", "effect_unknown"}:
                     continue
                 unmet = [c for c in task.acceptance_criteria if c not in result.met_criteria]
                 if result.status != "ok" or unmet:
